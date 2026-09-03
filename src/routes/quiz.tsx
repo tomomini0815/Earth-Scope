@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Check, RefreshCw, X } from "lucide-react";
+import { Check, RefreshCw, X, Award, Globe, BookOpen } from "lucide-react";
 
 import { SiteHeader } from "@/components/SiteHeader";
+import { FlagImage } from "@/components/FlagImage";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { countries } from "@/data/countries";
@@ -13,25 +14,29 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/quiz")({
   head: () => ({
     meta: [
-      { title: "世界地理クイズ — 国名・首都・国旗 | GeoQuest" },
+      { title: "世界地理クイズ — 国名・首都・国旗・入試ポイント | EarthScope (ES)" },
       {
         name: "description",
-        content: "国名・首都・国旗・歴史年表の並べ替えクイズで、世界地理の知識を定着させましょう。全5問・即時採点。",
+        content: "全世界198ヵ国の国旗・首都・入試受験ポイント・歴史年表クイズ。全10問・即時採点と詳しい解説付き。",
       },
-      { property: "og:title", content: "世界地理クイズ | GeoQuest" },
-      { property: "og:description", content: "国名・首都・国旗・年表並べ替えの4モードで実力チェック。" },
+      { property: "og:title", content: "世界地理クイズ | EarthScope (ES)" },
+      { property: "og:description", content: "国旗・国名・首都・受験ポイント・年表並べ替えの5モードで実力チェック。" },
     ],
   }),
   component: QuizPage,
 });
 
-type Mode = "capital" | "flag" | "timeline";
-const MODES: { id: Mode; label: string; desc: string }[] = [
-  { id: "capital", label: "首都あて", desc: "国名から首都を選ぶ" },
-  { id: "flag", label: "国旗あて", desc: "国旗からその国を選ぶ" },
-  { id: "timeline", label: "年表並べ替え", desc: "出来事を古い順に並べる" },
+type Mode = "flag" | "flag_choice" | "capital" | "exam" | "timeline";
+
+const MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
+  { id: "flag", label: "国旗あて", desc: "表示された国旗から国名を選ぶ", icon: "🚩" },
+  { id: "flag_choice", label: "国旗えらび", desc: "国名から正しい国旗を選ぶ", icon: "🌐" },
+  { id: "capital", label: "首都あて", desc: "国旗と国名から首都を選ぶ", icon: "🏛️" },
+  { id: "exam", label: "受験ポイント", desc: "中学・高校入試頻出の地理・歴史問題（10問）", icon: "📝" },
+  { id: "timeline", label: "年表並べ替え", desc: "出来事を古い順に並べ替える", icon: "⏳" },
 ];
-const QUESTION_COUNT = 5;
+
+const QUESTION_COUNT = 10;
 
 const shuffle = <T,>(arr: T[]): T[] => {
   const a = [...arr];
@@ -43,63 +48,152 @@ const shuffle = <T,>(arr: T[]): T[] => {
 };
 
 type Question = {
+  country: Country;
   prompt: string;
-  hint?: string;
-  choices: string[];
-  answer: string;
+  flagHint?: string | undefined; // 国旗あて用の国旗
+  textHint?: string | undefined; // 受験問題のQなど
+  choices: { id: string; label: string; flag?: string }[];
+  answerId: string;
   explanation: string;
+  isFlagGrid?: boolean;
 };
+
+function parseYear(yearStr: string): number {
+  const isBCE = yearStr.includes("前") || yearStr.includes("BC") || yearStr.includes("B.C.");
+  const cleaned = yearStr.replace(/[^0-9]/g, "");
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num)) return 0;
+  // 「16世紀」などは 1500年頃として扱う
+  if (yearStr.includes("世紀") && num < 30) {
+    const centuryYear = (num - 1) * 100;
+    return isBCE ? -centuryYear : centuryYear;
+  }
+  return isBCE ? -num : num;
+}
 
 function buildQuestions(mode: Mode): Question[] {
   const pool = shuffle(countries);
-  if (mode === "timeline") {
-    return pool
-      .filter((c) => c.history.timeline.length >= 3)
-      .slice(0, QUESTION_COUNT)
-      .map((c) => {
-        const picked = shuffle(c.history.timeline).slice(0, 3);
-        const sorted = [...picked].sort((a, b) => Number(a.year) - Number(b.year));
-        const answer = sorted.map((t) => t.event).join(" → ");
-        const wrongs = shuffle([
-          [sorted[2], sorted[0], sorted[1]],
-          [sorted[1], sorted[0], sorted[2]],
-          [sorted[2], sorted[1], sorted[0]],
-        ])
-          .slice(0, 3)
-          .map((set) => set.map((t) => t!.event).join(" → "))
-          .filter((s) => s !== answer)
-          .slice(0, 3);
-        return {
-          prompt: `${c.flag} ${c.nameJa}の出来事を古い順に並べたものはどれ？`,
-          choices: shuffle([answer, ...wrongs]),
-          answer,
-          explanation: sorted.map((t) => `${t.year} ${t.event}`).join(" / "),
-        };
-      });
+
+  // 1. 国旗あて（大きな国旗画像を見て国名を選ぶ）
+  if (mode === "flag") {
+    return pool.slice(0, QUESTION_COUNT).map((c) => {
+      const wrongCountries = shuffle(pool.filter((o) => o.iso3 !== c.iso3)).slice(0, 3);
+      // 選択肢には国名テキストのみを渡し、国旗画像はネタバレ防止のため表示しない
+      const answerChoice = { id: c.iso3, label: c.nameJa };
+      const wrongChoices = wrongCountries.map((o) => ({ id: o.iso3, label: o.nameJa }));
+      const choices = shuffle([answerChoice, ...wrongChoices]);
+      return {
+        country: c,
+        prompt: "この国旗の国はどこ？",
+        flagHint: c.flag,
+        choices,
+        answerId: c.iso3,
+        explanation: `${c.nameJa}（${c.nameEn}）の国旗です。首都：${c.basic.capital}、地域：${c.continent}。`,
+      };
+    });
   }
-  const label = (c: Country) => (mode === "capital" ? c.basic.capital : c.nameJa);
-  return pool.slice(0, QUESTION_COUNT).map((c) => {
-    const wrongs = shuffle(pool.filter((o) => o.iso3 !== c.iso3))
-      .slice(0, 3)
-      .map(label);
-    return {
-      prompt: mode === "capital" ? `${c.nameJa}の首都はどこ？` : `この国旗はどの国？`,
-      hint: mode === "flag" ? c.flag : undefined,
-      choices: shuffle([label(c), ...wrongs]),
-      answer: label(c),
-      explanation:
-        mode === "capital"
-          ? `${c.nameJa}（${c.nameEn}）の首都は${c.basic.capital}です。`
-          : `${c.flag} は${c.nameJa}（${c.nameEn}）の国旗です。首都は${c.basic.capital}。`,
-    };
-  });
+
+  // 2. 国旗えらび（国名を見て4つの大きな国旗画像から選ぶ）
+  if (mode === "flag_choice") {
+    return pool.slice(0, QUESTION_COUNT).map((c) => {
+      const wrongCountries = shuffle(pool.filter((o) => o.iso3 !== c.iso3)).slice(0, 3);
+      // 選択肢には国旗画像のみを表示
+      const answerChoice = { id: c.iso3, label: c.nameJa, flag: c.flag };
+      const wrongChoices = wrongCountries.map((o) => ({ id: o.iso3, label: o.nameJa, flag: o.flag }));
+      const choices = shuffle([answerChoice, ...wrongChoices]);
+      return {
+        country: c,
+        prompt: `${c.nameJa}（${c.nameEn}）の国旗はどれ？`,
+        choices,
+        answerId: c.iso3,
+        explanation: `${c.nameJa}の国旗です。首都は「${c.basic.capital}」、面積は約${c.basic.area.toLocaleString()} km²。`,
+        isFlagGrid: true,
+      };
+    });
+  }
+
+  // 3. 首都あて（国旗と国名から首都を答える）
+  if (mode === "capital") {
+    return pool.slice(0, QUESTION_COUNT).map((c) => {
+      const wrongCapitals = shuffle(
+        pool.filter((o) => o.iso3 !== c.iso3 && o.basic.capital !== c.basic.capital)
+      )
+        .slice(0, 3)
+        .map((o) => ({ id: o.basic.capital, label: o.basic.capital }));
+      const answerChoice = { id: c.basic.capital, label: c.basic.capital };
+      const choices = shuffle([answerChoice, ...wrongCapitals]);
+      return {
+        country: c,
+        prompt: `${c.nameJa}（${c.nameEn}）の首都はどこ？`,
+        choices,
+        answerId: c.basic.capital,
+        explanation: `${c.nameJa}の首都は「${c.basic.capital}」です。公用語：${c.basic.languages}。`,
+      };
+    });
+  }
+
+  // 4. 受験ポイント（入試頻出問題から10問出題）
+  if (mode === "exam") {
+    const allExamItems: { country: Country; q: string; a: string }[] = [];
+    for (const country of pool) {
+      for (const ep of country.examPoints) {
+        allExamItems.push({ country, q: ep.q, a: ep.a });
+      }
+    }
+    const shuffledExams = shuffle(allExamItems).slice(0, QUESTION_COUNT);
+    return shuffledExams.map((item, idx) => {
+      const wrongAnswers = shuffle(
+        allExamItems.filter((o) => o.a !== item.a && o.country.iso3 !== item.country.iso3)
+      )
+        .slice(0, 3)
+        .map((o) => ({ id: o.a, label: o.a }));
+      const answerChoice = { id: item.a, label: item.a };
+      const choices = shuffle([answerChoice, ...wrongAnswers]);
+      return {
+        country: item.country,
+        prompt: `【${item.country.nameJa}】の重要入試ポイント`,
+        textHint: `Q. ${item.q}`,
+        choices,
+        answerId: item.a,
+        explanation: `${item.country.nameJa}に関する入試問題：${item.q} → 正解は「${item.a}」です。`,
+      };
+    });
+  }
+
+  // 5. 年表並べ替え（10問出題）
+  return pool
+    .filter((c) => c.history.timeline.length >= 3)
+    .slice(0, QUESTION_COUNT)
+    .map((c) => {
+      const picked = shuffle(c.history.timeline).slice(0, 3);
+      const sorted = [...picked].sort((a, b) => parseYear(a.year) - parseYear(b.year));
+      const answer = sorted.map((t) => t.event).join(" → ");
+      const wrongs = shuffle([
+        [sorted[2], sorted[0], sorted[1]],
+        [sorted[1], sorted[0], sorted[2]],
+        [sorted[2], sorted[1], sorted[0]],
+      ])
+        .slice(0, 3)
+        .map((set) => set.map((t) => t!.event).join(" → "))
+        .filter((s) => s !== answer)
+        .slice(0, 3);
+
+      const allChoices = shuffle([answer, ...wrongs]).map((str) => ({ id: str, label: str }));
+      return {
+        country: c,
+        prompt: `${c.nameJa}の歴史的出来事を古い順に並べたものはどれ？`,
+        choices: allChoices,
+        answerId: answer,
+        explanation: sorted.map((t) => `${t.year}年: ${t.event}`).join(" / "),
+      };
+    });
 }
 
 function QuizPage() {
-  const [mode, setMode] = useState<Mode>("capital");
+  const [mode, setMode] = useState<Mode>("flag");
   const [seed, setSeed] = useState(0);
   const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
   const [done, setDone] = useState(false);
   const addResult = useProgress((s) => s.addResult);
@@ -112,15 +206,15 @@ function QuizPage() {
     setMode(nextMode);
     setSeed((s) => s + 1);
     setIndex(0);
-    setPicked(null);
+    setPickedId(null);
     setCorrect(0);
     setDone(false);
   };
 
-  const answer = (choice: string) => {
-    if (picked) return;
-    setPicked(choice);
-    if (choice === q?.answer) setCorrect((c) => c + 1);
+  const answer = (choiceId: string) => {
+    if (pickedId) return;
+    setPickedId(choiceId);
+    if (choiceId === q?.answerId) setCorrect((c) => c + 1);
   };
 
   const next = () => {
@@ -131,88 +225,189 @@ function QuizPage() {
       return;
     }
     setIndex((i) => i + 1);
-    setPicked(null);
+    setPickedId(null);
   };
 
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-2xl px-4 py-6">
-        <h1 className="font-display text-2xl font-bold">クイズモード</h1>
-        <p className="mt-1 text-sm text-muted-foreground">全{QUESTION_COUNT}問。答えを選ぶとすぐに解説が出ます。</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+              <span>🌍</span> 世界地理クイズ
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              全{QUESTION_COUNT}問・即時採点。Windowsでも鮮明なSVG国旗でしっかり学べます！
+            </p>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
+            <Globe className="size-3.5 text-primary" />
+            <span>197ヵ国対応</span>
+          </div>
+        </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* クイズモード選択タブ */}
+        <div className="mt-5 flex flex-wrap gap-2">
           {MODES.map((m) => (
             <button
               key={m.id}
               onClick={() => restart(m.id)}
               className={cn(
-                "rounded-full border border-border px-3 py-1.5 text-xs font-medium",
-                mode === m.id ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
+                "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all shadow-sm",
+                mode === m.id
+                  ? "border-primary bg-primary text-primary-foreground shadow"
+                  : "border-border bg-card text-foreground hover:bg-secondary"
               )}
               title={m.desc}
             >
-              {m.label}
+              <span>{m.icon}</span>
+              <span>{m.label}</span>
             </button>
           ))}
         </div>
 
         {done ? (
           <div className="surface-card mt-6 animate-pop p-6 text-center">
-            <p className="text-sm text-muted-foreground">結果</p>
-            <p className="font-display text-4xl font-bold text-primary">
+            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Award className="size-7" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">チャレンジ結果</p>
+            <p className="font-display text-4xl font-extrabold text-primary my-1">
               {correct} / {questions.length}
             </p>
-            <p className="mt-2 text-sm">
-              正答率 {Math.round((correct / questions.length) * 100)}%（{MODES.find((m) => m.id === mode)!.label}）
+            <p className="text-sm font-medium">
+              正答率 {Math.round((correct / questions.length) * 100)}%（{MODES.find((m) => m.id === mode)!.label}・全{questions.length}問）
             </p>
-            <Button className="mt-5" onClick={() => restart()}>
-              <RefreshCw className="size-4" /> もう一度挑戦
+
+            {/* 今回出題された国々の国旗一覧 */}
+            <div className="mt-6 rounded-xl border border-border bg-muted/40 p-4 text-left">
+              <p className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 mb-3">
+                <BookOpen className="size-3.5" /> 今回出題された10ヵ国の国旗と国名：
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {questions.map((item, idx) => (
+                  <div
+                    key={`${item.country.iso3}-${idx}`}
+                    className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/90 px-2.5 py-2 text-xs font-medium shadow-sm hover:border-primary/40 transition-colors"
+                  >
+                    <FlagImage flag={item.country.flag} size="sm" />
+                    <span className="truncate">{item.country.nameJa}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Button className="mt-6 font-semibold" onClick={() => restart()}>
+              <RefreshCw className="size-4 mr-1.5" /> 次の10問に挑戦する
             </Button>
           </div>
         ) : (
           q && (
-            <div className="surface-card mt-6 p-5">
-              <div className="flex items-center gap-3">
-                <Progress value={((index + (picked ? 1 : 0)) / questions.length) * 100} className="h-2" />
-                <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  第{index + 1}問 / {questions.length}
+            <div className="surface-card mt-6 p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 flex-1">
+                  <Progress value={((index + (pickedId ? 1 : 0)) / questions.length) * 100} className="h-2 flex-1" />
+                </div>
+                <span className="whitespace-nowrap font-bold text-muted-foreground">
+                  第{index + 1}問 / 全{questions.length}問
                 </span>
               </div>
 
-              {q.hint && <p className="mt-5 text-center text-7xl leading-none">{q.hint}</p>}
-              <h2 className="mt-4 font-display text-lg font-bold">{q.prompt}</h2>
+              {/* 国旗ヒントの画像表示（国旗あてモード用・高精細SVG） */}
+              {q.flagHint && (
+                <div className="mt-6 flex flex-col items-center justify-center">
+                  <div className="overflow-hidden rounded-xl border border-border/80 shadow-md bg-card p-2">
+                    <FlagImage
+                      flag={q.flagHint}
+                      size="2xl"
+                      className="w-44 h-28 sm:w-56 sm:h-36 object-cover rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
 
-              <div className="mt-4 grid gap-2">
+              {/* テキストヒント（受験問題用など） */}
+              {q.textHint && (
+                <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 text-left font-medium text-foreground text-sm sm:text-base leading-relaxed">
+                  {q.textHint}
+                </div>
+              )}
+
+              {/* 問題文 */}
+              <h2 className="mt-5 font-display text-lg font-bold leading-snug flex items-center gap-2">
+                {!q.flagHint && <FlagImage flag={q.country.flag} size="md" />}
+                <span>{q.prompt}</span>
+              </h2>
+
+              {/* 選択肢一覧 */}
+              <div className={cn("mt-5 grid gap-2.5", q.isFlagGrid ? "grid-cols-2 gap-3.5" : "grid-cols-1")}>
                 {q.choices.map((choice) => {
-                  const isAnswer = choice === q.answer;
-                  const state = !picked ? "idle" : isAnswer ? "correct" : choice === picked ? "wrong" : "idle";
+                  const isAnswer = choice.id === q.answerId;
+                  const state = !pickedId ? "idle" : isAnswer ? "correct" : choice.id === pickedId ? "wrong" : "idle";
                   return (
                     <button
-                      key={choice}
-                      onClick={() => answer(choice)}
-                      disabled={!!picked}
+                      key={choice.id}
+                      onClick={() => answer(choice.id)}
+                      disabled={!!pickedId}
                       className={cn(
-                        "flex items-center justify-between gap-2 rounded-lg border px-4 py-3 text-left text-sm transition-colors",
-                        state === "idle" && "border-border bg-card hover:bg-secondary",
-                        state === "correct" && "border-success bg-success/15 font-semibold",
-                        state === "wrong" && "border-destructive bg-destructive/10",
+                        "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all shadow-sm",
+                        q.isFlagGrid
+                          ? "flex-col justify-center py-5 text-center gap-2.5 hover:scale-[1.02]"
+                          : "text-sm font-medium",
+                        state === "idle" && "border-border bg-card hover:border-primary/40 hover:bg-secondary/60 hover:shadow",
+                        state === "correct" && "border-success bg-success/15 font-bold shadow-sm ring-2 ring-success",
+                        state === "wrong" && "border-destructive bg-destructive/10 ring-2 ring-destructive",
                       )}
                     >
-                      <span>{choice}</span>
-                      {state === "correct" && <Check className="size-4 shrink-0 text-success" />}
-                      {state === "wrong" && <X className="size-4 shrink-0 text-destructive" />}
+                      {q.isFlagGrid ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <FlagImage flag={choice.flag} size="xl" className="w-28 h-18 rounded-md shadow" />
+                          {/* 回答後のみどの国の国旗かを表示 */}
+                          {pickedId && (
+                            <span className="text-xs font-semibold animate-pop text-muted-foreground">{choice.label}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="leading-snug">{choice.label}</span>
+                      )}
+                      {!q.isFlagGrid && (
+                        <>
+                          {state === "correct" && <Check className="size-4 shrink-0 text-success" />}
+                          {state === "wrong" && <X className="size-4 shrink-0 text-destructive" />}
+                        </>
+                      )}
                     </button>
                   );
                 })}
               </div>
 
-              {picked && (
-                <div className="mt-4 animate-pop rounded-lg bg-muted p-3 text-sm">
-                  <p className="font-bold">{picked === q.answer ? "正解！" : "残念…"}</p>
-                  <p className="mt-1 text-muted-foreground">{q.explanation}</p>
-                  <Button className="mt-3 w-full" onClick={next}>
-                    {index + 1 >= questions.length ? "結果を見る" : "次の問題へ"}
+              {/* 回答後の即時解説フィードバック */}
+              {pickedId && (
+                <div className="mt-5 animate-pop rounded-xl border border-border bg-muted/70 p-4 text-sm">
+                  <div className="flex items-center gap-2 font-bold">
+                    {pickedId === q.answerId ? (
+                      <>
+                        <span className="flex size-6 items-center justify-center rounded-full bg-success text-white">
+                          <Check className="size-4" />
+                        </span>
+                        <span className="text-success font-extrabold text-base">正解！</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex size-6 items-center justify-center rounded-full bg-destructive text-white">
+                          <X className="size-4" />
+                        </span>
+                        <span className="text-destructive font-extrabold text-base">不正解…</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-2.5 flex items-start gap-2 text-foreground/90 font-medium leading-relaxed">
+                    <FlagImage flag={q.country.flag} size="sm" className="mt-0.5 shrink-0" />
+                    <span>{q.explanation}</span>
+                  </div>
+                  <Button className="mt-4 w-full font-bold shadow" onClick={next}>
+                    {index + 1 >= questions.length ? "結果を見る" : "次の問題へ（第" + (index + 2) + "問）"}
                   </Button>
                 </div>
               )}

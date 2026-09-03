@@ -20,7 +20,7 @@ const collection = world as unknown as FeatureCollection;
 export type WorldMapProps = {
   learnedMapIds: Set<string>;
   activeContinent: ContinentId | "all";
-  selectedId?: string;
+  selectedId?: string | undefined;
   onSelect: (mapId: string) => void;
 };
 

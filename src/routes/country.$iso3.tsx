@@ -13,10 +13,10 @@ export const Route = createFileRoute("/country/$iso3")({
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
-      return { meta: [{ title: "国が見つかりません — GeoQuest" }, { name: "robots", content: "noindex" }] };
+      return { meta: [{ title: "国が見つかりません — EarthScope (ES)" }, { name: "robots", content: "noindex" }] };
     }
     const { country } = loaderData;
-    const title = `${country.nameJa}の基本データ・歴史・文化 — GeoQuest`;
+    const title = `${country.nameJa}の基本データ・歴史・文化 — EarthScope (ES)`;
     const description = `${country.nameJa}（${country.nameEn}）の首都・人口・経済・地理・歴史年表と受験ポイントをまとめて学べます。`;
     return {
       meta: [

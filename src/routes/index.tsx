@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { CountryDetail } from "@/components/CountryDetail";
+import { FlagImage } from "@/components/FlagImage";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorldMap } from "@/components/WorldMap";
 import { Button } from "@/components/ui/button";
@@ -17,16 +18,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "GeoQuest — インタラクティブ世界地図で学ぶ地理・歴史" },
+      { title: "EarthScope (ES) — インタラクティブ世界地図で学ぶ地理・歴史" },
       {
         name: "description",
         content:
-          "世界地図をクリックして各国の歴史・文化・人口・経済・地理を学べる、中高生向けの学習アプリ。クイズと比較機能で受験対策にも。",
+          "世界地図をクリックして各国の歴史・文化・人口・経済・地理・入試ポイントを学べる EarthScope (ES)。クイズと比較機能で学習・受験対策に最適。",
       },
-      { property: "og:title", content: "GeoQuest — インタラクティブ世界地図で学ぶ" },
+      { property: "og:title", content: "EarthScope (ES) — インタラクティブ世界地図で学ぶ" },
       {
         property: "og:description",
-        content: "地図から国を選んで学び、クイズで定着。中高生・受験生のための世界地図学習アプリ。",
+        content: "地図から国を選んで学び、クイズで定着。全世界198ヵ国の世界地図学習プラットフォーム EarthScope。",
       },
     ],
   }),
@@ -119,9 +120,10 @@ function Index() {
                       <button
                         key={c.iso3}
                         onClick={() => select(c.id)}
-                        className="rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-secondary"
+                        className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-secondary"
                       >
-                        {c.flag} {c.nameJa}
+                        <FlagImage flag={c.flag} size="xs" />
+                        <span>{c.nameJa}</span>
                       </button>
                     ))}
                   </div>
@@ -144,8 +146,8 @@ function Index() {
                 className="surface-card flex items-center justify-between px-3 py-2.5 transition-transform hover:-translate-y-0.5"
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
-                  <span className="text-xl">{c.flag}</span>
-                  {c.nameJa}
+                  <FlagImage flag={c.flag} size="sm" />
+                  <span>{c.nameJa}</span>
                 </span>
                 {learned.includes(c.iso3) && (
                   <span className="rounded-full bg-success px-2 py-0.5 text-[10px] text-success-foreground">

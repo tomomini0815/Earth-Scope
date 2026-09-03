@@ -4,6 +4,7 @@ import { Award, Lock } from "lucide-react";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorldMap } from "@/components/WorldMap";
+import { FlagImage } from "@/components/FlagImage";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { countries } from "@/data/countries";
@@ -15,12 +16,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/mypage")({
   head: () => ({
     meta: [
-      { title: "マイページ — 学習の進捗とバッジ | GeoQuest" },
+      { title: "マイページ — 学習の進捗とバッジ | EarthScope (ES)" },
       {
         name: "description",
         content: "学習済みの国、大陸ごとの達成度、クイズの正答率、獲得バッジを確認できるマイページ。",
       },
-      { property: "og:title", content: "マイページ | GeoQuest" },
+      { property: "og:title", content: "マイページ | EarthScope (ES)" },
       { property: "og:description", content: "学習済みマップ・正答率・バッジで進捗を可視化。" },
     ],
   }),
@@ -63,9 +64,23 @@ function MyPage() {
           <div className="surface-card p-4">
             <p className="text-xs text-muted-foreground">お気に入り</p>
             <p className="font-display text-2xl font-bold">{favorites.length}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {favorites.map((f) => byIso3(f)?.flag).join(" ") || "まだありません"}
-            </p>
+            <div className="mt-1.5 text-xs text-muted-foreground">
+              {favorites.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {favorites.slice(0, 12).map((f) => {
+                    const c = byIso3(f);
+                    return c ? (
+                      <FlagImage key={f} flag={c.flag} size="xs" alt={c.nameJa} />
+                    ) : null;
+                  })}
+                  {favorites.length > 12 && (
+                    <span className="text-[10px] text-muted-foreground">+{favorites.length - 12}</span>
+                  )}
+                </div>
+              ) : (
+                "まだありません"
+              )}
+            </div>
           </div>
         </div>
 

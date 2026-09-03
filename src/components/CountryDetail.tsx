@@ -4,6 +4,7 @@ import { BookmarkCheck, Check, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FlagImage } from "@/components/FlagImage";
 import { continentLabel, type Country } from "@/data/types";
 import { useProgress } from "@/stores/progress";
 
@@ -40,8 +41,8 @@ export function CountryDetail({ country, compact }: { country: Country; compact?
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-3xl leading-none">{country.flag}</span>
+          <div className="flex items-center gap-3">
+            <FlagImage flag={country.flag} size="lg" className="rounded shadow" />
             <div>
               <h2 className="font-display text-xl font-bold leading-tight">{country.nameJa}</h2>
               <p className="text-xs text-muted-foreground">{country.nameEn}</p>
