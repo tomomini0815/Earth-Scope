@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompareRouteImport } from './routes/compare'
+import { Route as MypageRouteImport } from './routes/mypage'
+import { Route as QuizRouteImport } from './routes/quiz'
+import { Route as CountryIso3RouteImport } from './routes/country.$iso3'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MypageRoute = MypageRouteImport.update({
+  id: '/mypage',
+  path: '/mypage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuizRoute = QuizRouteImport.update({
+  id: '/quiz',
+  path: '/quiz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CountryIso3Route = CountryIso3RouteImport.update({
+  id: '/country/$iso3',
+  path: '/country/$iso3',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/compare': typeof CompareRoute
+  '/mypage': typeof MypageRoute
+  '/quiz': typeof QuizRoute
+  '/country/$iso3': typeof CountryIso3Route
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/compare': typeof CompareRoute
+  '/mypage': typeof MypageRoute
+  '/quiz': typeof QuizRoute
+  '/country/$iso3': typeof CountryIso3Route
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/compare': typeof CompareRoute
+  '/mypage': typeof MypageRoute
+  '/quiz': typeof QuizRoute
+  '/country/$iso3': typeof CountryIso3Route
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/compare' | '/mypage' | '/quiz' | '/country/$iso3'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/compare' | '/mypage' | '/quiz' | '/country/$iso3'
+  id: '__root__' | '/' | '/compare' | '/mypage' | '/quiz' | '/country/$iso3'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CompareRoute: typeof CompareRoute
+  MypageRoute: typeof MypageRoute
+  QuizRoute: typeof QuizRoute
+  CountryIso3Route: typeof CountryIso3Route
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mypage': {
+      id: '/mypage'
+      path: '/mypage'
+      fullPath: '/mypage'
+      preLoaderRoute: typeof MypageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quiz': {
+      id: '/quiz'
+      path: '/quiz'
+      fullPath: '/quiz'
+      preLoaderRoute: typeof QuizRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/country/$iso3': {
+      id: '/country/$iso3'
+      path: '/country/$iso3'
+      fullPath: '/country/$iso3'
+      preLoaderRoute: typeof CountryIso3RouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CompareRoute: CompareRoute,
+  MypageRoute: MypageRoute,
+  QuizRoute: QuizRoute,
+  CountryIso3Route: CountryIso3Route,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
