@@ -12,7 +12,7 @@ export default defineConfig({
   },
   nitro: false,
   vite: {
-    base: "/globe-savvy-learner/",
+    base: process.env.BASE_PATH || "/Earth-Scope/",
   },
 });
 
