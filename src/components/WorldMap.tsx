@@ -17,6 +17,71 @@ const MIN_ZOOM_2D = 1;
 const MAX_ZOOM_2D = 8;
 const GLOBE_DEFAULT_RADIUS = 265; // 半径265（直径530pxの大迫力）
 
+// 地図データ上に存在する独立198ヵ国外の自治領・海外領土のマッピング
+const SPECIAL_TERRITORIES: Record<
+  string,
+  {
+    nameJa: string;
+    nameEn: string;
+    flag: string;
+    iso3: string;
+    continent: ContinentId;
+    parentMapId?: string;
+    parentNameJa?: string;
+  }
+> = {
+  "304": {
+    nameJa: "グリーンランド（デンマーク自治領）",
+    nameEn: "Greenland (Denmark)",
+    flag: "🇬🇱",
+    iso3: "GRL",
+    continent: "north-america",
+    parentMapId: "208",
+    parentNameJa: "デンマーク",
+  },
+  "630": {
+    nameJa: "プエルトリコ（米国自治連邦区）",
+    nameEn: "Puerto Rico (USA)",
+    flag: "🇵🇷",
+    iso3: "PRI",
+    continent: "north-america",
+    parentMapId: "840",
+    parentNameJa: "アメリカ",
+  },
+  "254": {
+    nameJa: "仏領ギアナ（フランス海外県）",
+    nameEn: "French Guiana (France)",
+    flag: "🇬🇫",
+    iso3: "GUF",
+    continent: "south-america",
+    parentMapId: "250",
+    parentNameJa: "フランス",
+  },
+  "732": {
+    nameJa: "西サハラ",
+    nameEn: "Western Sahara",
+    flag: "🇪🇭",
+    iso3: "ESH",
+    continent: "africa",
+  },
+  "010": {
+    nameJa: "南極大陸",
+    nameEn: "Antarctica",
+    flag: "🇦🇶",
+    iso3: "ATA",
+    continent: "oceania",
+  },
+  "540": {
+    nameJa: "ニューカレドニア（仏特別自治体）",
+    nameEn: "New Caledonia (France)",
+    flag: "🇳🇨",
+    iso3: "NCL",
+    continent: "oceania",
+    parentMapId: "250",
+    parentNameJa: "フランス",
+  },
+};
+
 type Feature = { id?: string | number; properties: { name?: string }; geometry: Geometry };
 
 const collection = world as unknown as FeatureCollection;
@@ -54,6 +119,7 @@ export function WorldMap({
     flag?: string | undefined;
     iso3?: string | undefined;
     continent?: string | undefined;
+    parentNameJa?: string | undefined;
     x: number;
     y: number;
   } | null>(null);
@@ -379,15 +445,37 @@ export function WorldMap({
               if (viewMode === "3d" && !p.d) return null;
 
               const country = byMapId(p.mapId);
+              const special =
+                SPECIAL_TERRITORIES[p.mapId] ??
+                (p.name === "Greenland" ? SPECIAL_TERRITORIES["304"] : undefined);
+              const effectiveContinent = country?.continent ?? special?.continent;
+
               const isLearned = learnedMapIds.has(p.mapId);
               const dimmed =
-                activeContinent !== "all" && country?.continent !== activeContinent;
-              const selected = selectedId === p.mapId;
-              const fill = !country
+                activeContinent !== "all" && effectiveContinent !== activeContinent;
+              const selected = selectedId === p.mapId || (special?.parentMapId && selectedId === special.parentMapId);
+              const fill = !effectiveContinent
                 ? "var(--land)"
                 : isLearned
                   ? "var(--land-learned)"
-                  : continentColor(country.continent);
+                  : continentColor(effectiveContinent);
+
+              const isClickable = !!country || !!special?.parentMapId;
+              const targetMapId = country ? p.mapId : special?.parentMapId;
+
+              const handleHover = (clientX: number, clientY: number) => {
+                const rect = containerRef.current?.getBoundingClientRect();
+                setHover({
+                  name: country ? country.nameJa : (special ? special.nameJa : p.name),
+                  subname: country ? country.nameEn : (special ? special.nameEn : undefined),
+                  flag: country?.flag ?? special?.flag,
+                  iso3: country?.iso3 ?? special?.iso3,
+                  continent: effectiveContinent,
+                  parentNameJa: special?.parentNameJa,
+                  x: clientX - (rect?.left ?? 0),
+                  y: clientY - (rect?.top ?? 0),
+                });
+              };
 
               return (
                 <path
@@ -401,7 +489,11 @@ export function WorldMap({
                         : selected
                         ? 1
                         : 0.88
-                      : 0.55
+                      : special
+                        ? dimmed
+                          ? 0.22
+                          : 0.7
+                        : 0.55
                   }
                   stroke={selected ? "#ffffff" : "#1e293b"}
                   strokeWidth={
@@ -416,36 +508,18 @@ export function WorldMap({
                   filter={selected ? "url(#selectedGlow)" : undefined}
                   className={cn(
                     "transition-[fill-opacity,stroke-width] duration-150",
-                    country && "cursor-pointer hover:fill-opacity-100 hover:stroke-white hover:stroke-[1.8px]",
+                    isClickable && "cursor-pointer hover:fill-opacity-100 hover:stroke-white hover:stroke-[1.8px]",
                     selected && "drop-shadow-md"
                   )}
                   onPointerMove={(e) => {
                     if (dragRef.current?.isDragging) return;
-                    const rect = containerRef.current?.getBoundingClientRect();
-                    setHover({
-                      name: country ? country.nameJa : p.name,
-                      subname: country ? country.nameEn : undefined,
-                      flag: country?.flag,
-                      iso3: country?.iso3,
-                      continent: country?.continent,
-                      x: e.clientX - (rect?.left ?? 0),
-                      y: e.clientY - (rect?.top ?? 0),
-                    });
+                    handleHover(e.clientX, e.clientY);
                   }}
                   onMouseMove={(e) => {
                     if (dragRef.current?.isDragging) return;
-                    const rect = containerRef.current?.getBoundingClientRect();
-                    setHover({
-                      name: country ? country.nameJa : p.name,
-                      subname: country ? country.nameEn : undefined,
-                      flag: country?.flag,
-                      iso3: country?.iso3,
-                      continent: country?.continent,
-                      x: e.clientX - (rect?.left ?? 0),
-                      y: e.clientY - (rect?.top ?? 0),
-                    });
+                    handleHover(e.clientX, e.clientY);
                   }}
-                  onClick={() => country && onSelect(p.mapId)}
+                  onClick={() => targetMapId && onSelect(targetMapId)}
                 />
               );
             })}
@@ -548,8 +622,16 @@ export function WorldMap({
 
               {/* フッター: クリックして詳細を表示 */}
               <div className="text-[10px] text-sky-500 dark:text-sky-400 font-semibold border-t border-border/40 pt-1.5 text-center flex items-center justify-center gap-1">
-                <span>クリックして詳細を表示</span>
-                <span>➜</span>
+                {hover.parentNameJa ? (
+                  <span>本国（{hover.parentNameJa}）の詳細を表示 ➜</span>
+                ) : hover.iso3 ? (
+                  <>
+                    <span>クリックして詳細を表示</span>
+                    <span>➜</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground font-normal">地域データ</span>
+                )}
               </div>
             </div>
           );

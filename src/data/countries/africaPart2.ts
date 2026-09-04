@@ -539,7 +539,7 @@ export const africaPart2: Country[] = [
       people: ["マンサ・ムーサ（史上最も裕福な人間とされるマリ帝国皇帝）", "サリフ・ケイタ（「アフリカの黄金の声」世界的歌手）", "アリ・ファルカ・トゥーレ"],
     },
     society: {
-      population: 2300000,
+      population: 23000000,
       populationGrowth: 3.0,
       urbanRate: 45,
       medianAge: 16.0,
@@ -612,7 +612,7 @@ export const africaPart2: Country[] = [
       people: ["トーマス・サンカラ（大統領・自給自足と女性解放を進めたカリスマ的革命家）", "イブラヒム・トラオレ（現暫定大統領）"],
     },
     society: {
-      population: 2320000,
+      population: 23200000,
       populationGrowth: 2.6,
       urbanRate: 32,
       medianAge: 17.5,
@@ -756,7 +756,7 @@ export const africaPart2: Country[] = [
       people: ["セク・トゥーレ（建国の父）", "ママディ・ケイタ（世界最高峰のジャンベ奏者マスタードラマー）"],
     },
     society: {
-      population: 1420000,
+      population: 14200000,
       populationGrowth: 2.4,
       urbanRate: 37,
       medianAge: 18.0,
@@ -828,7 +828,7 @@ export const africaPart2: Country[] = [
       people: ["ベハンジン王（フランス軍に抵抗した勇敢なサメの王）", "アンジェリーク・キジョー（グラミー賞5度受賞の世界最高峰女性シンガー）"],
     },
     society: {
-      population: 1370000,
+      population: 13700000,
       populationGrowth: 2.7,
       urbanRate: 49,
       medianAge: 18.2,
@@ -1408,7 +1408,7 @@ export const africaPart2: Country[] = [
       people: ["ポール・ビヤ大統領", "ロジェ・ミラ（W杯最年長ゴール記録の伝説的英雄）", "サミュエル・エトー"],
     },
     society: {
-      population: 2860000,
+      population: 28600000,
       populationGrowth: 2.6,
       urbanRate: 59,
       medianAge: 18.5,
@@ -1842,7 +1842,7 @@ export const africaPart2: Country[] = [
       people: ["イドリス・デビ（戦死した歴戦の元大統領）", "トゥーマイ（最古級の人類化石サヘラントロプス・チャデンシスの愛称）"],
     },
     society: {
-      population: 1830000,
+      population: 18300000,
       populationGrowth: 3.1,
       urbanRate: 24,
       medianAge: 15.5,

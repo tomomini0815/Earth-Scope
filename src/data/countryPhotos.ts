@@ -8,6 +8,12 @@ export type CountryPhoto = {
   caption: string;
 };
 
+// デフォルトフォールバック写真（特定国ではなく地球全体の宇宙写真・アポロ17号）
+export const DEFAULT_EARTH_PHOTO: CountryPhoto = {
+  url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/330px-The_Earth_seen_from_Apollo_17.jpg",
+  caption: "青い地球（宇宙より）",
+};
+
 // 大陸ごとの高品質フォールバック写真（万一の通信遅延用）
 const CONTINENT_FALLBACKS: Record<string, CountryPhoto> = {
   asia: {
@@ -23,8 +29,8 @@ const CONTINENT_FALLBACKS: Record<string, CountryPhoto> = {
     caption: "ギザの大ピラミッド（エジプト）",
   },
   "north-america": {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Front_view_of_Statue_of_Liberty_%28cropped%29.jpg/330px-Front_view_of_Statue_of_Liberty_%28cropped%29.jpg",
-    caption: "自由の女神像（アメリカ）",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg/330px-New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg",
+    caption: "自由の女神像（北米）",
   },
   "south-america": {
     url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Machu_Picchu%2C_Peru.jpg/330px-Machu_Picchu%2C_Peru.jpg",
@@ -830,6 +836,10 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Main_street_of_Alofi.jpg/330px-Main_street_of_Alofi.jpg",
     caption: "太平洋の孤島ポリネシアの断崖海岸（ニウエ）",
   },
+  GRL: {
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Icebergs_in_Disko_Bay_off_the_coast_of_Ilulissat_Greenland_03.jpg/330px-Icebergs_in_Disko_Bay_off_the_coast_of_Ilulissat_Greenland_03.jpg",
+    caption: "世界遺産イルリサット・ディスコ湾の巨大氷山（グリーンランド）",
+  },
 };
 
 /**
@@ -842,5 +852,5 @@ export function getCountryPhoto(iso3?: string, continent?: string): CountryPhoto
   if (continent && CONTINENT_FALLBACKS[continent]) {
     return CONTINENT_FALLBACKS[continent]!;
   }
-  return CONTINENT_FALLBACKS["asia"]!;
+  return DEFAULT_EARTH_PHOTO;
 }

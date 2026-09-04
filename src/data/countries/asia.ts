@@ -183,7 +183,7 @@ export const asiaCountries: Country[] = [
       people: ["世宗大王", "李舜臣", "ポン・ジュノ", "ソン・フンミン"],
     },
     society: {
-      population: 5170000,
+      population: 51700000,
       populationGrowth: -0.2,
       urbanRate: 81,
       medianAge: 45.5,
@@ -409,7 +409,7 @@ export const asiaCountries: Country[] = [
     },
     economy: {
       gdp: 4300,
-      gdpPerCapita: 43000,
+      gdpPerCapita: 4300,
       industries: ["電子機器・スマートフォン組立（サムスン等）", "繊維・アパレル・製靴", "農業（コメ・コーヒー世界第2位）", "水産養殖（パンガシウス・エビ）"],
       resources: ["原油", "ボーキサイト", "肥沃なメコン・紅河デルタ"],
       trade: "スマートフォン、PC・電子部品、アパレル、履物、米、ロブスタ種コーヒーを世界へ輸出。",
@@ -482,7 +482,7 @@ export const asiaCountries: Country[] = [
     },
     economy: {
       gdp: 13700,
-      gdpPerCapita: 49000,
+      gdpPerCapita: 4900,
       industries: ["ニッケル製錬・EV電池材料（世界首位の埋蔵・生産）", "パーム油（世界最大生産・輸出）", "石炭（燃料炭輸出世界一）", "自動車組立"],
       resources: ["ニッケル（EV電池のキー資源）", "石炭", "パーム油", "天然ガス・地熱"],
       trade: "ニッケル中間財、パーム油、石炭、電子機器を輸出。未加工鉱石の輸出禁止で国内加工産業を高付加価値化。",
@@ -764,7 +764,7 @@ export const asiaCountries: Country[] = [
       people: ["リー・クアンユー（建国の父）", "リー・シェンロン"],
     },
     society: {
-      population: 592000,
+      population: 5920000,
       populationGrowth: 1.3,
       urbanRate: 100,
       medianAge: 42.8,
@@ -983,7 +983,7 @@ export const asiaCountries: Country[] = [
       people: ["カイソーン・ポムウィハーン（革命の指導者・初代首相）"],
     },
     society: {
-      population: 760000,
+      population: 7600000,
       populationGrowth: 1.4,
       urbanRate: 38,
       medianAge: 24.5,
@@ -1493,7 +1493,7 @@ export const asiaCountries: Country[] = [
       people: ["釈迦（ブッダ）", "テンジン・ノルゲイ（エベレスト初登頂シェルパ）"],
     },
     society: {
-      population: 3050000,
+      population: 30500000,
       populationGrowth: 1.1,
       urbanRate: 22,
       medianAge: 25.0,
@@ -1856,7 +1856,7 @@ export const asiaCountries: Country[] = [
       people: ["ティムール（大征服者）", "ウルグ・ベク（天文学者・君主）", "アヴィセンナ（医学典範を著したイブン・スィーナー）"],
     },
     society: {
-      population: 3680000,
+      population: 36800000,
       populationGrowth: 2.1,
       urbanRate: 50,
       medianAge: 29.0,
@@ -2001,7 +2001,7 @@ export const asiaCountries: Country[] = [
       people: ["チンギス・アイトマートフ（世界的文豪・『ジャミーリャ』等）"],
     },
     society: {
-      population: 700000,
+      population: 7000000,
       populationGrowth: 1.8,
       urbanRate: 37,
       medianAge: 25.0,
@@ -2146,7 +2146,7 @@ export const asiaCountries: Country[] = [
       people: ["イブン・サウード（建国国王）", "ムハンマド・ビン・サルマン（MBS皇太子・実質的最高権力者）"],
     },
     society: {
-      population: 3650000,
+      population: 36500000,
       populationGrowth: 1.5,
       urbanRate: 85,
       medianAge: 32.0,
@@ -2437,7 +2437,7 @@ export const asiaCountries: Country[] = [
       people: ["シェイク・ザーイド（UAE建国の父）", "シェイク・ムハンマド（ドバイ首長・ドバイの奇跡を牽引）"],
     },
     society: {
-      population: 950000,
+      population: 9500000,
       populationGrowth: 1.0,
       urbanRate: 88,
       medianAge: 33.0,
@@ -2800,7 +2800,7 @@ export const asiaCountries: Country[] = [
       people: ["ゼノビア（ローマ帝国に立ち向かったパルミラの女王）", "アサド大統領"],
     },
     society: {
-      population: 2300000,
+      population: 23000000,
       populationGrowth: 3.5,
       urbanRate: 56,
       medianAge: 23.5,
@@ -2944,7 +2944,7 @@ export const asiaCountries: Country[] = [
       people: ["カブース・ビン・サイード（50年にわたり近代オマーンを築いた名君）", "シンドバッド（オマーン出身伝説）"],
     },
     society: {
-      population: 460000,
+      population: 4600000,
       populationGrowth: 1.5,
       urbanRate: 87,
       medianAge: 31.0,
@@ -3089,7 +3089,7 @@ export const asiaCountries: Country[] = [
       people: ["ハマド・ビン・イーサ・アール・ハリーファ国王"],
     },
     society: {
-      population: 150000,
+      population: 1500000,
       populationGrowth: 1.0,
       urbanRate: 90,
       medianAge: 32.5,

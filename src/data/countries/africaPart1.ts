@@ -252,7 +252,7 @@ export const africaPart1: Country[] = [
       people: ["ワンガリ・マータイ（「MOTTAINAI」を世界に広めたノーベル平和賞受賞者）", "エリウド・キプチョゲ（マラソン世界記録保持者）"],
     },
     society: {
-      population: 5500000,
+      population: 55000000,
       populationGrowth: 1.9,
       urbanRate: 29,
       medianAge: 20.0,
@@ -326,7 +326,7 @@ export const africaPart1: Country[] = [
       people: ["イブン・バットゥータ（30年間ユーラシアを旅した大旅行家）", "ムハンマド6世（現国王）"],
     },
     society: {
-      population: 3780000,
+      population: 37800000,
       populationGrowth: 1.0,
       urbanRate: 65,
       medianAge: 30.0,
@@ -543,7 +543,7 @@ export const africaPart1: Country[] = [
       people: ["アルベール・カミュ（『異邦人』ノーベル文学賞作家・アルジェリア生まれのピエ・ノワール）", "ジネディーヌ・ジダン（両親がアルジェリア移民）"],
     },
     society: {
-      population: 4560000,
+      population: 45600000,
       populationGrowth: 1.5,
       urbanRate: 75,
       medianAge: 28.5,
@@ -760,7 +760,7 @@ export const africaPart1: Country[] = [
       people: ["タハルカ（古代エジプト第25王朝の偉大なファラオ）", "アブダッラー・ハムドゥーク（元文民首相）"],
     },
     society: {
-      population: 4800000,
+      population: 48000000,
       populationGrowth: 2.6,
       urbanRate: 36,
       medianAge: 19.8,
@@ -905,7 +905,7 @@ export const africaPart1: Country[] = [
       people: ["イディ・アミン（悪名高い元軍事独裁者）", "ヨウェリ・ムセベニ（現大統領）", "ジョシュア・チェプテゲイ（長距離走五輪金メダリスト）"],
     },
     society: {
-      population: 4850000,
+      population: 48500000,
       populationGrowth: 2.8,
       urbanRate: 26,
       medianAge: 15.9,
@@ -1410,7 +1410,7 @@ export const africaPart1: Country[] = [
       people: ["ボブ・ディナール（フランス人傭兵・数々のクーデターを主導）"],
     },
     society: {
-      population: 85000,
+      population: 850000,
       populationGrowth: 1.8,
       urbanRate: 30,
       medianAge: 20.5,
@@ -1845,7 +1845,7 @@ export const africaPart1: Country[] = [
       people: ["ロバート・ムガベ（元大統領）", "オリバー・ムトゥクジ（国民的音楽家・ツク・ミュージック）"],
     },
     society: {
-      population: 1630000,
+      population: 16300000,
       populationGrowth: 1.9,
       urbanRate: 32,
       medianAge: 18.7,

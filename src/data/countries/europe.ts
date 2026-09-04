@@ -1562,7 +1562,7 @@ export const europeCountries: Country[] = [
       people: ["リスト・フェレンツ（フランツ・リスト）", "ルービック（ルービックキューブ発明者）", "ノイマン（コンピュータの父）"],
     },
     society: {
-      population: 960000,
+      population: 9600000,
       populationGrowth: -0.3,
       urbanRate: 72,
       medianAge: 43.3,
