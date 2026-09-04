@@ -163,3 +163,10 @@
 @utility animate-pop {
   animation: pop-in 0.35s ease-out;
 }
+
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

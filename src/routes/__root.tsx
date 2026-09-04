@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 function NotFoundComponent() {
   return (
@@ -123,8 +124,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      {/* モバイル用ボトムナビ分の余白: sm以上では不要 */}
+      <div className="pb-14 sm:pb-0">
+        <Outlet />
+      </div>
+      {/* モバイル専用ボトムナビゲーションバー */}
+      <MobileBottomNav />
     </QueryClientProvider>
   );
 }

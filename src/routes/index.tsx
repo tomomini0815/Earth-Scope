@@ -56,8 +56,8 @@ function Index() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <section className="mb-5">
+      <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
+        <section className="mb-4 sm:mb-5">
           <h1 className="font-display text-2xl font-bold sm:text-3xl">
             世界をクリックして、学ぼう。
           </h1>
@@ -72,30 +72,34 @@ function Index() {
           </div>
         </section>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            onClick={() => setContinent("all")}
-            className={cn(
-              "rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
-              continent === "all" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
-            )}
-          >
-            すべて
-          </button>
-          {CONTINENTS.map((c) => (
+        {/* 大陸フィルター — モバイルで横スクロール、デスクトップでラップ */}
+        <div className="mb-4 -mx-4 sm:mx-0">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 sm:px-0 pb-1 sm:pb-0 sm:flex-wrap">
             <button
-              key={c.id}
-              onClick={() => setContinent(c.id)}
+              onClick={() => setContinent("all")}
               className={cn(
-                "flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
-                continent === c.id ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
+                "shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
+                continent === "all" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
               )}
             >
-              <span className="size-2.5 rounded-full" style={{ backgroundColor: c.colorVar }} />
-              {c.label}
+              すべて
             </button>
-          ))}
+            {CONTINENTS.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setContinent(c.id)}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
+                  continent === c.id ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
+                )}
+              >
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: c.colorVar }} />
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
+
 
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
           <WorldMap
@@ -133,31 +137,32 @@ function Index() {
           )}
         </div>
 
-        <section className="mt-8">
+        <section className="mt-6 sm:mt-8">
           <h2 className="font-display text-lg font-bold">
             国の一覧（{list.length}か国）
           </h2>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((c) => (
               <Link
                 key={c.iso3}
                 to="/country/$iso3"
                 params={{ iso3: c.iso3.toLowerCase() }}
-                className="surface-card flex items-center justify-between px-3 py-2.5 transition-transform hover:-translate-y-0.5"
+                className="surface-card flex items-center justify-between px-3 py-2.5 transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
               >
-                <span className="flex items-center gap-2 text-sm font-medium">
+                <span className="flex items-center gap-2 text-sm font-medium min-w-0">
                   <FlagImage flag={c.flag} size="sm" />
-                  <span>{c.nameJa}</span>
+                  <span className="truncate">{c.nameJa}</span>
                 </span>
                 {learned.includes(c.iso3) && (
-                  <span className="rounded-full bg-success px-2 py-0.5 text-[10px] text-success-foreground">
-                    学習済み
+                  <span className="ml-1 shrink-0 rounded-full bg-success px-1.5 py-0.5 text-[9px] font-bold text-success-foreground">
+                    ✓
                   </span>
                 )}
               </Link>
             ))}
           </div>
         </section>
+
 
         <div className="mt-8 flex flex-wrap gap-2">
           <Button asChild>
