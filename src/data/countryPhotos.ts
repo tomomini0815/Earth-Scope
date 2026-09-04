@@ -840,6 +840,10 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Icebergs_in_Disko_Bay_off_the_coast_of_Ilulissat_Greenland_03.jpg/330px-Icebergs_in_Disko_Bay_off_the_coast_of_Ilulissat_Greenland_03.jpg",
     caption: "世界遺産イルリサット・ディスコ湾の巨大氷山（グリーンランド）",
   },
+  ATA: {
+    url: "https://upload.wikimedia.org/wikipedia/commons/b/bd/AntarcticaDomeCSnow.jpg",
+    caption: "見渡す限りの白銀が広がる氷原（南極大陸・ドームC）",
+  },
 };
 
 /**
