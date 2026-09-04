@@ -12,7 +12,7 @@ export default defineConfig({
   },
   nitro: false,
   vite: {
-    base: process.env.BASE_PATH || "/Earth-Scope/",
+    base: process.env["BASE_PATH"] || "/Earth-Scope/",
   },
 });
 

@@ -14,7 +14,7 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link to="/" className="flex items-center gap-3 font-display group">
           <div className="relative flex size-9 shrink-0 items-center justify-center transition-transform group-hover:scale-105">
-            <img src="/logo.svg" alt="EarthScope" className="size-full drop-shadow-md" />
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="EarthScope" className="size-full drop-shadow-md" />
           </div>
           <div className="flex flex-col justify-center leading-none">
             <span className="text-xl font-bold tracking-tight text-foreground leading-none">
