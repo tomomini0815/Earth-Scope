@@ -51,8 +51,8 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "景福宮（韓国）",
   },
   PRK: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Baekdu_Mountain_Crater_Lake%28Cheonji%29.jpg/330px-Baekdu_Mountain_Crater_Lake%28Cheonji%29.jpg",
-    caption: "白頭山の天池火口湖（北朝鮮）",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Paektu-san.jpg/330px-Paektu-san.jpg",
+    caption: "白頭山（白頭）の火口湖・天池（北朝鮮）",
   },
   MNG: {
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Mongolia_Ger.jpg/330px-Mongolia_Ger.jpg",
@@ -75,7 +75,7 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "エルニドのエメラルドラグーン（フィリピン）",
   },
   MYS: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Petronas_Twin_Towers%2C_Kuala_Lumpur_2014.jpg/330px-Petronas_Twin_Towers%2C_Kuala_Lumpur_2014.jpg",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg/330px-Kuala_Lumpur_Malaysia_Petronas-Twin-Towers-01.jpg",
     caption: "ペトロナスツインタワー（マレーシア）",
   },
   SGP: {
