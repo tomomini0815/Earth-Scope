@@ -143,7 +143,7 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "サマルカンドのレギスタン広場（ウズベキスタン）",
   },
   TKM: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Darvasa_gas_crater_panorama.jpg/330px-Darvasa_gas_crater_panorama.jpg",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Darvasa_gas_crater_panorama_crop.jpg/330px-Darvasa_gas_crater_panorama_crop.jpg",
     caption: "燃え続ける地獄の門ダルヴァザ（トルクメニスタン）",
   },
   KGZ: {
@@ -159,7 +159,7 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "古代遺跡マダイン・サーレハ（サウジアラビア）",
   },
   TUR: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Cappadocia_Balloon_Inflating.jpg/330px-Cappadocia_Balloon_Inflating.jpg",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Cappadocia_Balloon_Inflating_Wikimedia_Commons.JPG/330px-Cappadocia_Balloon_Inflating_Wikimedia_Commons.JPG",
     caption: "カッパドキアの奇岩と気球（トルコ）",
   },
   IRN: {
@@ -359,8 +359,8 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "コトル湾のフィヨルド城塞都市（モンテネグロ）",
   },
   XKX: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Gra%C4%8Danica_monastery.jpg/330px-Gra%C4%8Danica_monastery.jpg",
-    caption: "世界遺産グラチャニツァ修道院（コソボ）",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Vista_de_Prizren%2C_Kosovo%2C_2014-04-16%2C_DD_15.JPG/330px-Vista_de_Prizren%2C_Kosovo%2C_2014-04-16%2C_DD_15.JPG",
+    caption: "山岳に囲まれた古都プリズレンの景観（コソボ）",
   },
   BLR: {
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/%D0%9C%D0%B8%D1%80_%28%D0%B7%D0%B0%D0%BC%D0%BE%D0%BA%29.jpg/330px-%D0%9C%D0%B8%D1%80_%28%D0%B7%D0%B0%D0%BC%D0%BE%D0%BA%29.jpg",
@@ -395,7 +395,7 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "ピレネー山脈の氷河渓谷（アンドラ）",
   },
   MCO: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Monaco_vue_panoramique.jpg/330px-Monaco_vue_panoramique.jpg",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Monaco_02.jpg/330px-Monaco_02.jpg",
     caption: "地中海に面する絶壁の都市国家モナコ港（モナコ）",
   },
   SMR: {
@@ -555,7 +555,7 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "千年を超える巨石要塞ロロペニ（ブルキナファソ）",
   },
   NER: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Grande_mosque_agadez.jpg/330px-Grande_mosque_agadez.jpg",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Niger%2C_Agadez_%2835%29%2C_auberge_Tellit_and_Grand_Mosque%2C_old_town.jpg/330px-Niger%2C_Agadez_%2835%29%2C_auberge_Tellit_and_Grand_Mosque%2C_old_town.jpg",
     caption: "サハラの門・アガデスの大泥造モスク（ニジェール）",
   },
   GIN: {
@@ -607,8 +607,8 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "大河コンゴ川流域の大熱帯雨林（コンゴ共和国）",
   },
   GAB: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Mandrill_at_NC_Zoo.jpg/330px-Mandrill_at_NC_Zoo.jpg",
-    caption: "熱帯雨林に生息するマンドリル（ガボン）",
+    url: "https://upload.wikimedia.org/wikipedia/commons/8/8d/Lop%C3%A9_National_Park_river_crop.jpg",
+    caption: "世界遺産ロペ＝オカンダの原生林とオゴウェ川（ガボン）",
   },
   GNQ: {
     url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Pico_Basil%C3%A9.jpg/330px-Pico_Basil%C3%A9.jpg",
@@ -627,8 +627,8 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "空を突く針状火山峰カオ・グランデ（サントメ・プリンシペ）",
   },
   USA: {
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Front_view_of_Statue_of_Liberty_%28cropped%29.jpg/330px-Front_view_of_Statue_of_Liberty_%28cropped%29.jpg",
-    caption: "ニューヨーク港の自由の女神像（アメリカ）",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg/330px-New_York_City_%28New_York%2C_USA%29%2C_Statue_of_Liberty_--_2012_--_6660.jpg",
+    caption: "ニューヨーク港にそびえる自由の女神像（アメリカ）",
   },
   CAN: {
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Moraine_Lake_17092005.jpg/330px-Moraine_Lake_17092005.jpg",
@@ -771,7 +771,7 @@ export const COUNTRY_PHOTOS: Record<string, CountryPhoto> = {
     caption: "シドニー・オペラハウス（オーストラリア）",
   },
   NZL: {
-    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Mitre_Peak%2C_Milford_Sound%2C_New_Zealand.jpg/330px-Mitre_Peak%2C_Milford_Sound%2C_New_Zealand.jpg",
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Milford_Sound_in_Fiordland_National_Park_01.jpg/330px-Milford_Sound_in_Fiordland_National_Park_01.jpg",
     caption: "氷河が削り出したミルフォード・サウンド（ニュージーランド）",
   },
   PNG: {

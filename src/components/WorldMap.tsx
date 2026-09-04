@@ -517,11 +517,20 @@ export function WorldMap({
               </div>
 
               {/* 各国を象徴する写真 */}
-              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-muted shadow-inner mb-2">
+              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-800 shadow-inner mb-2">
+                {/* ブラー背景レイヤー（コンテナを埋める） */}
+                <img
+                  src={photo.url}
+                  aria-hidden
+                  className="absolute inset-0 size-full object-cover scale-110 blur-md brightness-50 saturate-150"
+                  loading="eager"
+                  referrerPolicy="no-referrer"
+                />
+                {/* メイン写真（被写体を切らず全体表示） */}
                 <img
                   src={photo.url}
                   alt={photo.caption}
-                  className="size-full object-cover"
+                  className="relative size-full object-contain drop-shadow-lg"
                   loading="eager"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
