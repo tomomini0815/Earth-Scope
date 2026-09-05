@@ -11,6 +11,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { byMapId, learnedIds, sortedCountries } from "@/data/lookup";
 import { CONTINENTS, type ContinentId } from "@/data/types";
 import { countries } from "@/data/countries";
+import { MICROSTATES, microstateById } from "@/data/microstates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
@@ -34,8 +35,10 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+type FilterType = ContinentId | "all" | "microstates";
+
 function Index() {
-  const [continent, setContinent] = useState<ContinentId | "all">("all");
+  const [filter, setFilter] = useState<FilterType>("all");
   const [selectedMapId, setSelectedMapId] = useState<string | undefined>();
   const learned = useProgress((s) => s.learned);
   const markLearned = useProgress((s) => s.markLearned);
@@ -51,7 +54,12 @@ function Index() {
     if (c) markLearned(c.iso3);
   };
 
-  const list = continent === "all" ? sortedCountries : sortedCountries.filter((c) => c.continent === continent);
+  const list = useMemo(() => {
+    if (filter === "microstates") {
+      return MICROSTATES.map((m) => byMapId(m.id)).filter(Boolean) as typeof sortedCountries;
+    }
+    return filter === "all" ? sortedCountries : sortedCountries.filter((c) => c.continent === filter);
+  }, [filter]);
 
   return (
     <div className="min-h-screen">
@@ -72,14 +80,14 @@ function Index() {
           </div>
         </section>
 
-        {/* 大陸フィルター — モバイルで横スクロール、デスクトップでラップ */}
+        {/* 大陸 & 小国フィルター — モバイルで横スクロール、デスクトップでラップ */}
         <div className="mb-4 -mx-4 sm:mx-0">
           <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 sm:px-0 pb-1 sm:pb-0 sm:flex-wrap">
             <button
-              onClick={() => setContinent("all")}
+              onClick={() => setFilter("all")}
               className={cn(
                 "shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
-                continent === "all" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
+                filter === "all" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
               )}
             >
               すべて
@@ -87,24 +95,36 @@ function Index() {
             {CONTINENTS.map((c) => (
               <button
                 key={c.id}
-                onClick={() => setContinent(c.id)}
+                onClick={() => setFilter(c.id)}
                 className={cn(
                   "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
-                  continent === c.id ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
+                  filter === c.id ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
                 )}
               >
                 <span className="size-2.5 rounded-full" style={{ backgroundColor: c.colorVar }} />
                 {c.label}
               </button>
             ))}
+            {/* 小国・島国専用フィルター */}
+            <button
+              onClick={() => setFilter("microstates")}
+              className={cn(
+                "shrink-0 flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all shadow-sm",
+                filter === "microstates"
+                  ? "border-sky-500 bg-sky-500 text-white shadow-sky-500/20"
+                  : "border-sky-500/30 bg-sky-950/20 text-sky-400 hover:bg-sky-900/30",
+              )}
+            >
+              <span>🏝️</span>
+              <span>小国・島国 (32)</span>
+            </button>
           </div>
         </div>
-
 
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
           <WorldMap
             learnedMapIds={learnedSet}
-            activeContinent={continent}
+            activeContinent={filter === "microstates" ? "all" : filter}
             selectedId={selectedMapId}
             onSelect={select}
           />

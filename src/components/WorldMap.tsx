@@ -6,6 +6,7 @@ import { Globe, Map, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 import world from "@/data/world.geo.json";
 import { byMapId } from "@/data/lookup";
 import { CONTINENTS, type ContinentId } from "@/data/types";
+import { MICROSTATES, microstateById } from "@/data/microstates";
 import { FlagImage } from "@/components/FlagImage";
 import { getCountryPhoto } from "@/data/countryPhotos";
 import { cn } from "@/lib/utils";
@@ -133,19 +134,30 @@ export function WorldMap({
     isDragging: boolean;
   } | null>(null);
 
-  // 2D用 projection & paths
-  const paths2D = useMemo(() => {
+  // 2D用 projection & paths & microstates
+  const { paths2D, microstates2D } = useMemo(() => {
     const projection = geoNaturalEarth1().fitSize([WIDTH, HEIGHT_2D], collection);
     const path = geoPath(projection);
-    return (collection.features as unknown as Feature[]).map((f) => ({
+    const featurePaths = (collection.features as unknown as Feature[]).map((f) => ({
       mapId: String(f.id ?? ""),
       name: f.properties?.name ?? "",
       d: path(f as never) ?? "",
     }));
+
+    const msPoints = MICROSTATES.map((m) => {
+      const pt = projection(m.coordinates);
+      return {
+        ...m,
+        x: pt ? pt[0] : null,
+        y: pt ? pt[1] : null,
+      };
+    }).filter((m): m is typeof m & { x: number; y: number } => m.x !== null && m.y !== null);
+
+    return { paths2D: featurePaths, microstates2D: msPoints };
   }, []);
 
-  // 3D地球儀用 projection & paths
-  const { paths3D, graticulePath3D, equatorPath3D } = useMemo(() => {
+  // 3D地球儀用 projection & paths & microstates
+  const { paths3D, graticulePath3D, equatorPath3D, microstates3D } = useMemo(() => {
     const radius = GLOBE_DEFAULT_RADIUS * zoom3d;
     const projection = geoOrthographic()
       .scale(radius)
@@ -168,12 +180,37 @@ export function WorldMap({
       d: path(f as never) ?? "",
     }));
 
+    // 3D地球儀表面の小国マーカー（可視半球内のみ）
+    const msPoints = MICROSTATES.map((m) => {
+      const pt = projection(m.coordinates);
+      if (!pt || isNaN(pt[0]) || isNaN(pt[1])) return null;
+      const [x, y] = pt;
+      const distFromCenter = Math.hypot(x - WIDTH / 2, y - HEIGHT_3D / 2);
+      if (distFromCenter > radius - 1) return null;
+      return {
+        ...m,
+        x,
+        y,
+      };
+    }).filter((m): m is NonNullable<typeof m> => m !== null);
+
     return {
       paths3D: featurePaths,
       graticulePath3D: path(graticule) ?? "",
       equatorPath3D: path(equatorLine) ?? "",
+      microstates3D: msPoints,
     };
   }, [rotation, zoom3d]);
+
+  // 選択された国が小国の場合は、3D地球儀をその座標へ自動フォーカス
+  useEffect(() => {
+    if (!selectedId || viewMode !== "3d") return;
+    const ms = microstateById.get(selectedId);
+    if (ms) {
+      setRotation([-ms.coordinates[0], -ms.coordinates[1], 0]);
+      setAutoRotate(false);
+    }
+  }, [selectedId, viewMode]);
 
   // 3D自転（Auto-rotation）アニメーションループ
   useEffect(() => {
@@ -295,45 +332,54 @@ export function WorldMap({
   };
 
   const currentPaths = viewMode === "2d" ? paths2D : paths3D;
+  const currentMicrostates = viewMode === "2d" ? microstates2D : microstates3D;
   const currentHeight = viewMode === "2d" ? HEIGHT_2D : HEIGHT_3D;
   const globeRadius = GLOBE_DEFAULT_RADIUS * zoom3d;
 
   return (
     <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all">
       {/* 上部コントロールバー：表示モード切替（3D地球儀 ⇄ 2D平面） */}
-      <div className="absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-full border border-border/80 bg-card/90 p-1 shadow-md backdrop-blur-md">
-        <button
-          type="button"
-          onClick={() => {
-            setViewMode("3d");
-            setHover(null);
-          }}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
-            viewMode === "3d"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          )}
-        >
-          <Globe className="size-3.5" />
-          <span>3D地球儀</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setViewMode("2d");
-            setHover(null);
-          }}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
-            viewMode === "2d"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-          )}
-        >
-          <Map className="size-3.5" />
-          <span>平面地図</span>
-        </button>
+      <div className="absolute left-3 top-3 z-20 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/90 p-1 shadow-md backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode("3d");
+              setHover(null);
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+              viewMode === "3d"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            <Globe className="size-3.5" />
+            <span>3D地球儀</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode("2d");
+              setHover(null);
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+              viewMode === "2d"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            <Map className="size-3.5" />
+            <span>平面地図</span>
+          </button>
+        </div>
+
+        {/* 小国・島国サポートバッジ */}
+        <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-950/40 px-3 py-1 text-xs font-semibold text-sky-400 shadow-sm backdrop-blur-md">
+          <span>🏝️</span>
+          <span>小国・島国 (32ヵ国) 表示対応</span>
+        </div>
       </div>
 
       {/* 3Dモード時：下部操作ガイドバー */}
@@ -521,6 +567,112 @@ export function WorldMap({
                   }}
                   onClick={() => targetMapId && onSelect(targetMapId)}
                 />
+              );
+            })}
+          </g>
+
+          {/* 小国・島国インタラクティブ・ピンレイヤー（全32ヵ国） */}
+          <g
+            transform={
+              viewMode === "2d"
+                ? `translate(${offset2d.x} ${offset2d.y}) scale(${zoom2d})`
+                : undefined
+            }
+          >
+            {currentMicrostates.map((m) => {
+              const country = byMapId(m.id);
+              if (!country) return null;
+
+              const isLearned = learnedMapIds.has(m.id);
+              const dimmed =
+                activeContinent !== "all" && country.continent !== activeContinent;
+              const selected = selectedId === m.id;
+              const color = isLearned
+                ? "var(--land-learned)"
+                : continentColor(country.continent);
+
+              // ズームに応じた視認性の良い半径（2Dではズーム逆数を乗じて一定の大きさを維持）
+              const baseR = viewMode === "2d" ? 4.2 / Math.sqrt(zoom2d) : 4.8;
+              const r = selected ? baseR * 1.6 : baseR;
+
+              const handleHover = (clientX: number, clientY: number) => {
+                const rect = containerRef.current?.getBoundingClientRect();
+                setHover({
+                  name: country.nameJa,
+                  subname: country.nameEn,
+                  flag: country.flag,
+                  iso3: country.iso3,
+                  continent: country.continent,
+                  x: clientX - (rect?.left ?? 0),
+                  y: clientY - (rect?.top ?? 0),
+                });
+              };
+
+              return (
+                <g
+                  key={`microstate-${m.id}-${viewMode}`}
+                  className="cursor-pointer group"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(m.id);
+                  }}
+                  onPointerMove={(e) => {
+                    if (dragRef.current?.isDragging) return;
+                    handleHover(e.clientX, e.clientY);
+                  }}
+                  onMouseMove={(e) => {
+                    if (dragRef.current?.isDragging) return;
+                    handleHover(e.clientX, e.clientY);
+                  }}
+                >
+                  {/* タッチ・クリック判定用の透明ヒットエリア（快適操作） */}
+                  <circle
+                    cx={m.x}
+                    cy={m.y}
+                    r={viewMode === "2d" ? 14 / Math.sqrt(zoom2d) : 14}
+                    fill="transparent"
+                    pointerEvents="all"
+                  />
+                  {/* 外側の光彩/パルスリング */}
+                  <circle
+                    cx={m.x}
+                    cy={m.y}
+                    r={r * 1.9}
+                    fill={color}
+                    fillOpacity={selected ? 0.6 : dimmed ? 0.12 : 0.35}
+                    className={cn(
+                      "transition-all duration-200",
+                      selected && "animate-ping"
+                    )}
+                  />
+                  {/* メインのピン（大陸カラー・学習済みカラー） */}
+                  <circle
+                    cx={m.x}
+                    cy={m.y}
+                    r={r}
+                    fill={color}
+                    fillOpacity={dimmed ? 0.35 : 1}
+                    stroke={selected ? "#ffffff" : "#0f172a"}
+                    strokeWidth={
+                      viewMode === "2d"
+                        ? (selected ? 2.0 : 1.2) / Math.sqrt(zoom2d)
+                        : selected
+                        ? 2.2
+                        : 1.4
+                    }
+                    filter={selected ? "url(#selectedGlow)" : undefined}
+                    className="transition-transform duration-150 group-hover:scale-125 drop-shadow-sm"
+                  />
+                  {/* 中心ホワイトドット（さらに見やすく） */}
+                  <circle
+                    cx={m.x}
+                    cy={m.y}
+                    r={r * 0.38}
+                    fill="#ffffff"
+                    fillOpacity={dimmed ? 0.4 : 0.95}
+                    pointerEvents="none"
+                  />
+                </g>
               );
             })}
           </g>
