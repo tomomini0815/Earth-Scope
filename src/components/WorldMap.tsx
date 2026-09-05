@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
+import { geoDistance, geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
 import { Globe, Map, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 
@@ -180,13 +180,20 @@ export function WorldMap({
       d: path(f as never) ?? "",
     }));
 
-    // 3D地球儀表面の小国マーカー（可視半球内のみ）
+    // 3D地球儀の正面中心座標（経度・緯度）
+    const center: [number, number] = [-rotation[0], -rotation[1]];
+
+    // 3D地球儀表面の小国マーカー（正面半球・可視側のみ）
     const msPoints = MICROSTATES.map((m) => {
+      // 球面上の大円距離が90°（Math.PI / 2）以上の裏側にある国は除外
+      const dist = geoDistance(center, m.coordinates);
+      if (dist >= Math.PI / 2 - 0.02) return null;
+
       const pt = projection(m.coordinates);
       if (!pt || isNaN(pt[0]) || isNaN(pt[1])) return null;
       const [x, y] = pt;
       const distFromCenter = Math.hypot(x - WIDTH / 2, y - HEIGHT_3D / 2);
-      if (distFromCenter > radius - 1) return null;
+      if (distFromCenter > radius - 2) return null;
       return {
         ...m,
         x,
@@ -640,10 +647,7 @@ export function WorldMap({
                     r={r * 1.9}
                     fill={color}
                     fillOpacity={selected ? 0.6 : dimmed ? 0.12 : 0.35}
-                    className={cn(
-                      "transition-all duration-200",
-                      selected && "animate-ping"
-                    )}
+                    className={selected ? "animate-ping" : undefined}
                   />
                   {/* メインのピン（大陸カラー・学習済みカラー） */}
                   <circle
@@ -661,7 +665,7 @@ export function WorldMap({
                         : 1.4
                     }
                     filter={selected ? "url(#selectedGlow)" : undefined}
-                    className="transition-transform duration-150 group-hover:scale-125 drop-shadow-sm"
+                    className="drop-shadow-sm"
                   />
                   {/* 中心ホワイトドット（さらに見やすく） */}
                   <circle
