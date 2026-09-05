@@ -34,16 +34,31 @@ export const Route = createFileRoute("/country/$iso3")({
 function CountryPage() {
   const { country } = Route.useLoaderData();
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-16">
       <SiteHeader />
-      <main className="mx-auto max-w-4xl px-4 py-6">
-        <Link
-          to="/"
-          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> 地図に戻る
-        </Link>
-        <div className="surface-card overflow-hidden">
+      <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="size-4" /> 地図に戻る
+          </Link>
+          <div className="flex items-center gap-3 text-xs">
+            <Link to="/compare" className="text-sky-500 hover:underline">
+              他の国と比較する ➜
+            </Link>
+            <span className="text-border">|</span>
+            <Link
+              to="/quiz"
+              search={{ country: country.iso3.toLowerCase(), mode: "exam" }}
+              className="text-sky-500 hover:underline font-medium"
+            >
+              この国のクイズで腕試し ➜
+            </Link>
+          </div>
+        </div>
+        <div className="surface-card overflow-hidden shadow-sm">
           <CountryDetail country={country} />
         </div>
       </main>

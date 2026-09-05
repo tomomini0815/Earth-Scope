@@ -238,18 +238,18 @@ function MyPage() {
         </section>
 
         {/* 3. 学習ハブ: 弱点克服 & 未開拓レコメンド（④ 復習・学習効率） */}
-        <section className="surface-card p-5 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
+        <section className="surface-card p-5 sm:p-6 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="min-w-0">
               <h2 className="font-display text-lg font-bold flex items-center gap-2">
-                <BookOpen className="size-5 text-amber-500" />
-                <span>スマート学習ハブ & 弱点克服</span>
+                <BookOpen className="size-5 text-amber-500 shrink-0" />
+                <span className="truncate">スマート学習ハブ & 弱点克服</span>
               </h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 クイズで間違えた国や、進捗の遅い大陸からのおすすめをピックアップ。
               </p>
             </div>
-            <Link to="/quiz">
+            <Link to="/quiz" className="shrink-0 self-start sm:self-auto">
               <Button size="sm" variant="default" className="gap-1.5 text-xs shadow-sm">
                 <Trophy className="size-3.5" />
                 <span>クイズに挑戦</span>
@@ -257,16 +257,16 @@ function MyPage() {
             </Link>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 min-w-0">
             {/* 要復習リスト（クイズで間違えた国） */}
-            <div className="rounded-2xl border border-border bg-secondary/25 p-4 flex flex-col justify-between">
+            <div className="rounded-2xl border border-border bg-secondary/25 p-4 flex flex-col justify-between min-w-0">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-amber-500 dark:text-amber-400 flex items-center gap-1.5">
-                    <HelpCircle className="size-3.5" />
-                    <span>要復習リスト（クイズで間違えた国）</span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-bold text-amber-500 dark:text-amber-400 flex items-center gap-1.5 min-w-0">
+                    <HelpCircle className="size-3.5 shrink-0" />
+                    <span className="truncate">要復習リスト（クイズで間違えた国）</span>
                   </span>
-                  <span className="text-[11px] text-muted-foreground font-medium">
+                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">
                     {reviewCountries.length} カ国
                   </span>
                 </div>
@@ -276,11 +276,11 @@ function MyPage() {
                     {reviewCountries.map((c) => (
                       <div
                         key={c.iso3}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card p-2.5 text-xs hover:border-amber-500/40 transition-colors shadow-xs"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card p-2.5 text-xs hover:border-amber-500/40 transition-colors shadow-xs min-w-0"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <FlagImage flag={c.flag} size="xs" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="font-bold text-foreground truncate">{c.nameJa}</p>
                             <p className="text-[10px] text-muted-foreground truncate">首都: {c.basic.capital}</p>
                           </div>
@@ -342,15 +342,15 @@ function MyPage() {
             </div>
 
             {/* 未開拓フロンティアのレコメンド */}
-            <div className="rounded-2xl border border-border bg-secondary/25 p-4 flex flex-col justify-between">
+            <div className="rounded-2xl border border-border bg-secondary/25 p-4 flex flex-col justify-between min-w-0">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-sky-500 dark:text-sky-400 flex items-center gap-1.5">
-                    <Flame className="size-3.5" />
-                    <span>次の一歩：未開拓フロンティア</span>
+                <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2">
+                  <span className="text-xs font-bold text-sky-500 dark:text-sky-400 flex items-center gap-1.5 min-w-0">
+                    <Flame className="size-3.5 shrink-0" />
+                    <span className="truncate">次の一歩：未開拓フロンティア</span>
                   </span>
                   {lowestContinent && (
-                    <span className="text-[11px] font-semibold text-muted-foreground">
+                    <span className="text-[11px] font-semibold text-muted-foreground shrink-0">
                       {lowestContinent.continent.label}（達成率 {lowestContinent.pct}%）
                     </span>
                   )}
@@ -365,13 +365,16 @@ function MyPage() {
                       {lowestContinent.unlearned.slice(0, 3).map((c) => (
                         <div
                           key={c.iso3}
-                          className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card p-2.5 text-xs hover:border-sky-500/40 transition-colors shadow-xs"
+                          className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card p-2.5 text-xs hover:border-sky-500/40 transition-colors shadow-xs min-w-0"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <FlagImage flag={c.flag} size="xs" />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="font-bold text-foreground truncate">{c.nameJa}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">
+                              <p
+                                className="text-[10px] text-muted-foreground truncate"
+                                title={`首都: ${c.basic.capital} · 面積: ${c.basic.area.toLocaleString()} km²`}
+                              >
                                 首都: {c.basic.capital} · 面積: {c.basic.area.toLocaleString()} km²
                               </p>
                             </div>
@@ -405,31 +408,33 @@ function MyPage() {
         </section>
 
         {/* 4. デジタル・パスポート帳（① 消印スタンプコレクション） */}
-        <section className="relative overflow-hidden rounded-3xl border-2 border-amber-900/30 dark:border-amber-500/20 bg-gradient-to-br from-[#182338] via-[#0f172a] to-[#1e1b4b] text-white p-5 sm:p-7 shadow-xl">
+        <section className="relative overflow-hidden rounded-3xl border-2 border-amber-900/20 dark:border-amber-500/20 bg-gradient-to-br from-[#FAF7F0] via-[#F4EFE6] to-[#EFE8DC] dark:from-[#171B26] dark:via-[#12151F] dark:to-[#0D1017] p-5 sm:p-7 shadow-md">
           {/* パスポート風装飾ヘッダー */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-500/30 pb-4 mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-900/15 dark:border-amber-500/20 pb-4 mb-5">
             <div>
-              <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-widest">
+              <div className="flex items-center gap-2 text-amber-800/80 dark:text-amber-400 text-xs font-bold uppercase tracking-widest font-mono">
                 <span>PASSPORT OF EARTH TRAVELER</span>
                 <span>★</span>
                 <span>ENTRY STAMPS</span>
               </div>
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-white mt-1 flex items-center gap-2">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-amber-950 dark:text-white mt-1 flex items-center gap-2">
                 <span>デジタル・パスポート入国スタンプ帳</span>
               </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-xs text-amber-900/70 dark:text-slate-300 mt-0.5">
                 学習を達成した国が公式入国スタンプとしてパスポートに記録されます。
               </p>
             </div>
 
             {/* 大陸フィルタータブ */}
-            <div className="flex flex-wrap gap-1.5 bg-black/40 p-1 rounded-full border border-white/10">
+            <div className="flex flex-wrap gap-1.5 bg-amber-900/10 dark:bg-black/40 p-1 rounded-full border border-amber-900/15 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => setPassportFilter("all")}
                 className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-semibold transition-colors",
-                  passportFilter === "all" ? "bg-amber-400 text-slate-950 shadow" : "text-slate-300 hover:text-white"
+                  passportFilter === "all"
+                    ? "bg-amber-800 text-white dark:bg-amber-400 dark:text-slate-950 shadow-xs"
+                    : "text-amber-900/70 hover:text-amber-950 dark:text-slate-300 dark:hover:text-white"
                 )}
               >
                 すべて ({learned.length})
@@ -443,7 +448,9 @@ function MyPage() {
                     onClick={() => setPassportFilter(c.id)}
                     className={cn(
                       "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                      passportFilter === c.id ? "bg-amber-400 text-slate-950 shadow" : "text-slate-300 hover:text-white"
+                      passportFilter === c.id
+                        ? "bg-amber-800 text-white dark:bg-amber-400 dark:text-slate-950 shadow-xs"
+                        : "text-amber-900/70 hover:text-amber-950 dark:text-slate-300 dark:hover:text-white"
                     )}
                   >
                     {c.label} ({count})
@@ -463,11 +470,11 @@ function MyPage() {
                     key={c.iso3}
                     to="/country/$iso3"
                     params={{ iso3: c.iso3.toLowerCase() }}
-                    className="group relative rounded-2xl border-2 border-dashed border-amber-400/40 bg-slate-900/60 p-3 text-center transition-all duration-200 hover:-translate-y-1 hover:border-amber-400 hover:bg-slate-900/90 hover:shadow-lg hover:shadow-amber-400/10 block overflow-hidden"
+                    className="group relative rounded-2xl border-2 border-dashed border-amber-800/30 dark:border-amber-400/40 bg-white/80 dark:bg-slate-900/60 p-3 text-center transition-all duration-200 hover:-translate-y-1 hover:border-amber-700 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-900/90 hover:shadow-md hover:shadow-amber-900/10 block overflow-hidden"
                   >
                     {/* 消印スタンプ風デザイン */}
-                    <div className="absolute -right-3 -top-3 size-12 rounded-full border border-amber-400/20 pointer-events-none" />
-                    <div className="flex items-center justify-between text-[9px] text-amber-400/80 uppercase font-mono tracking-wider border-b border-amber-400/20 pb-1 mb-2">
+                    <div className="absolute -right-3 -top-3 size-12 rounded-full border border-amber-700/20 dark:border-amber-400/20 pointer-events-none" />
+                    <div className="flex items-center justify-between text-[9px] text-amber-800/80 dark:text-amber-400/80 uppercase font-mono tracking-wider border-b border-amber-700/20 dark:border-amber-400/20 pb-1 mb-2">
                       <span>OFFICIAL</span>
                       <span>ENTRY</span>
                     </div>
@@ -476,11 +483,11 @@ function MyPage() {
                         <FlagImage flag={c.flag} size="md" />
                       </div>
                     </div>
-                    <p className="font-bold text-xs text-white group-hover:text-amber-300 transition-colors truncate">
+                    <p className="font-bold text-xs text-amber-950 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors truncate">
                       {c.nameJa}
                     </p>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{c.basic.capital}</p>
-                    <div className="mt-2 text-[9px] font-mono text-amber-400/70 border-t border-amber-400/20 pt-1">
+                    <p className="text-[10px] text-amber-900/60 dark:text-slate-400 truncate mt-0.5">{c.basic.capital}</p>
+                    <div className="mt-2 text-[9px] font-mono text-amber-800/70 dark:text-amber-400/70 border-t border-amber-700/20 dark:border-amber-400/20 pt-1">
                       PASSED · {c.iso3}
                     </div>
                   </Link>
@@ -488,15 +495,15 @@ function MyPage() {
               })}
             </div>
           ) : (
-            <div className="py-12 text-center text-slate-300">
-              <div className="mx-auto size-14 rounded-full border-2 border-dashed border-amber-400/40 flex items-center justify-center text-2xl mb-3">
+            <div className="py-12 text-center text-amber-900/70 dark:text-slate-300">
+              <div className="mx-auto size-14 rounded-full border-2 border-dashed border-amber-800/30 dark:border-amber-400/40 flex items-center justify-center text-2xl mb-3">
                 🛂
               </div>
-              <p className="text-sm font-bold text-white">まだパスポートスタンプがありません</p>
-              <p className="text-xs text-slate-300 mt-1 max-w-sm mx-auto">
+              <p className="text-sm font-bold text-amber-950 dark:text-white">まだパスポートスタンプがありません</p>
+              <p className="text-xs text-amber-900/70 dark:text-slate-300 mt-1 max-w-sm mx-auto">
                 世界地図や国リストから国を選び、「学習済みにする」を押すと、ここにあなただけの公式スタンプが押されます！
               </p>
-              <Button size="sm" variant="secondary" className="mt-4 text-xs" asChild>
+              <Button size="sm" variant="default" className="mt-4 text-xs bg-amber-800 hover:bg-amber-900 text-white dark:bg-amber-400 dark:text-slate-950" asChild>
                 <Link to="/">世界地図を開く</Link>
               </Button>
             </div>
