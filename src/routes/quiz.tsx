@@ -206,6 +206,7 @@ function QuizPage() {
   const [correct, setCorrect] = useState(0);
   const [done, setDone] = useState(false);
   const addResult = useProgress((s) => s.addResult);
+  const recordWrong = useProgress((s) => s.recordWrong);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const questions = useMemo(() => buildQuestions(mode, usedCountryCodes), [mode, seed]);
@@ -250,7 +251,11 @@ function QuizPage() {
   const answer = (choiceId: string) => {
     if (pickedId) return;
     setPickedId(choiceId);
-    if (choiceId === q?.answerId) setCorrect((c) => c + 1);
+    if (choiceId === q?.answerId) {
+      setCorrect((c) => c + 1);
+    } else if (q?.country?.iso3) {
+      recordWrong(q.country.iso3);
+    }
   };
 
   const next = () => {
