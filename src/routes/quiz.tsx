@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState } from "react";
 import { Check, RefreshCw, X, Award, Globe, BookOpen } from "lucide-react";
 
 import { SiteHeader } from "@/components/SiteHeader";
@@ -205,7 +205,6 @@ function QuizPage() {
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
   const [done, setDone] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
   const addResult = useProgress((s) => s.addResult);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,10 +263,6 @@ function QuizPage() {
     }
     setIndex((i) => i + 1);
     setPickedId(null);
-    // 次の問題へ進んだ際に、カード上部にスムーズスクロール
-    setTimeout(() => {
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
   };
 
   return (
@@ -346,11 +341,7 @@ function QuizPage() {
           </div>
         ) : (
           q && (
-            <div
-              ref={cardRef}
-              key={`quiz-card-${mode}-${index}-${q.country.iso3}`}
-              className="surface-card mt-6 p-5 sm:p-6 shadow-sm animate-fade-in"
-            >
+            <div className="surface-card mt-6 p-5 sm:p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 flex-1">
                   <Progress value={((index + (pickedId ? 1 : 0)) / questions.length) * 100} className="h-2 flex-1" />
@@ -456,7 +447,7 @@ function QuizPage() {
                     <FlagImage flag={q.country.flag} size="sm" className="mt-0.5 shrink-0" />
                     <span>{q.explanation}</span>
                   </div>
-                  <Button className="mt-4 w-full font-bold shadow" onClick={next}>
+                  <Button type="button" className="mt-4 w-full font-bold shadow" onClick={next}>
                     {index + 1 >= questions.length ? "結果を見る" : "次の問題へ（第" + (index + 2) + "問）"}
                   </Button>
                 </div>
