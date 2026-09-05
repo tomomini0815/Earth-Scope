@@ -10,12 +10,15 @@ import { MICROSTATES, microstateById } from "@/data/microstates";
 import { FlagImage } from "@/components/FlagImage";
 import { cn } from "@/lib/utils";
 
-const WIDTH = 960;
+const WIDTH_2D = 960;
 const HEIGHT_2D = 500;
-const HEIGHT_3D = 620; // 3D時はより大きく迫力ある正方形に近い高さ
+const WIDTH_3D = 660; // 3D時は正方形寄りのアスペクト比で、モバイルでも大迫力で大きく表示
+const HEIGHT_3D = 600;
+const CX_3D = WIDTH_3D / 2; // 330
+const CY_3D = HEIGHT_3D / 2; // 300
 const MIN_ZOOM_2D = 1;
 const MAX_ZOOM_2D = 8;
-const GLOBE_DEFAULT_RADIUS = 265; // 半径265（直径530pxの大迫力）
+const GLOBE_DEFAULT_RADIUS = 270; // 半径270（直径540pxの特大迫力）
 
 // 地図データ上に存在する独立198ヵ国外の自治領・海外領土のマッピング
 const SPECIAL_TERRITORIES: Record<
@@ -140,7 +143,7 @@ export function WorldMap({
 
   // 2D用 projection & paths & microstates
   const { paths2D, microstates2D } = useMemo(() => {
-    const projection = geoNaturalEarth1().fitSize([WIDTH, HEIGHT_2D], collection);
+    const projection = geoNaturalEarth1().fitSize([WIDTH_2D, HEIGHT_2D], collection);
     const path = geoPath(projection);
     const featurePaths = (collection.features as unknown as Feature[]).map((f) => ({
       mapId: String(f.id ?? ""),
@@ -165,7 +168,7 @@ export function WorldMap({
     const radius = GLOBE_DEFAULT_RADIUS * zoom3d;
     const projection = geoOrthographic()
       .scale(radius)
-      .translate([WIDTH / 2, HEIGHT_3D / 2])
+      .translate([CX_3D, CY_3D])
       .rotate(rotation)
       .clipAngle(90);
 
@@ -196,7 +199,7 @@ export function WorldMap({
       const pt = projection(m.coordinates);
       if (!pt || isNaN(pt[0]) || isNaN(pt[1])) return null;
       const [x, y] = pt;
-      const distFromCenter = Math.hypot(x - WIDTH / 2, y - HEIGHT_3D / 2);
+      const distFromCenter = Math.hypot(x - CX_3D, y - CY_3D);
       if (distFromCenter > radius - 2) return null;
       return {
         ...m,
@@ -292,7 +295,7 @@ export function WorldMap({
     if (viewMode === "2d") {
       const el = containerRef.current;
       const rect = el?.getBoundingClientRect();
-      zoomAt2D(zoom2d * factor, (rect?.width ?? WIDTH) / 2, (rect?.height ?? HEIGHT_2D) / 2);
+      zoomAt2D(zoom2d * factor, (rect?.width ?? WIDTH_2D) / 2, (rect?.height ?? HEIGHT_2D) / 2);
     } else {
       zoomAt3D(factor);
     }
@@ -344,14 +347,16 @@ export function WorldMap({
 
   const currentPaths = viewMode === "2d" ? paths2D : paths3D;
   const currentMicrostates = viewMode === "2d" ? microstates2D : microstates3D;
+  const currentWidth = viewMode === "2d" ? WIDTH_2D : WIDTH_3D;
   const currentHeight = viewMode === "2d" ? HEIGHT_2D : HEIGHT_3D;
   const globeRadius = GLOBE_DEFAULT_RADIUS * zoom3d;
 
   return (
-    <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all">
-      {/* 上部コントロールバー：表示モード切替（3D地球儀 ⇄ 2D平面） */}
-      <div className="absolute left-3 top-3 z-20 flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/90 p-1 shadow-md backdrop-blur-md">
+    <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all flex flex-col">
+      {/* 上部コントロールヘッダー：タブと操作ボタンを独立配置し、地球儀・地図への被りを100%解消 */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-2.5 bg-card/85 backdrop-blur-md border-b border-border/60 z-20 shrink-0">
+        {/* 表示モード切替（3D地球儀 ⇄ 2D平面） */}
+        <div className="flex items-center gap-1 rounded-full border border-border/80 bg-background/90 p-0.5 shadow-2xs">
           <button
             type="button"
             onClick={() => {
@@ -359,9 +364,9 @@ export function WorldMap({
               setHover(null);
             }}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+              "flex items-center gap-1.5 rounded-full px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer",
               viewMode === "3d"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
@@ -375,14 +380,59 @@ export function WorldMap({
               setHover(null);
             }}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+              "flex items-center gap-1.5 rounded-full px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer",
               viewMode === "2d"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
             <Map className="size-3.5" />
             <span>平面地図</span>
+          </button>
+        </div>
+
+        {/* コントロールボタン群（自転、拡大、縮小、リセット） */}
+        <div className="flex items-center gap-1">
+          {viewMode === "3d" && (
+            <button
+              type="button"
+              aria-label={autoRotate ? "自転を一時停止" : "自動で自転させる"}
+              title={autoRotate ? "自転を一時停止" : "自動で自転させる"}
+              onClick={() => setAutoRotate(!autoRotate)}
+              className={cn(
+                "rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs",
+                autoRotate && "bg-sky-500 text-white border-sky-500 hover:bg-sky-600 shadow-sky-500/20"
+              )}
+            >
+              {autoRotate ? <Pause className="size-3.5 sm:size-4" /> : <Play className="size-3.5 sm:size-4" />}
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="拡大"
+            title="拡大"
+            onClick={() => buttonZoom(1.35)}
+            className="rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs"
+          >
+            <Plus className="size-3.5 sm:size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="縮小"
+            title="縮小"
+            onClick={() => buttonZoom(1 / 1.35)}
+            className="rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs"
+          >
+            <Minus className="size-3.5 sm:size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="表示をリセット"
+            title="表示をリセット"
+            onClick={resetView}
+            className="rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs"
+          >
+            <RotateCcw className="size-3.5 sm:size-4" />
           </button>
         </div>
       </div>
@@ -415,7 +465,7 @@ export function WorldMap({
         }}
       >
         <svg
-          viewBox={`0 0 ${WIDTH} ${currentHeight}`}
+          viewBox={`0 0 ${currentWidth} ${currentHeight}`}
           className="block h-auto w-full select-none"
           role="img"
           aria-label={viewMode === "2d" ? "インタラクティブ世界地図" : "3Dインタラクティブ地球儀"}
@@ -455,8 +505,8 @@ export function WorldMap({
             <g pointerEvents="none">
               {/* 海洋の球体（薄めカラーの爽やかベース） */}
               <circle
-                cx={WIDTH / 2}
-                cy={HEIGHT_3D / 2}
+                cx={CX_3D}
+                cy={CY_3D}
                 r={globeRadius}
                 fill="url(#oceanGlow)"
               />
@@ -707,8 +757,8 @@ export function WorldMap({
             <g pointerEvents="none">
               {/* 球体外枠ライン（ソフトなエッジ） */}
               <circle
-                cx={WIDTH / 2}
-                cy={HEIGHT_3D / 2}
+                cx={CX_3D}
+                cy={CY_3D}
                 r={globeRadius}
                 fill="none"
                 stroke="#38bdf8"
@@ -717,15 +767,15 @@ export function WorldMap({
               />
               {/* 薄めの立体陰影 */}
               <circle
-                cx={WIDTH / 2}
-                cy={HEIGHT_3D / 2}
+                cx={CX_3D}
+                cy={CY_3D}
                 r={globeRadius}
                 fill="url(#sphereShade)"
               />
               {/* 大気の光彩（Atmosphere Glow） */}
               <circle
-                cx={WIDTH / 2}
-                cy={HEIGHT_3D / 2}
+                cx={CX_3D}
+                cy={CY_3D}
                 r={globeRadius}
                 fill="url(#atmosphereGlow)"
               />
@@ -773,53 +823,6 @@ export function WorldMap({
             </div>
           </div>
         )}
-      </div>
-
-      {/* 右上のコントロールボタン群（平面地図と同一の統一デザイン） */}
-      <div className="absolute right-3 top-3 flex flex-col gap-1 z-20">
-        {/* 3D地球儀モード時：自動自転 ON/OFF ボタン */}
-        {viewMode === "3d" && (
-          <button
-            type="button"
-            aria-label={autoRotate ? "自転を一時停止" : "自動で自転させる"}
-            title={autoRotate ? "自転を一時停止" : "自動で自転させる"}
-            onClick={() => setAutoRotate(!autoRotate)}
-            className={cn(
-              "rounded-md border border-border bg-card p-2 text-foreground shadow-[var(--shadow-pop)] hover:bg-secondary transition-colors",
-              autoRotate && "bg-sky-500 text-white border-sky-500 hover:bg-sky-600 shadow-sky-500/20"
-            )}
-          >
-            {autoRotate ? <Pause className="size-4" /> : <Play className="size-4" />}
-          </button>
-        )}
-
-        <button
-          type="button"
-          aria-label="拡大"
-          title="拡大"
-          onClick={() => buttonZoom(1.35)}
-          className="rounded-md border border-border bg-card p-2 text-foreground shadow-[var(--shadow-pop)] hover:bg-secondary transition-colors"
-        >
-          <Plus className="size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label="縮小"
-          title="縮小"
-          onClick={() => buttonZoom(1 / 1.35)}
-          className="rounded-md border border-border bg-card p-2 text-foreground shadow-[var(--shadow-pop)] hover:bg-secondary transition-colors"
-        >
-          <Minus className="size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label="表示をリセット"
-          title="表示をリセット"
-          onClick={resetView}
-          className="rounded-md border border-border bg-card p-2 text-foreground shadow-[var(--shadow-pop)] hover:bg-secondary transition-colors"
-        >
-          <RotateCcw className="size-4" />
-        </button>
       </div>
     </div>
   );

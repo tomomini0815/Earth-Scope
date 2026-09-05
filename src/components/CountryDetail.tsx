@@ -37,6 +37,7 @@ import {
   Users,
   UtensilsCrossed,
   Wallet,
+  X,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -142,10 +143,12 @@ export function CountryDetail({
   country,
   compact,
   isPreview,
+  onClose,
 }: {
   country: Country;
   compact?: boolean;
   isPreview?: boolean;
+  onClose?: () => void;
 }) {
   const learned = useProgress((s) => s.learned.includes(country.iso3));
   const favorite = useProgress((s) => s.favorites.includes(country.iso3));
@@ -212,6 +215,19 @@ export function CountryDetail({
             }
           }}
         />
+
+        {/* モバイル・ポップアップ用の閉じる×ボタン */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="閉じる"
+            className="absolute top-2.5 right-2.5 z-30 flex size-8 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur-md transition-transform hover:bg-black/90 active:scale-90 border border-white/25 shadow-lg cursor-pointer"
+          >
+            <X className="size-4.5 stroke-[2.5]" />
+          </button>
+        )}
+
         {/* 写真グラデーション & キャプション */}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3.5 py-1.5 flex items-center justify-between text-[11px] text-white/90">
           <span className="font-medium truncate drop-shadow-sm">📷 {photo.caption}</span>
@@ -266,16 +282,16 @@ export function CountryDetail({
       </div>
 
       <Tabs defaultValue="basic" className="flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto px-4 pt-3 scrollbar-hide">
-          <TabsList className="w-full justify-between h-auto p-1 gap-0.5">
-            <TabsTrigger value="basic" className="px-2 sm:px-2.5 py-1.5 text-xs">基本</TabsTrigger>
-            <TabsTrigger value="history" className="px-2 sm:px-2.5 py-1.5 text-xs">歴史</TabsTrigger>
-            <TabsTrigger value="culture" className="px-2 sm:px-2.5 py-1.5 text-xs">文化</TabsTrigger>
-            <TabsTrigger value="society" className="px-2 sm:px-2.5 py-1.5 text-xs">人口・社会</TabsTrigger>
-            <TabsTrigger value="economy" className="px-2 sm:px-2.5 py-1.5 text-xs">経済</TabsTrigger>
-            <TabsTrigger value="military" className="px-2 sm:px-2.5 py-1.5 text-xs">軍事</TabsTrigger>
-            <TabsTrigger value="geography" className="px-2 sm:px-2.5 py-1.5 text-xs">地理</TabsTrigger>
-            <TabsTrigger value="exam" className="px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">受験ポイント</TabsTrigger>
+        <div className="overflow-x-auto px-3 sm:px-4 pt-3 scrollbar-hide">
+          <TabsList className="inline-flex min-w-full w-max justify-start sm:justify-between h-auto p-1 gap-1">
+            <TabsTrigger value="basic" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">基本</TabsTrigger>
+            <TabsTrigger value="history" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">歴史</TabsTrigger>
+            <TabsTrigger value="culture" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">文化</TabsTrigger>
+            <TabsTrigger value="society" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">人口・社会</TabsTrigger>
+            <TabsTrigger value="economy" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">経済</TabsTrigger>
+            <TabsTrigger value="military" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">軍事</TabsTrigger>
+            <TabsTrigger value="geography" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">地理</TabsTrigger>
+            <TabsTrigger value="exam" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">受験ポイント</TabsTrigger>
           </TabsList>
         </div>
 
@@ -283,16 +299,17 @@ export function CountryDetail({
           {/* 1. 基本タブ */}
           <TabsContent value="basic" className="mt-0 space-y-4">
             {compact ? (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Row label="首都" value={country.basic.capital} />
                 <Row label="公用語・主な言語" value={country.basic.languages} />
                 <Row label="面積" value={`${nf.format(country.basic.area)} km²`} />
                 <Row label="日本との時差" value={country.basic.timeDiffFromJapan} />
                 <Row label="政治体制" value={country.basic.government} />
+                <Row label="気候・気温特性" value={country.geography.climate} />
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <StatCard
                     icon={Landmark}
                     label="首都"
@@ -316,6 +333,13 @@ export function CountryDetail({
                     label="日本との時差"
                     value={country.basic.timeDiffFromJapan}
                     subtext="日本標準時（JST）との時差"
+                  />
+                  <StatCard
+                    icon={CloudSun}
+                    label="気候・気温特性"
+                    value={country.geography.climate.split("（")[0] || country.geography.climate}
+                    subtext={country.geography.climate}
+                    className="sm:col-span-2"
                   />
                 </div>
 

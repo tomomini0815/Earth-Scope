@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { WorldMap } from "@/components/WorldMap";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { byIso3, byMapId, learnedIds, sortedCountries } from "@/data/lookup";
 import { CONTINENTS, continentLabel, type ContinentId, type Country } from "@/data/types";
 import { countries } from "@/data/countries";
@@ -187,12 +187,11 @@ function Index() {
             onHover={setHoveredMapId}
           />
 
-          {!isMobile && (
             <div className="surface-card overflow-hidden">
-              {activeCountry ? (
+              {!isMobile && activeCountry ? (
                 <CountryDetail country={activeCountry} compact isPreview={isPreview} />
               ) : (
-                <div className="flex h-full flex-col justify-between p-5 sm:p-6 space-y-4">
+                <div className="flex h-full flex-col justify-between p-4 sm:p-6 space-y-4">
                   {/* ヘッダーエリア：アイコンを廃止し、タイポグラフィで端正に表現 */}
                   <div>
                     <div className="flex items-center justify-between">
@@ -264,37 +263,66 @@ function Index() {
                         </div>
                       </div>
 
-                      {/* 写真下の知的なハイライトコラム（アイコンなし、テキストの質で魅せる） */}
-                      <div className="p-2.5 px-3 bg-card border-t border-border/50 space-y-1">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-foreground">
-                            {featuredCountry.nameJa}の学習トピック
+                      {/* 写真下の国の特徴＆学習トピック */}
+                      <div className="p-3.5 bg-card border-t border-border/50 space-y-2.5">
+                        {/* 基本スペック */}
+                        <div className="flex items-center justify-between text-xs pb-1.5 border-b border-border/40">
+                          <span className="font-bold text-foreground">
+                            {featuredCountry.nameJa}の特徴・基本情報
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[11px] text-muted-foreground font-medium">
                             人口 約{(featuredCountry.society.population / 10000).toLocaleString()}万人 / 面積 約{featuredCountry.basic.area.toLocaleString()} km²
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                          {featuredCountry.examPoints[0]?.q
-                            ? `ポイント：${featuredCountry.examPoints[0].q}`
-                            : featuredCountry.history.founding || featuredCountry.geography.terrain}
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* 3つのスタッツ・数値指標（絵文字やアイコンを排し、タイポグラフィと数字で知的でモダンに表現） */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-lg border border-border/70 bg-muted/20 p-2 text-center">
-                        <span className="text-base font-bold text-foreground tracking-tight block">360°</span>
-                        <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">3D地球儀・地図連動</span>
-                      </div>
-                      <div className="rounded-lg border border-border/70 bg-muted/20 p-2 text-center">
-                        <span className="text-base font-bold text-foreground tracking-tight block">7分野</span>
-                        <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">歴史・文化・経済等</span>
-                      </div>
-                      <div className="rounded-lg border border-border/70 bg-muted/20 p-2 text-center">
-                        <span className="text-base font-bold text-foreground tracking-tight block">1,980問</span>
-                        <span className="text-[10px] text-muted-foreground font-medium block mt-0.5">入試ポイント完備</span>
+                        {/* 特徴リスト（地理、産業、文化/社会、学習ポイント） */}
+                        <div className="space-y-1.5 text-xs">
+                          {/* 地理・気候 */}
+                          <div className="flex items-baseline gap-2">
+                            <span className="shrink-0 font-semibold text-muted-foreground text-[11px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                              地理・気候
+                            </span>
+                            <span className="text-foreground/90 line-clamp-1">
+                              {featuredCountry.geography.climate}
+                            </span>
+                          </div>
+
+                          {/* 主要産業 */}
+                          {featuredCountry.economy.industries.length > 0 && (
+                            <div className="flex items-baseline gap-2">
+                              <span className="shrink-0 font-semibold text-muted-foreground text-[11px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                                主要産業
+                              </span>
+                              <span className="text-foreground/90 line-clamp-1">
+                                {featuredCountry.economy.industries.join("、")}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* 歴史・社会 */}
+                          {(featuredCountry.society.note || featuredCountry.history.founding) && (
+                            <div className="flex items-baseline gap-2">
+                              <span className="shrink-0 font-semibold text-muted-foreground text-[11px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                                歴史・社会
+                              </span>
+                              <span className="text-foreground/90 line-clamp-1">
+                                {featuredCountry.society.note || featuredCountry.history.founding}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* 学習・入試ポイント */}
+                          {featuredCountry.examPoints[0]?.q && (
+                            <div className="flex items-baseline gap-2 pt-0.5">
+                              <span className="shrink-0 font-semibold text-primary text-[11px] bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                                注目ポイント
+                              </span>
+                              <span className="text-foreground/90 line-clamp-2 leading-relaxed">
+                                {featuredCountry.examPoints[0].q}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -320,8 +348,7 @@ function Index() {
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
         <section className="mt-6 sm:mt-8">
           <h2 className="font-display text-lg font-bold">
@@ -360,11 +387,24 @@ function Index() {
         </div>
       </main>
 
-      <Sheet open={isMobile && !!selected} onOpenChange={(o) => !o && setSelectedMapId(undefined)}>
-        <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto p-0">
-          {selected && <CountryDetail country={selected} compact />}
-        </SheetContent>
-      </Sheet>
+      <Drawer
+        open={isMobile && !!selected}
+        onOpenChange={(o) => {
+          if (!o) setSelectedMapId(undefined);
+        }}
+      >
+        <DrawerContent className="max-h-[88vh] overflow-hidden p-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            {selected && (
+              <CountryDetail
+                country={selected}
+                compact
+                onClose={() => setSelectedMapId(undefined)}
+              />
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

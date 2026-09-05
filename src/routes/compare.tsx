@@ -348,57 +348,58 @@ function ComparePage() {
           </div>
         </div>
 
-        {/* 比較指標選択ボタン */}
-        <div className="mt-5 flex flex-wrap gap-2">
+        {/* 比較指標選択ボタン — モバイルでは横スクロールで快適に、デスクトップではラップ */}
+        <div className="mt-4 -mx-4 px-4 sm:mx-0 sm:px-0 flex gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap pb-1 sm:pb-0">
           {METRICS.map((m) => (
             <button
               key={m.id}
               onClick={() => handleMetricChange(m.id)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all shadow-xs",
+                "shrink-0 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all shadow-2xs cursor-pointer whitespace-nowrap",
                 metric === m.id
-                  ? "border-primary bg-primary text-primary-foreground shadow"
+                  ? "border-primary bg-primary text-primary-foreground shadow-xs"
                   : "border-border bg-card text-foreground hover:bg-secondary"
               )}
             >
               <span>{m.label}</span>
-              <span className={cn("text-[10px] font-normal opacity-80", metric === m.id ? "text-primary-foreground" : "text-muted-foreground")}>
-                ({m.subLabel})
+              <span className={cn("text-[10px] font-normal opacity-80 hidden sm:inline", metric === m.id ? "text-primary-foreground" : "text-muted-foreground")}>
+                ({m.shortUnit})
               </span>
             </button>
           ))}
         </div>
 
         {/* グラフ描画エリア */}
-        <div className="surface-card mt-4 p-4 sm:p-6 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-bold text-muted-foreground flex items-center gap-1.5">
+        <div className="surface-card mt-4 p-3.5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h2 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5 truncate">
               {currentMetric.label}の比較グラフ
-              <span className="text-xs font-normal text-muted-foreground">（{currentMetric.subLabel}）</span>
+              <span className="text-[11px] font-normal text-muted-foreground hidden sm:inline">（{currentMetric.subLabel}）</span>
             </h2>
-            <span className="text-xs text-muted-foreground font-medium">グラフ基準単位: {currentMetric.shortUnit}</span>
+            <span className="text-[11px] text-muted-foreground font-medium shrink-0">単位: {currentMetric.shortUnit}</span>
           </div>
           {selected.length === 0 ? (
-            <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-56 sm:h-72 items-center justify-center text-xs sm:text-sm text-muted-foreground">
               下の国一覧から比較したい国を選択してください（最大10ヵ国）
             </div>
           ) : (
-            <div className="h-80 w-full">
+            <div className="h-60 sm:h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 16, right: 16, left: 8, bottom: 32 }}>
+                <BarChart data={chartData} margin={{ top: 12, right: 12, left: -14, bottom: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis
                     dataKey="name"
                     stroke="#888"
-                    fontSize={11}
+                    fontSize={10}
                     interval={0}
-                    angle={chartData.length > 5 ? -25 : 0}
-                    textAnchor={chartData.length > 5 ? "end" : "middle"}
+                    angle={-25}
+                    textAnchor="end"
+                    height={36}
                   />
                   <YAxis
                     stroke="#888"
-                    fontSize={11}
-                    width={72}
+                    fontSize={10}
+                    width={56}
                     tickFormatter={(v) => {
                       if (metric === "population") {
                         if (v >= 10000) return `${(v / 10000).toFixed(1)}億人`;
@@ -441,7 +442,7 @@ function ComparePage() {
                     dataKey="value"
                     fill="var(--chart-1)"
                     radius={[6, 6, 0, 0]}
-                    maxBarSize={60}
+                    maxBarSize={52}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -452,35 +453,40 @@ function ComparePage() {
         {/* 比較データ詳細テーブル */}
         {selected.length > 0 && (
           <div className="mt-8">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
               <div>
-                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                  比較データ詳細テーブル
-                  <span className="text-xs font-normal text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
-                    日本語単位 ＋ 詳細数値の二段表示
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm sm:text-base font-bold text-foreground">
+                    比較データ詳細テーブル
+                  </h2>
+                  <span className="text-[10px] sm:text-xs font-normal text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/50">
+                    日本語単位 ＋ 実数値
                   </span>
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                  <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 sm:hidden">
+                    👉 横スクロール（国名固定）
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 hidden sm:block">
                   💡 列ヘッダーをクリックするとその指標で並び替え（昇順・降順）でき、上のグラフとも自動連動します。
                 </p>
               </div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
                 <span>ソート中:</span>
                 <span className="font-semibold text-primary">
                   {sortConfig.key === "name"
                     ? "国名"
                     : METRICS.find((m) => m.id === sortConfig.key)?.label}
                 </span>
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary">
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary text-[11px]">
                   {sortConfig.direction === "desc" ? "大きい順 ↓" : "小さい順 ↑"}
                 </span>
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs scrollbar-thin">
+              <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border bg-muted/70 text-left text-xs text-muted-foreground">
                     <th
                       onClick={() =>
                         setSortConfig((prev) => ({
@@ -488,7 +494,7 @@ function ComparePage() {
                           direction: prev.key === "name" && prev.direction === "asc" ? "desc" : "asc",
                         }))
                       }
-                      className="py-3 px-4 font-bold cursor-pointer select-none hover:text-foreground transition-colors"
+                      className="sticky left-0 z-20 bg-muted/95 backdrop-blur-xs py-2.5 px-3 sm:px-4 font-bold cursor-pointer select-none hover:text-foreground transition-colors border-r border-border/80 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)] min-w-[115px] sm:min-w-[150px]"
                     >
                       <div className="flex items-center gap-1">
                         <span>国名</span>
@@ -511,14 +517,14 @@ function ComparePage() {
                           key={m.id}
                           onClick={() => handleHeaderClick(m.id)}
                           className={cn(
-                            "py-3 px-3.5 text-right font-bold whitespace-nowrap cursor-pointer select-none transition-colors group",
+                            "py-2.5 px-3 text-right font-bold whitespace-nowrap cursor-pointer select-none transition-colors group min-w-[110px] sm:min-w-[130px]",
                             isCurrentGraph
                               ? "bg-primary/10 text-primary font-extrabold border-x border-primary/20"
                               : "hover:bg-muted hover:text-foreground"
                           )}
                           title="クリックしてこの指標で並び替え & グラフ表示"
                         >
-                          <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex flex-col items-end gap-0.5 whitespace-nowrap">
                             <div className="flex items-center gap-1">
                               <span>{m.label}</span>
                               {isSorted ? (
@@ -533,11 +539,11 @@ function ComparePage() {
                             </div>
                             <span
                               className={cn(
-                                "text-[10px] font-normal",
-                                isCurrentGraph ? "text-primary/80" : "text-muted-foreground"
+                                "text-[10px] font-normal whitespace-nowrap",
+                                isCurrentGraph ? "text-primary/80 font-medium" : "text-muted-foreground"
                               )}
                             >
-                              [{m.subLabel}]
+                              [{m.shortUnit}]
                             </span>
                           </div>
                         </th>
@@ -552,13 +558,14 @@ function ComparePage() {
                         key={c.iso3}
                         className="border-b border-border/60 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td className="sticky left-0 z-10 bg-card py-2.5 px-3 sm:px-4 border-r border-border/80 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)] min-w-[115px] sm:min-w-[150px] whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <FlagImage flag={c.flag} size="xs" />
-                            <div>
-                              <div className="font-semibold leading-tight">{c.nameJa}</div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {c.nameEn} ({continentLabel(c.continent)})
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs sm:text-sm leading-tight truncate">{c.nameJa}</div>
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                <span className="hidden sm:inline">{c.nameEn} ・ </span>
+                                {continentLabel(c.continent)}
                               </div>
                             </div>
                           </div>
@@ -579,7 +586,7 @@ function ComparePage() {
                             <td
                               key={m.id}
                               className={cn(
-                                "relative py-2.5 px-3.5 text-right transition-colors",
+                                "relative py-2 px-3 text-right transition-colors whitespace-nowrap min-w-[110px] sm:min-w-[130px]",
                                 isCurrentGraph
                                   ? "bg-primary/5 border-x border-primary/20 font-semibold"
                                   : ""
@@ -592,11 +599,11 @@ function ComparePage() {
                                   style={{ width: `${percent}%` }}
                                 />
                               )}
-                              <div className="flex flex-col items-end gap-0.5">
-                                <div className="flex items-center gap-1.5">
+                              <div className="flex flex-col items-end gap-0.5 whitespace-nowrap">
+                                <div className="flex items-center gap-1.5 whitespace-nowrap">
                                   {isMax && (
                                     <span
-                                      className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                      className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0"
                                       title="選択中の国の中で最大"
                                     >
                                       1位
@@ -604,16 +611,16 @@ function ComparePage() {
                                   )}
                                   <span
                                     className={cn(
-                                      "text-sm font-bold tabular-nums",
+                                      "text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap",
                                       isCurrentGraph
-                                        ? "text-primary text-[15px]"
+                                        ? "text-primary text-[13px] sm:text-[15px]"
                                         : "text-foreground"
                                     )}
                                   >
                                     {formatted.main}
                                   </span>
                                 </div>
-                                <span className="text-[11px] text-muted-foreground tabular-nums font-normal">
+                                <span className="text-[10px] sm:text-[11px] text-muted-foreground tabular-nums font-normal whitespace-nowrap">
                                   {formatted.sub}
                                 </span>
                               </div>
