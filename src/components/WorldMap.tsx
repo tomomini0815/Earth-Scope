@@ -731,19 +731,19 @@ export function WorldMap({
         {hover && (
           <div
             style={{
-              left: `${Math.max(120, Math.min(hover.x, (containerRef.current?.clientWidth ?? 800) - 120))}px`,
-              top: `${Math.max(48, hover.y - 18)}px`,
+              left: `${Math.max(80, Math.min(hover.x, (containerRef.current?.clientWidth ?? 800) - 80))}px`,
+              top: `${Math.max(36, hover.y - 14)}px`,
               transform: "translate(-50%, -100%)",
             }}
-            className="pointer-events-none absolute z-30 transition-transform duration-75 ease-out animate-fadeIn"
+            className="pointer-events-none absolute z-30 transition-transform duration-75 ease-out select-none whitespace-nowrap"
           >
-            <div className="flex items-center gap-2 rounded-full border border-white/25 bg-slate-950/90 px-3 py-1 text-xs text-white shadow-2xl backdrop-blur-md dark:border-white/15 dark:bg-black/90 select-none font-medium">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-slate-950/85 px-3 py-1 text-xs text-white shadow-xl backdrop-blur-md dark:border-white/15 dark:bg-black/90 whitespace-nowrap">
               {hover.flag && (
                 <div className="shrink-0 drop-shadow-xs">
                   <FlagImage flag={hover.flag} size="xs" />
                 </div>
               )}
-              <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
                 <span className="font-bold text-[13px] leading-none text-white tracking-tight">
                   {hover.name}
                 </span>
@@ -755,7 +755,7 @@ export function WorldMap({
               </div>
               {hover.continent && (
                 <span
-                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wider border border-white/20"
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide border border-white/20 whitespace-nowrap"
                   style={{
                     backgroundColor: `color-mix(in srgb, ${continentColor(hover.continent as ContinentId)} 40%, transparent)`,
                     color: "#ffffff",
@@ -764,9 +764,6 @@ export function WorldMap({
                   {CONTINENTS.find((c) => c.id === hover.continent)?.label}
                 </span>
               )}
-              <span className="text-[10px] text-sky-400 font-semibold pl-1">
-                クリックで固定 ➜
-              </span>
             </div>
           </div>
         )}

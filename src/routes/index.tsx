@@ -56,8 +56,6 @@ function Index() {
 
   const select = (mapId: string) => {
     setSelectedMapId(mapId);
-    const c = byMapId(mapId);
-    if (c) markLearned(c.iso3);
   };
 
   const list = useMemo(() => {
