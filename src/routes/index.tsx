@@ -40,12 +40,18 @@ type FilterType = ContinentId | "all" | "microstates";
 function Index() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [selectedMapId, setSelectedMapId] = useState<string | undefined>();
+  const [hoveredMapId, setHoveredMapId] = useState<string | undefined>();
   const learned = useProgress((s) => s.learned);
   const markLearned = useProgress((s) => s.markLearned);
   const isMobile = useIsMobile();
 
   const learnedSet = useMemo(() => learnedIds(learned), [learned]);
   const selected = selectedMapId ? byMapId(selectedMapId) : undefined;
+  const hoveredCountry = hoveredMapId ? byMapId(hoveredMapId) : undefined;
+  // ホバーした国を優先してリアルタイムプレビュー表示（マウスが外れたら選択中の国に戻る）
+  const activeCountry = hoveredCountry ?? selected;
+  const isPreview = !!hoveredCountry && hoveredCountry.id !== selectedMapId;
+
   const rate = Math.round((learned.length / countries.length) * 100);
 
   const select = (mapId: string) => {
@@ -127,29 +133,45 @@ function Index() {
             activeContinent={filter === "microstates" ? "all" : filter}
             selectedId={selectedMapId}
             onSelect={select}
+            onHover={setHoveredMapId}
           />
 
           {!isMobile && (
             <div className="surface-card overflow-hidden">
-              {selected ? (
-                <CountryDetail country={selected} compact />
+              {activeCountry ? (
+                <CountryDetail country={activeCountry} compact isPreview={isPreview} />
               ) : (
-                <div className="p-6">
-                  <h2 className="font-display text-lg font-bold">国を選んでください</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    地図をクリック、または下の一覧から選べます。ホイールで拡大、ドラッグで移動できます。
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {list.slice(0, 12).map((c) => (
-                      <button
-                        key={c.iso3}
-                        onClick={() => select(c.id)}
-                        className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs hover:bg-secondary"
-                      >
-                        <FlagImage flag={c.flag} size="xs" />
-                        <span>{c.nameJa}</span>
-                      </button>
-                    ))}
+                <div className="flex h-full flex-col justify-between p-6">
+                  <div>
+                    <div className="flex items-center gap-2 text-sky-500 mb-2">
+                      <span className="text-xl">✨</span>
+                      <span className="text-xs font-semibold uppercase tracking-wider">インタラクティブ探索</span>
+                    </div>
+                    <h2 className="font-display text-xl font-bold">国を選んで学ぶ</h2>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                      地図や地球儀上の国にカーソルを合わせると、リアルタイムにその国の風景写真・基本データがここに表示されます。
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground/80 leading-relaxed">
+                      クリックすると詳細情報（歴史年表・文化・経済・受験ポイント）を固定して学習できます。
+                    </p>
+                  </div>
+
+                  <div className="mt-6 border-t border-border/60 pt-4">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2.5">
+                      おすすめの国から始める
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {list.slice(0, 12).map((c) => (
+                        <button
+                          key={c.iso3}
+                          onClick={() => select(c.id)}
+                          className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-secondary hover:border-sky-500/40 transition-colors shadow-xs"
+                        >
+                          <FlagImage flag={c.flag} size="xs" />
+                          <span>{c.nameJa}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

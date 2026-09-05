@@ -1,12 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { BookmarkCheck, Check, ExternalLink } from "lucide-react";
+import { BookmarkCheck, Check, ExternalLink, Eye, Pin } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlagImage } from "@/components/FlagImage";
 import { continentLabel, type Country } from "@/data/types";
+import { getCountryPhoto } from "@/data/countryPhotos";
 import { useProgress } from "@/stores/progress";
+import { cn } from "@/lib/utils";
 
 const nf = new Intl.NumberFormat("ja-JP");
 
@@ -31,14 +33,75 @@ function Chips({ items }: { items: string[] }) {
   );
 }
 
-export function CountryDetail({ country, compact }: { country: Country; compact?: boolean }) {
+export function CountryDetail({
+  country,
+  compact,
+  isPreview,
+}: {
+  country: Country;
+  compact?: boolean;
+  isPreview?: boolean;
+}) {
   const learned = useProgress((s) => s.learned.includes(country.iso3));
   const favorite = useProgress((s) => s.favorites.includes(country.iso3));
   const toggleLearned = useProgress((s) => s.toggleLearned);
   const toggleFavorite = useProgress((s) => s.toggleFavorite);
 
+  const photo = getCountryPhoto(country.iso3, country.continent);
+
   return (
     <div className="flex h-full flex-col">
+      {/* ホバープレビュー / 選択固定ステータスバナー */}
+      {isPreview ? (
+        <div className="flex items-center justify-between px-4 py-2 bg-sky-500/10 border-b border-sky-500/20 text-sky-500 dark:text-sky-400 text-xs font-semibold animate-fadeIn">
+          <span className="flex items-center gap-1.5">
+            <Eye className="size-3.5 animate-pulse text-sky-500" />
+            <span>リアルタイム・プレビュー中</span>
+          </span>
+          <span className="text-[11px] text-muted-foreground font-normal">
+            地図をクリックして固定 ➜
+          </span>
+        </div>
+      ) : compact ? (
+        <div className="flex items-center justify-between px-4 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+          <span className="flex items-center gap-1.5">
+            <Pin className="size-3.5" />
+            <span>選択・固定中</span>
+          </span>
+          <span className="text-[10px] text-muted-foreground">学習・クイズ対象</span>
+        </div>
+      ) : null}
+
+      {/* 象徴的な風景・名所写真ヒーローヘッダー */}
+      <div className="relative aspect-[21/9] sm:aspect-[16/7] w-full overflow-hidden bg-slate-900 group">
+        <img
+          src={photo.url}
+          aria-hidden
+          className="absolute inset-0 size-full object-cover scale-110 blur-sm brightness-40 saturate-150"
+          loading="eager"
+          referrerPolicy="no-referrer"
+        />
+        <img
+          src={photo.url}
+          alt={photo.caption}
+          className="relative size-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="eager"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (!img.dataset["fallback"]) {
+              img.dataset["fallback"] = "true";
+              img.src = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&h=300&q=80";
+            }
+          }}
+        />
+        {/* 写真グラデーション & キャプション */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3.5 py-1.5 flex items-center justify-between text-[11px] text-white/90">
+          <span className="font-medium truncate drop-shadow-sm">📷 {photo.caption}</span>
+          <span className="shrink-0 text-[10px] text-white/60 ml-2">名所・世界遺産</span>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
         <div>
           <div className="flex items-center gap-3">
