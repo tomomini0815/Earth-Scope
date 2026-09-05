@@ -115,14 +115,15 @@ export function WorldMap({
   const [autoRotate, setAutoRotate] = useState(false);
 
   const [hover, setHover] = useState<{
+    mapId?: string | undefined;
     name: string;
     subname?: string | undefined;
     flag?: string | undefined;
     iso3?: string | undefined;
     continent?: string | undefined;
     parentNameJa?: string | undefined;
-    x: number;
-    y: number;
+    capital?: string | undefined;
+    population?: number | undefined;
   } | null>(null);
 
   // ドラッグ操作用の参照
@@ -516,17 +517,19 @@ export function WorldMap({
               const isClickable = !!country || !!special?.parentMapId;
               const targetMapId = country ? p.mapId : special?.parentMapId;
 
-              const handleHover = (clientX: number, clientY: number) => {
-                const rect = containerRef.current?.getBoundingClientRect();
+              const isHovered = hover?.mapId === targetMapId;
+
+              const handleHover = () => {
                 setHover({
+                  mapId: targetMapId,
                   name: country ? country.nameJa : (special ? special.nameJa : p.name),
                   subname: country ? country.nameEn : (special ? special.nameEn : undefined),
                   flag: country?.flag ?? special?.flag,
                   iso3: country?.iso3 ?? special?.iso3,
                   continent: effectiveContinent,
                   parentNameJa: special?.parentNameJa,
-                  x: clientX - (rect?.left ?? 0),
-                  y: clientY - (rect?.top ?? 0),
+                  capital: country?.basic.capital,
+                  population: country?.society.population,
                 });
               };
 
@@ -539,7 +542,7 @@ export function WorldMap({
                     country
                       ? dimmed
                         ? 0.22
-                        : selected
+                        : selected || isHovered
                         ? 1
                         : 0.88
                       : special
@@ -548,29 +551,29 @@ export function WorldMap({
                           : 0.7
                         : 0.55
                   }
-                  stroke={selected ? "#ffffff" : "#1e293b"}
+                  stroke={selected ? "#ffffff" : isHovered ? "#38bdf8" : "#1e293b"}
                   strokeWidth={
                     viewMode === "2d"
-                      ? selected
-                        ? 1.8 / zoom2d
-                        : 0.6 / zoom2d
+                      ? (selected ? 2.0 : isHovered ? 1.8 : 0.6) / zoom2d
                       : selected
-                        ? 2.2
-                        : 0.75
+                      ? 2.4
+                      : isHovered
+                      ? 2.0
+                      : 0.75
                   }
-                  filter={selected ? "url(#selectedGlow)" : undefined}
+                  filter={selected || isHovered ? "url(#selectedGlow)" : undefined}
                   className={cn(
-                    "transition-[fill-opacity,stroke-width] duration-150",
-                    isClickable && "cursor-pointer hover:fill-opacity-100 hover:stroke-white hover:stroke-[1.8px]",
-                    selected && "drop-shadow-md"
+                    "transition-[fill-opacity,stroke,stroke-width] duration-150",
+                    isClickable && "cursor-pointer hover:stroke-[#38bdf8]",
+                    (selected || isHovered) && "drop-shadow-md"
                   )}
-                  onPointerMove={(e) => {
+                  onPointerMove={() => {
                     if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
+                    handleHover();
                   }}
-                  onMouseMove={(e) => {
+                  onMouseMove={() => {
                     if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
+                    handleHover();
                   }}
                   onClick={() => targetMapId && onSelect(targetMapId)}
                 />
@@ -602,16 +605,16 @@ export function WorldMap({
               const baseR = viewMode === "2d" ? 4.2 / Math.sqrt(zoom2d) : 4.8;
               const r = selected ? baseR * 1.6 : baseR;
 
-              const handleHover = (clientX: number, clientY: number) => {
-                const rect = containerRef.current?.getBoundingClientRect();
+              const handleHover = () => {
                 setHover({
+                  mapId: m.id,
                   name: country.nameJa,
                   subname: country.nameEn,
                   flag: country.flag,
                   iso3: country.iso3,
                   continent: country.continent,
-                  x: clientX - (rect?.left ?? 0),
-                  y: clientY - (rect?.top ?? 0),
+                  capital: country.basic.capital,
+                  population: country.society.population,
                 });
               };
 
@@ -623,13 +626,13 @@ export function WorldMap({
                     e.stopPropagation();
                     onSelect(m.id);
                   }}
-                  onPointerMove={(e) => {
+                  onPointerMove={() => {
                     if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
+                    handleHover();
                   }}
-                  onMouseMove={(e) => {
+                  onMouseMove={() => {
                     if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
+                    handleHover();
                   }}
                 >
                   {/* タッチ・クリック判定用の透明ヒットエリア（快適操作） */}
@@ -712,43 +715,61 @@ export function WorldMap({
           )}
         </svg>
 
-        {/* ホバー時の国名ツールチップ（ガラス風半透明背景、国旗、各国の象徴写真、上下自動反転） */}
+        {/* 地図右下の固定インフォパネル（国の形を一切隠さず、写真と詳細情報をクリアに表示） */}
         {hover && (() => {
-          const containerH = containerRef.current?.clientHeight ?? 600;
-          const containerW = containerRef.current?.clientWidth ?? 900;
-          // 上部スペースが不足している（250px未満）か、下部に余裕がある場合は下側に全表示
-          const isShowBelow = hover.y < 250 || (hover.y < 280 && containerH - hover.y > 260);
-          // 左右のはみ出しを防ぐクランプ（幅240pxの半分120px + マージン16px = 136px）
-          const clampedX = Math.max(136, Math.min(containerW - 136, hover.x));
-          const clampedY = isShowBelow ? hover.y + 16 : hover.y - 16;
           const photo = getCountryPhoto(hover.iso3, hover.continent);
 
           return (
             <div
+              onClick={() => hover.mapId && onSelect(hover.mapId)}
               className={cn(
-                "pointer-events-none absolute z-30 -translate-x-1/2 rounded-2xl bg-background/90 p-2.5 text-xs text-foreground shadow-2xl backdrop-blur-md border border-white/20 dark:border-white/10 transition-all duration-75 w-60 overflow-hidden",
-                isShowBelow ? "translate-y-0" : "-translate-y-full"
+                "absolute right-3 bottom-3 z-30 w-64 sm:w-72 rounded-2xl bg-card/95 p-3 text-xs text-foreground shadow-2xl backdrop-blur-md border border-border/80 transition-all duration-150 animate-pop overflow-hidden",
+                hover.mapId ? "cursor-pointer hover:border-primary/60 hover:shadow-lg" : ""
               )}
-              style={{ left: clampedX, top: clampedY }}
             >
-              {/* ヘッダー: 国旗＋国名 */}
-              <div className="flex items-center gap-2 mb-2 px-0.5">
-                {hover.flag && (
-                  <div className="shrink-0 drop-shadow-xs">
-                    <FlagImage flag={hover.flag} size="sm" />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <div className="font-bold text-sm leading-tight text-foreground truncate">{hover.name}</div>
-                  {hover.subname && (
-                    <div className="text-[10px] text-muted-foreground leading-tight truncate">{hover.subname}</div>
+              {/* ヘッダー: 国旗＋国名＋大陸 */}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {hover.flag && (
+                    <div className="shrink-0 drop-shadow-xs">
+                      <FlagImage flag={hover.flag} size="sm" />
+                    </div>
                   )}
+                  <div className="min-w-0">
+                    <div className="font-bold text-sm leading-tight text-foreground truncate">{hover.name}</div>
+                    {hover.subname && (
+                      <div className="text-[10px] text-muted-foreground leading-tight truncate">{hover.subname}</div>
+                    )}
+                  </div>
                 </div>
+                {hover.continent && (
+                  <span
+                    className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-border/60"
+                    style={{
+                      backgroundColor: `color-mix(in srgb, ${continentColor(hover.continent as ContinentId)} 18%, transparent)`,
+                      color: continentColor(hover.continent as ContinentId),
+                    }}
+                  >
+                    {CONTINENTS.find((c) => c.id === hover.continent)?.label}
+                  </span>
+                )}
               </div>
 
-              {/* 各国を象徴する写真 */}
-              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-800 shadow-inner mb-2">
-                {/* ブラー背景レイヤー（コンテナを埋める） */}
+              {/* 首都・人口ミニステータス */}
+              {(hover.capital || hover.population) && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 px-0.5 font-medium">
+                  {hover.capital && (
+                    <span className="truncate">首都: <strong className="text-foreground">{hover.capital}</strong></span>
+                  )}
+                  {hover.population && (
+                    <span className="shrink-0 ml-2">人口: <strong className="text-foreground">{hover.population >= 100000000 ? (hover.population / 100000000).toFixed(1) + "億人" : (hover.population / 10000).toFixed(0) + "万人"}</strong></span>
+                  )}
+                </div>
+              )}
+
+              {/* 各国を象徴する高画質写真 */}
+              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-800 shadow-inner mb-2 group">
+                {/* ブラー背景レイヤー */}
                 <img
                   src={photo.url}
                   aria-hidden
@@ -756,7 +777,7 @@ export function WorldMap({
                   loading="eager"
                   referrerPolicy="no-referrer"
                 />
-                {/* メイン写真（被写体を切らず全体表示） */}
+                {/* メイン写真 */}
                 <img
                   src={photo.url}
                   alt={photo.caption}
@@ -771,7 +792,7 @@ export function WorldMap({
                     }
                   }}
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2.5 py-1 text-[10px] text-white font-medium truncate">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 py-1 text-[10px] text-white font-medium truncate">
                   {photo.caption}
                 </div>
               </div>
