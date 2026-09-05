@@ -334,9 +334,11 @@ function QuizPage() {
                 </div>
               )}
 
-              {/* 問題文 */}
+              {/* 問題文（国旗あてモードや国旗えらびモードでは問題文の横に国旗を表示しない） */}
               <h2 className="mt-5 font-display text-lg font-bold leading-snug flex items-center gap-2">
-                {!q.flagHint && <FlagImage flag={q.country.flag} size="md" />}
+                {!q.flagHint && mode !== "flag_choice" && !q.isFlagGrid && (
+                  <FlagImage flag={q.country.flag} size="md" />
+                )}
                 <span>{q.prompt}</span>
               </h2>
 
