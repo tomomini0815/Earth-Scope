@@ -385,12 +385,6 @@ export function WorldMap({
             <span>平面地図</span>
           </button>
         </div>
-
-        {/* 小国・島国サポートバッジ */}
-        <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-950/40 px-3 py-1 text-xs font-semibold text-sky-400 shadow-sm backdrop-blur-md">
-          <span>🏝️</span>
-          <span>小国・島国 (32ヵ国) 表示対応</span>
-        </div>
       </div>
 
       {/* 3Dモード時：下部操作ガイドバー */}
