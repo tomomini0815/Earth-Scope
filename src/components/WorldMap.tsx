@@ -649,14 +649,26 @@ export function WorldMap({
                     fill="transparent"
                     pointerEvents="all"
                   />
-                  {/* 外側の光彩/パルスリング */}
+                  {/* 選択時の外側フォーカスリング（animate-pingの斜め右下拡大バグを完全解消） */}
+                  {selected && (
+                    <circle
+                      cx={m.x}
+                      cy={m.y}
+                      r={r * 2.2}
+                      fill="none"
+                      stroke="#38bdf8"
+                      strokeWidth={viewMode === "2d" ? 2 / Math.sqrt(zoom2d) : 2.2}
+                      strokeOpacity="0.9"
+                      filter="url(#selectedGlow)"
+                    />
+                  )}
+                  {/* 外側のソフト光彩リング */}
                   <circle
                     cx={m.x}
                     cy={m.y}
-                    r={r * 1.9}
+                    r={r * 1.6}
                     fill={color}
-                    fillOpacity={selected ? 0.6 : dimmed ? 0.12 : 0.35}
-                    className={selected ? "animate-ping" : undefined}
+                    fillOpacity={selected ? 0.35 : dimmed ? 0.1 : 0.25}
                   />
                   {/* メインのピン（大陸カラー・学習済みカラー） */}
                   <circle
