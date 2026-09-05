@@ -45,10 +45,18 @@ export function FlagImage({
   size = "md",
   className,
   alt = "国旗",
+  loading,
   ...props
 }: FlagImageProps) {
-  const [error, setError] = useState(false);
   const iso2 = (propIso2 || (flag ? flagToIso2(flag) : "")).toLowerCase();
+  const [error, setError] = useState(false);
+  const [prevIso2, setPrevIso2] = useState(iso2);
+
+  // iso2が変わった時はerrorフラグをリセット
+  if (prevIso2 !== iso2) {
+    setPrevIso2(iso2);
+    setError(false);
+  }
 
   // iso2が取得できない、あるいは読み込み失敗時は絵文字フォールバック
   if (!iso2 || error) {
@@ -68,9 +76,10 @@ export function FlagImage({
 
   return (
     <img
+      key={iso2}
       src={`https://flagcdn.com/${iso2}.svg`}
       alt={alt}
-      loading="lazy"
+      loading={loading || "lazy"}
       onError={() => setError(true)}
       className={cn(
         "inline-block shrink-0 rounded-[3px] border border-black/10 object-cover shadow-sm align-middle transition-transform",

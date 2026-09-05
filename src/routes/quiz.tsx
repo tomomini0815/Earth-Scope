@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Check, RefreshCw, X, Award, Globe, BookOpen } from "lucide-react";
 
 import { SiteHeader } from "@/components/SiteHeader";
@@ -71,20 +71,26 @@ function parseYear(yearStr: string): number {
   return isBCE ? -num : num;
 }
 
-function buildQuestions(mode: Mode): Question[] {
-  const pool = shuffle(countries);
+function buildQuestions(mode: Mode, usedCodes: Set<string> = new Set()): Question[] {
+  // まだ出題されていない国を優先し、足りなければ全プールから選出（全198ヵ国ローテーション）
+  const unusedPool = shuffle(countries.filter((c) => !usedCodes.has(c.iso3)));
+  const pool = unusedPool.length >= QUESTION_COUNT
+    ? unusedPool
+    : [...unusedPool, ...shuffle(countries.filter((c) => usedCodes.has(c.iso3)))];
 
   // 1. 国旗あて（大きな国旗画像を見て国名を選ぶ）
   if (mode === "flag") {
-    return pool.slice(0, QUESTION_COUNT).map((c) => {
-      const wrongCountries = shuffle(pool.filter((o) => o.iso3 !== c.iso3)).slice(0, 3);
-      // 選択肢には国名テキストのみを渡し、国旗画像はネタバレ防止のため表示しない
+    const selected = pool.slice(0, QUESTION_COUNT);
+    return selected.map((c, qIdx) => {
+      // 直前・同一セット内で極力同じ誤答が連続しないようにシャッフル
+      const wrongPool = countries.filter((o) => o.iso3 !== c.iso3);
+      const wrongCountries = shuffle(wrongPool).slice(0, 3);
       const answerChoice = { id: c.iso3, label: c.nameJa };
       const wrongChoices = wrongCountries.map((o) => ({ id: o.iso3, label: o.nameJa }));
       const choices = shuffle([answerChoice, ...wrongChoices]);
       return {
         country: c,
-        prompt: "この国旗の国はどこ？",
+        prompt: `第${qIdx + 1}問：この国旗の国はどこ？`,
         flagHint: c.flag,
         choices,
         answerId: c.iso3,
@@ -95,9 +101,10 @@ function buildQuestions(mode: Mode): Question[] {
 
   // 2. 国旗えらび（国名を見て4つの大きな国旗画像から選ぶ）
   if (mode === "flag_choice") {
-    return pool.slice(0, QUESTION_COUNT).map((c) => {
-      const wrongCountries = shuffle(pool.filter((o) => o.iso3 !== c.iso3)).slice(0, 3);
-      // 選択肢には国旗画像のみを表示
+    const selected = pool.slice(0, QUESTION_COUNT);
+    return selected.map((c) => {
+      const wrongPool = countries.filter((o) => o.iso3 !== c.iso3);
+      const wrongCountries = shuffle(wrongPool).slice(0, 3);
       const answerChoice = { id: c.iso3, label: c.nameJa, flag: c.flag };
       const wrongChoices = wrongCountries.map((o) => ({ id: o.iso3, label: o.nameJa, flag: o.flag }));
       const choices = shuffle([answerChoice, ...wrongChoices]);
@@ -114,9 +121,10 @@ function buildQuestions(mode: Mode): Question[] {
 
   // 3. 首都あて（国旗と国名から首都を答える）
   if (mode === "capital") {
-    return pool.slice(0, QUESTION_COUNT).map((c) => {
+    const selected = pool.slice(0, QUESTION_COUNT);
+    return selected.map((c) => {
       const wrongCapitals = shuffle(
-        pool.filter((o) => o.iso3 !== c.iso3 && o.basic.capital !== c.basic.capital)
+        countries.filter((o) => o.iso3 !== c.iso3 && o.basic.capital !== c.basic.capital)
       )
         .slice(0, 3)
         .map((o) => ({ id: o.basic.capital, label: o.basic.capital }));
@@ -141,7 +149,7 @@ function buildQuestions(mode: Mode): Question[] {
       }
     }
     const shuffledExams = shuffle(allExamItems).slice(0, QUESTION_COUNT);
-    return shuffledExams.map((item, idx) => {
+    return shuffledExams.map((item) => {
       const wrongAnswers = shuffle(
         allExamItems.filter((o) => o.a !== item.a && o.country.iso3 !== item.country.iso3)
       )
@@ -192,23 +200,52 @@ function buildQuestions(mode: Mode): Question[] {
 function QuizPage() {
   const [mode, setMode] = useState<Mode>("flag");
   const [seed, setSeed] = useState(0);
+  const [usedCountryCodes, setUsedCountryCodes] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
   const [done, setDone] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   const addResult = useProgress((s) => s.addResult);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const questions = useMemo(() => buildQuestions(mode), [mode, seed]);
+  const questions = useMemo(() => buildQuestions(mode, usedCountryCodes), [mode, seed]);
   const q = questions[index];
 
+  // 次の問題の国旗画像をプリロードして切り替え遅延・前画像残りを完全防止
+  useMemo(() => {
+    if (typeof window !== "undefined" && questions) {
+      const nextQ = questions[index + 1];
+      if (nextQ?.flagHint) {
+        const iso2 = nextQ.flagHint ? String.fromCharCode(
+          (nextQ.flagHint.codePointAt(0) || 0) - 0x1F1E6 + 65,
+          (nextQ.flagHint.codePointAt(2) || 0) - 0x1F1E6 + 65
+        ).toLowerCase() : "";
+        if (iso2) {
+          const img = new Image();
+          img.src = `https://flagcdn.com/${iso2}.svg`;
+        }
+      }
+    }
+  }, [questions, index]);
+
   const restart = (nextMode: Mode = mode) => {
+    // 今回解いた10問の国コードを記録（198ヵ国に達したらリセット）
+    setUsedCountryCodes((prev) => {
+      const next = new Set(prev);
+      questions.forEach((qu) => next.add(qu.country.iso3));
+      if (next.size >= countries.length - QUESTION_COUNT) {
+        return new Set();
+      }
+      return next;
+    });
     setMode(nextMode);
     setSeed((s) => s + 1);
     setIndex(0);
     setPickedId(null);
     setCorrect(0);
     setDone(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const answer = (choiceId: string) => {
@@ -222,10 +259,15 @@ function QuizPage() {
       const finalScore = correct;
       addResult({ mode: MODES.find((m) => m.id === mode)!.label, correct: finalScore, total: questions.length });
       setDone(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setIndex((i) => i + 1);
     setPickedId(null);
+    // 次の問題へ進んだ際に、カード上部にスムーズスクロール
+    setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   return (
@@ -304,7 +346,11 @@ function QuizPage() {
           </div>
         ) : (
           q && (
-            <div className="surface-card mt-6 p-5 sm:p-6 shadow-sm">
+            <div
+              ref={cardRef}
+              key={`quiz-card-${mode}-${index}-${q.country.iso3}`}
+              className="surface-card mt-6 p-5 sm:p-6 shadow-sm animate-fade-in"
+            >
               <div className="flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 flex-1">
                   <Progress value={((index + (pickedId ? 1 : 0)) / questions.length) * 100} className="h-2 flex-1" />
@@ -319,7 +365,9 @@ function QuizPage() {
                 <div className="mt-6 flex flex-col items-center justify-center">
                   <div className="overflow-hidden rounded-xl border border-border/80 shadow-md bg-card p-2">
                     <FlagImage
+                      key={`flag-hint-${q.country.iso3}`}
                       flag={q.flagHint}
+                      loading="eager"
                       size="2xl"
                       className="w-44 h-28 sm:w-56 sm:h-36 object-cover rounded-lg"
                     />
