@@ -387,16 +387,16 @@ export function WorldMap({
         </div>
       </div>
 
-      {/* 3Dモード時：下部操作ガイドバー */}
+      {/* 3Dモード時：下部操作ガイド（ボタンと誤認されない控えめな凡例デザイン） */}
       {viewMode === "3d" && (
-        <div className="absolute left-3 bottom-3 z-20 flex items-center gap-3 rounded-full border border-border/60 bg-background/85 px-3.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-md shadow-sm">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-sky-500 animate-pulse" />
+        <div className="pointer-events-none absolute left-3 bottom-2.5 z-20 flex items-center gap-2 text-[11px] font-normal text-muted-foreground/80 select-none drop-shadow-xs">
+          <span className="flex items-center gap-1">
+            <span className="text-sky-500 font-bold text-xs">↻</span>
             <span>ドラッグで360°回転</span>
           </span>
-          <span className="text-border">|</span>
+          <span className="text-border/80">•</span>
           <span>クリックで国データ表示</span>
-          <span className="hidden sm:inline text-border">|</span>
+          <span className="hidden sm:inline text-border/80">•</span>
           <span className="hidden sm:inline">ホイールで拡大縮小</span>
         </div>
       )}

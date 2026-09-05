@@ -8,13 +8,32 @@ import { WorldMap } from "@/components/WorldMap";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { byMapId, learnedIds, sortedCountries } from "@/data/lookup";
-import { CONTINENTS, type ContinentId } from "@/data/types";
+import { byIso3, byMapId, learnedIds, sortedCountries } from "@/data/lookup";
+import { CONTINENTS, type ContinentId, type Country } from "@/data/types";
 import { countries } from "@/data/countries";
 import { MICROSTATES, microstateById } from "@/data/microstates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
+
+// おすすめ主要15ヵ国（G7＋各大陸の代表的大国）
+const MAJOR_COUNTRIES_ISO3 = [
+  "JPN", // 日本
+  "USA", // アメリカ合衆国
+  "CHN", // 中国
+  "GBR", // イギリス
+  "FRA", // フランス
+  "DEU", // ドイツ
+  "ITA", // イタリア
+  "CAN", // カナダ
+  "AUS", // オーストラリア
+  "KOR", // 韓国
+  "IND", // インド
+  "BRA", // ブラジル
+  "EGY", // エジプト
+  "ZAF", // 南アフリカ
+  "RUS", // ロシア
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -57,6 +76,10 @@ function Index() {
   const select = (mapId: string) => {
     setSelectedMapId(mapId);
   };
+
+  const majorCountries = useMemo(() => {
+    return MAJOR_COUNTRIES_ISO3.map((iso3) => byIso3(iso3)).filter((c): c is Country => !!c);
+  }, []);
 
   const list = useMemo(() => {
     if (filter === "microstates") {
@@ -141,10 +164,6 @@ function Index() {
               ) : (
                 <div className="flex h-full flex-col justify-between p-6">
                   <div>
-                    <div className="flex items-center gap-2 text-sky-500 mb-2">
-                      <span className="text-xl">✨</span>
-                      <span className="text-xs font-semibold uppercase tracking-wider">インタラクティブ探索</span>
-                    </div>
                     <h2 className="font-display text-xl font-bold">国を選んで学ぶ</h2>
                     <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                       地図や地球儀上の国にカーソルを合わせると、リアルタイムにその国の風景写真・基本データがここに表示されます。
@@ -156,10 +175,10 @@ function Index() {
 
                   <div className="mt-6 border-t border-border/60 pt-4">
                     <p className="text-xs font-semibold text-muted-foreground mb-2.5">
-                      おすすめの国から始める
+                      おすすめの主要国から始める（15ヵ国）
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {list.slice(0, 12).map((c) => (
+                      {majorCountries.map((c) => (
                         <button
                           key={c.iso3}
                           onClick={() => select(c.id)}
