@@ -193,50 +193,53 @@ export function CountryDirectory({
   return (
     <section className={`space-y-4 ${className}`}>
       {/* セクションヘッダー */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-            <Compass className="size-3.5" />
-            <span>COUNTRY DIRECTORY</span>
-          </div>
-          <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-0.5">
-            全世界198か国 探検ディレクトリ
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            人口・面積・GDPでの並び替えや、未学習・お気に入りでの絞り込みが可能です。
-          </p>
+      <div>
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+          <Compass className="size-3.5" />
+          <span>COUNTRY DIRECTORY</span>
         </div>
 
-        {/* ビュー切り替えボタングループ（簡易表示 -> テーブル -> カード） */}
-        <div className="flex items-center gap-1 self-start sm:self-auto bg-muted/60 p-1 rounded-xl border border-border/70">
-          <Button
-            size="sm"
-            variant={viewMode === "compact" ? "default" : "ghost"}
-            className="size-8 p-0"
-            onClick={() => setViewMode("compact")}
-            title="簡易表示（コンパクト一覧）"
-          >
-            <List className="size-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === "table" ? "default" : "ghost"}
-            className="size-8 p-0"
-            onClick={() => setViewMode("table")}
-            title="統計テーブル表示"
-          >
-            <TableIcon className="size-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            className="size-8 p-0"
-            onClick={() => setViewMode("grid")}
-            title="カードグリッド表示"
-          >
-            <LayoutGrid className="size-4" />
-          </Button>
+        {/* タイトル行 ＆ 右端タブボタン */}
+        <div className="flex items-center justify-between gap-3 mt-0.5">
+          <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            全世界 探検ディレクトリ
+          </h2>
+
+          {/* ビュー切り替えボタングループ（簡易表示 -> テーブル -> カード） */}
+          <div className="flex items-center gap-1 shrink-0 bg-muted/60 p-1 rounded-xl border border-border/70">
+            <Button
+              size="sm"
+              variant={viewMode === "compact" ? "default" : "ghost"}
+              className="size-8 p-0 cursor-pointer touch-manipulation"
+              onClick={() => setViewMode("compact")}
+              title="簡易表示（コンパクト一覧）"
+            >
+              <List className="size-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "table" ? "default" : "ghost"}
+              className="size-8 p-0 cursor-pointer touch-manipulation"
+              onClick={() => setViewMode("table")}
+              title="統計テーブル表示"
+            >
+              <TableIcon className="size-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              className="size-8 p-0 cursor-pointer touch-manipulation"
+              onClick={() => setViewMode("grid")}
+              title="カードグリッド表示"
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+          </div>
         </div>
+
+        <p className="text-xs text-muted-foreground mt-1">
+          人口・面積・GDPでの並び替えや、未学習・お気に入りでの絞り込みが可能です。
+        </p>
       </div>
 
       {/* 検索 & フィルターコントロールバー */}
@@ -249,7 +252,7 @@ export function CountryDirectory({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="国名・英語名・首都・ISOコードで検索..."
-              className="pl-9 pr-8 h-9.5 text-xs sm:text-sm bg-background/80"
+              className="pl-9 pr-8 h-10 text-base sm:text-sm bg-background/80"
             />
             {searchQuery && (
               <button
@@ -268,7 +271,7 @@ export function CountryDirectory({
               value={continentFilter}
               onValueChange={(val) => handleContinentChange(val as RegionFilter)}
             >
-              <SelectTrigger className="h-9.5 text-xs sm:text-sm bg-background/80">
+              <SelectTrigger className="h-10 text-base sm:text-sm bg-background/80">
                 <SelectValue placeholder="地域・小国で絞り込み" />
               </SelectTrigger>
               <SelectContent>
@@ -286,7 +289,7 @@ export function CountryDirectory({
           {/* 3. ソートセレクター */}
           <div>
             <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
-              <SelectTrigger className="h-9.5 text-xs sm:text-sm bg-background/80">
+              <SelectTrigger className="h-10 text-base sm:text-sm bg-background/80">
                 <SelectValue placeholder="並び替え" />
               </SelectTrigger>
               <SelectContent>
@@ -456,7 +459,7 @@ export function CountryDirectory({
                           : "text-muted-foreground hover:text-foreground",
                       )}
                       onClick={() => toggleLearned(c.iso3)}
-                      title={isLearned ? "学習済み（クリックで解除）" : "未学習（クリックで学習済みにする）"}
+                      title={isLearned ? "学習済み（タップで解除）" : "未学習（タップで学習済みにする）"}
                     >
                       <Check className="size-3.5" />
                     </Button>
@@ -468,7 +471,7 @@ export function CountryDirectory({
                         isFavorite && "border-amber-400 bg-amber-500/15 text-amber-500",
                       )}
                       onClick={() => toggleFavorite(c.iso3)}
-                      title={isFavorite ? "お気に入り中（クリックで解除）" : "お気に入りに追加"}
+                      title={isFavorite ? "お気に入り中（タップで解除）" : "お気に入りに追加"}
                     >
                       <BookmarkCheck className="size-3.5" />
                     </Button>
@@ -501,18 +504,18 @@ export function CountryDirectory({
       ) : viewMode === "table" ? (
         /* 2. 統計テーブル表示 */
         <div className="surface-card rounded-2xl border border-border/80 overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full min-w-[660px] text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-border bg-muted/50 text-muted-foreground font-semibold">
-                  <th className="py-2.5 px-3">国名</th>
-                  <th className="py-2.5 px-3">首都</th>
-                  <th className="py-2.5 px-3">地域</th>
-                  <th className="py-2.5 px-3 text-right">人口</th>
-                  <th className="py-2.5 px-3 text-right">面積</th>
-                  <th className="py-2.5 px-3 text-right">名目GDP</th>
-                  <th className="py-2.5 px-3 text-center">状態</th>
-                  <th className="py-2.5 px-3 text-right">アクション</th>
+                <tr className="border-b border-border bg-muted/70 text-muted-foreground font-semibold">
+                  <th className="py-2.5 px-3.5 sticky left-0 z-20 bg-muted whitespace-nowrap border-r border-border/60 shadow-[1px_0_0_0_hsl(var(--border))] w-[230px] min-w-[210px] max-w-[240px]">
+                    国名（首都・地域）
+                  </th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap w-[95px] min-w-[90px]">人口</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap w-[105px] min-w-[100px]">面積</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap w-[105px] min-w-[100px]">名目GDP</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap w-[75px] min-w-[70px]">状態</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap w-[75px] min-w-[70px]">詳細</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -526,39 +529,42 @@ export function CountryDirectory({
                       className="hover:bg-muted/40 transition-colors group cursor-pointer"
                       onClick={() => onSelectCountry?.(c)}
                     >
-                      <td className="py-2 px-3 font-medium text-foreground">
-                        <div className="flex items-center gap-2">
+                      <td className="py-2.5 px-3.5 font-medium text-foreground sticky left-0 z-10 bg-card group-hover:bg-secondary transition-colors whitespace-nowrap border-r border-border/60 shadow-[1px_0_0_0_hsl(var(--border))] w-[230px] min-w-[210px] max-w-[240px]">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <FlagImage flag={c.flag} size="xs" className="rounded-xs shrink-0" />
-                          <div>
-                            <p className="font-bold text-xs leading-tight group-hover:text-primary transition-colors">
-                              {c.nameJa}
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs leading-tight group-hover:text-primary transition-colors truncate">
+                                {c.nameJa}
+                              </span>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-normal whitespace-nowrap shrink-0">
+                                {continentLabel(c.continent)}
+                              </Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5" title={`首都: ${c.basic.capital || "-"} · ${c.nameEn}`}>
+                              <span>首都: {c.basic.capital ? c.basic.capital.split("（")[0]!.split("(")[0]!.trim() : "-"}</span>
+                              <span className="mx-1 text-muted-foreground/40">·</span>
+                              <span>{c.nameEn}</span>
                             </p>
-                            <p className="text-[10px] text-muted-foreground">{c.nameEn}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-2 px-3 text-foreground/90">{c.basic.capital || "-"}</td>
-                      <td className="py-2 px-3">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
-                          {continentLabel(c.continent)}
-                        </Badge>
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono text-foreground/90">
+                      <td className="py-2.5 px-3 text-right font-mono text-foreground/90 whitespace-nowrap w-[95px] min-w-[90px]">
                         {formatPopulation(c.society.population)}
                       </td>
-                      <td className="py-2 px-3 text-right font-mono text-foreground/90">
+                      <td className="py-2.5 px-3 text-right font-mono text-foreground/90 whitespace-nowrap w-[105px] min-w-[100px]">
                         {formatArea(c.basic.area)}
                       </td>
-                      <td className="py-2 px-3 text-right font-mono text-foreground/90">
+                      <td className="py-2.5 px-3 text-right font-mono text-foreground/90 whitespace-nowrap w-[105px] min-w-[100px]">
                         {formatGdp(c.economy.gdp)}
                       </td>
-                      <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap w-[75px] min-w-[70px]" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => toggleLearned(c.iso3)}
                             className={cn(
-                              "p-1 rounded-md transition-colors",
+                              "p-1 rounded-md transition-colors cursor-pointer touch-manipulation",
                               isLearned
                                 ? "text-emerald-500 hover:bg-emerald-500/10"
                                 : "text-muted-foreground/40 hover:text-muted-foreground",
@@ -571,7 +577,7 @@ export function CountryDirectory({
                             type="button"
                             onClick={() => toggleFavorite(c.iso3)}
                             className={cn(
-                              "p-1 rounded-md transition-colors",
+                              "p-1 rounded-md transition-colors cursor-pointer touch-manipulation",
                               isFavorite
                                 ? "text-amber-500 hover:bg-amber-500/10"
                                 : "text-muted-foreground/40 hover:text-muted-foreground",
@@ -582,8 +588,8 @@ export function CountryDirectory({
                           </button>
                         </div>
                       </td>
-                      <td className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px] font-semibold" asChild>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap w-[75px] min-w-[70px]" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px] font-semibold cursor-pointer touch-manipulation" asChild>
                           <Link to="/country/$iso3" params={{ iso3: c.iso3.toLowerCase() }}>
                             詳細
                             <ExternalLink className="size-3 ml-1" />

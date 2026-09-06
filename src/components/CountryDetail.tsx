@@ -182,7 +182,7 @@ export function CountryDetail({
             <span>リアルタイム・プレビュー中</span>
           </span>
           <span className="text-[11px] text-muted-foreground font-normal">
-            地図をクリックして固定 ➜
+            地図をタップして固定 ➜
           </span>
         </div>
       ) : compact ? (
@@ -219,15 +219,15 @@ export function CountryDetail({
           }}
         />
 
-        {/* モバイル・ポップアップ用の閉じる×ボタン */}
+        {/* モバイル・ポップアップ用の閉じる×ボタン（快適なタッチターゲットサイズに最適化） */}
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="閉じる"
-            className="absolute top-2.5 right-2.5 z-30 flex size-8 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur-md transition-transform hover:bg-black/90 active:scale-90 border border-white/25 shadow-lg cursor-pointer"
+            className="absolute top-2.5 right-2.5 z-30 flex size-9 items-center justify-center rounded-full bg-black/80 text-white backdrop-blur-md transition-all hover:bg-black active:scale-90 border border-white/30 shadow-lg cursor-pointer touch-manipulation"
           >
-            <X className="size-4.5 stroke-[2.5]" />
+            <X className="size-5 stroke-[2.5]" />
           </button>
         )}
 

@@ -7,7 +7,6 @@ import {
   Globe,
   BookOpen,
   Search,
-  Target,
   X,
   Sparkles,
   ChevronRight,
@@ -819,221 +818,226 @@ function QuizPage() {
     <div className="min-h-screen pb-16">
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-4 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold flex items-center gap-2.5 text-foreground tracking-tight">
-              <span>世界地理・歴史マスタークイズ</span>
+        {/* タイトル行 & 右端バッジ */}
+        <div>
+          <div className="flex items-center justify-between gap-2.5 flex-wrap sm:flex-nowrap">
+            <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+              世界地理・歴史マスタークイズ
             </h1>
-            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-xl">
-              国旗・首都・入試頻出ポイント・歴史年表。全198ヵ国のランダム出題や、選択した国の集中特訓に対応。
-            </p>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-700 dark:text-sky-300 shadow-2xs whitespace-nowrap shrink-0">
+              <GraduationCap className="size-3.5 text-sky-500 shrink-0" />
+              <span>入試頻出 1,980問</span>
+            </div>
           </div>
-
-          <div className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-700 dark:text-sky-300 shadow-2xs whitespace-nowrap self-start sm:self-auto shrink-0">
-            <GraduationCap className="size-3.5 text-sky-500 shrink-0" />
-            <span>入試頻出 1,980問</span>
-          </div>
+          <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            国旗・首都・入試頻出ポイント・歴史年表。全198ヵ国のランダム出題や、選択した国の集中特訓に対応。
+          </p>
         </div>
 
-        {/* 1. 出題スコープ切り替え（全世界 or 特定の国） */}
-        <div className="mt-5 rounded-2xl border border-border/80 bg-card p-3 sm:p-4 shadow-xs">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-              <Target className="size-4 text-sky-500" />
-              <span>クイズの出題対象</span>
-            </span>
-            {selectedCountry && (
+        {/* クイズ設定パネル（出題対象 ＆ クイズ種別） */}
+        <div className="mt-4 rounded-2xl border border-border/80 bg-card p-3 sm:p-4 shadow-xs space-y-3.5">
+          {/* 1. 出題対象 */}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-semibold text-muted-foreground">
+                クイズの出題対象
+              </span>
+              {selectedCountry && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectCountry(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <X className="size-3.5" />
+                  <span>全世界に戻す</span>
+                </button>
+              )}
+            </div>
+
+            {/* 出題対象セグメント */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50">
               <button
                 type="button"
                 onClick={() => handleSelectCountry(null)}
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all cursor-pointer touch-manipulation",
+                  !selectedCountry
+                    ? "bg-card text-foreground shadow-xs border border-border/70"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <X className="size-3.5" />
-                <span>全世界ランダムに戻す</span>
+                <span>全世界から出題</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.2 text-[10px]",
+                    !selectedCountry ? "bg-muted text-foreground font-bold" : "text-muted-foreground"
+                  )}
+                >
+                  198ヵ国
+                </span>
               </button>
+
+              <button
+                type="button"
+                onClick={handleSwitchToCountryMode}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all cursor-pointer touch-manipulation",
+                  selectedCountry
+                    ? "bg-card text-foreground shadow-xs border border-border/70"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>{selectedCountry ? `特訓中: ${selectedCountry.nameJa}` : "国を選んで集中特訓"}</span>
+                {selectedCountry && <FlagImage flag={selectedCountry.flag} size="xs" />}
+              </button>
+            </div>
+
+            {/* 国特化モード選択中：プレビュー ＆ クイック変更ピル */}
+            {selectedCountry && (
+              <div className="mt-3 space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-500/30 bg-sky-500/10 p-2.5 sm:p-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FlagImage flag={selectedCountry.flag} size="md" className="rounded shadow-xs shrink-0" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-display font-bold text-foreground text-sm sm:text-base truncate">
+                          {selectedCountry.nameJa}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {continentLabel(selectedCountry.continent)}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        首都: {selectedCountry.basic.capital} · 受験頻出問題: {selectedCountry.examPoints.length}問完備
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsCountryPickerOpen((prev) => !prev)}
+                    className="h-7 px-2.5 text-xs shrink-0 gap-1 cursor-pointer"
+                  >
+                    <Search className="size-3" />
+                    <span>{isCountryPickerOpen ? "閉じる" : "全198ヵ国から探す"}</span>
+                  </Button>
+                </div>
+
+                {/* 主要国のクイック切り替えピル */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground mr-1">
+                    主要国クイック選択:
+                  </span>
+                  {POPULAR_COUNTRIES.map((iso3) => {
+                    const c = byIso3(iso3);
+                    if (!c) return null;
+                    const isCur = selectedIso3 === c.iso3;
+                    return (
+                      <button
+                        key={iso3}
+                        type="button"
+                        onClick={() => handleSelectCountry(c)}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors shadow-2xs cursor-pointer touch-manipulation",
+                          isCur
+                            ? "border-sky-500 bg-sky-500 text-white"
+                            : "border-border bg-card hover:bg-secondary hover:border-sky-500/40 text-foreground"
+                        )}
+                      >
+                        <FlagImage flag={c.flag} size="xs" />
+                        <span>{c.nameJa}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 国選択ピッカー（検索ボックス ＋ 198ヵ国一覧） */}
+            {selectedCountry && isCountryPickerOpen && (
+              <div className="mt-3 rounded-xl border border-border bg-background p-3 shadow-md animate-fadeIn space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="国名、首都、英名で検索（例: カナダ、オタワ、Canada）..."
+                    className="w-full rounded-xl border border-border bg-card pl-9 pr-8 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                  {filteredCountries.length > 0 ? (
+                    filteredCountries.map((c) => (
+                      <button
+                        key={c.iso3}
+                        type="button"
+                        onClick={() => handleSelectCountry(c)}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left hover:bg-secondary transition-colors cursor-pointer",
+                          selectedIso3 === c.iso3 ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold" : "text-foreground"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FlagImage flag={c.flag} size="xs" />
+                          <span className="truncate">{c.nameJa}</span>
+                          <span className="text-[10px] text-muted-foreground truncate">（首都: {c.basic.capital}）</span>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] shrink-0">
+                          {continentLabel(c.continent)}
+                        </Badge>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                      該当する国が見つかりません。
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => handleSelectCountry(null)}
-              className={cn(
-                "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all shadow-xs cursor-pointer",
-                !selectedCountry
-                  ? "border-sky-500 bg-sky-500 text-white shadow-sky-500/20"
-                  : "border-border bg-card hover:bg-secondary text-foreground"
-              )}
-            >
-              <span>🌍 全世界から出題</span>
-              <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.2 text-[10px]",
-                  !selectedCountry ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                )}
-              >
-                198ヵ国
+          {/* 2. クイズ種別 */}
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground">
+                {selectedCountry ? `【${selectedCountry.nameJa}】のクイズ種別` : "クイズの種別"}
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSwitchToCountryMode}
-              className={cn(
-                "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all shadow-xs cursor-pointer",
-                selectedCountry
-                  ? "border-sky-500 bg-sky-500 text-white shadow-sky-500/20"
-                  : "border-border bg-card hover:bg-secondary text-foreground"
-              )}
-            >
-              <Target className="size-3.5" />
-              <span>{selectedCountry ? `特訓中: ${selectedCountry.nameJa}` : "🎯 国を選んで集中特訓"}</span>
-              {selectedCountry && <FlagImage flag={selectedCountry.flag} size="xs" />}
-            </button>
-          </div>
-
-          {/* 国特化モード選択中：プレビュー ＆ クイック変更ピル */}
-          {selectedCountry && (
-            <div className="mt-3 space-y-2 animate-fadeIn">
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-500/30 bg-sky-500/10 p-2.5 sm:p-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FlagImage flag={selectedCountry.flag} size="md" className="rounded shadow-xs shrink-0" />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-display font-bold text-foreground text-sm sm:text-base truncate">
-                        {selectedCountry.nameJa}
-                      </span>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {continentLabel(selectedCountry.continent)}
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      首都: {selectedCountry.basic.capital} · 受験頻出問題: {selectedCountry.examPoints.length}問完備
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsCountryPickerOpen((prev) => !prev)}
-                  className="h-7 px-2.5 text-xs shrink-0 gap-1"
-                >
-                  <Search className="size-3" />
-                  <span>{isCountryPickerOpen ? "閉じる" : "全198ヵ国から探す"}</span>
-                </Button>
-              </div>
-
-              {/* 主要国のクイック切り替えピル */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[11px] font-semibold text-muted-foreground mr-1">
-                  主要国クイック選択:
-                </span>
-                {POPULAR_COUNTRIES.map((iso3) => {
-                  const c = byIso3(iso3);
-                  if (!c) return null;
-                  const isCur = selectedIso3 === c.iso3;
-                  return (
-                    <button
-                      key={iso3}
-                      type="button"
-                      onClick={() => handleSelectCountry(c)}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors shadow-2xs cursor-pointer",
-                        isCur
-                          ? "border-sky-500 bg-sky-500 text-white"
-                          : "border-border bg-card hover:bg-secondary hover:border-sky-500/40 text-foreground"
-                      )}
-                    >
-                      <FlagImage flag={c.flag} size="xs" />
-                      <span>{c.nameJa}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <span className="text-[11px] text-muted-foreground">全{questions.length}問</span>
             </div>
-          )}
-
-          {/* 国選択ピッカー（検索ボックス ＋ 198ヵ国一覧） */}
-          {selectedCountry && isCountryPickerOpen && (
-            <div className="mt-3 rounded-xl border border-border bg-background p-3 shadow-md animate-fadeIn space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="国名、首都、英名で検索（例: カナダ、オタワ、Canada）..."
-                  className="w-full rounded-xl border border-border bg-card pl-9 pr-8 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  autoFocus
-                />
-                {searchQuery && (
+            <div className="flex flex-wrap gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50">
+              {(selectedCountry ? COUNTRY_MODES : GLOBAL_MODES).map((m) => {
+                const isActive = mode === m.id;
+                return (
                   <button
+                    key={m.id}
                     type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => restart(m.id)}
+                    className={cn(
+                      "flex-1 min-w-[84px] sm:min-w-[100px] flex items-center justify-center py-2 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap",
+                      isActive
+                        ? "bg-card text-sky-600 dark:text-sky-400 shadow-xs border border-border/70 font-bold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                    )}
+                    title={m.desc}
                   >
-                    <X className="size-3.5" />
+                    <span>{m.label}</span>
                   </button>
-                )}
-              </div>
-
-              <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
-                {filteredCountries.length > 0 ? (
-                  filteredCountries.map((c) => (
-                    <button
-                      key={c.iso3}
-                      type="button"
-                      onClick={() => handleSelectCountry(c)}
-                      className={cn(
-                        "w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left hover:bg-secondary transition-colors",
-                        selectedIso3 === c.iso3 ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold" : "text-foreground"
-                      )}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FlagImage flag={c.flag} size="xs" />
-                        <span className="truncate">{c.nameJa}</span>
-                        <span className="text-[10px] text-muted-foreground truncate">（首都: {c.basic.capital}）</span>
-                      </div>
-                      <Badge variant="outline" className="text-[9px] shrink-0">
-                        {continentLabel(c.continent)}
-                      </Badge>
-                    </button>
-                  ))
-                ) : (
-                  <p className="py-4 text-center text-xs text-muted-foreground">
-                    該当する国が見つかりません。
-                  </p>
-                )}
-              </div>
+                );
+              })}
             </div>
-          )}
-        </div>
-
-        {/* 2. クイズモード選択タブ */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground">
-              {selectedCountry ? `【${selectedCountry.nameJa}】のクイズ種別` : "クイズの種別"}
-            </span>
-            <span className="text-[11px] text-muted-foreground">全{questions.length}問</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(selectedCountry ? COUNTRY_MODES : GLOBAL_MODES).map((m) => (
-              <button
-                key={m.id}
-                onClick={() => restart(m.id)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all shadow-xs",
-                  mode === m.id
-                    ? "border-sky-500 bg-sky-500 text-white shadow-sky-500/20"
-                    : "border-border bg-card text-foreground hover:bg-secondary"
-                )}
-                title={m.desc}
-              >
-                <span>{m.icon}</span>
-                <span>{m.label}</span>
-              </button>
-            ))}
           </div>
         </div>
 

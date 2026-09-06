@@ -38,7 +38,7 @@ const SPECIAL_TERRITORIES: Record<
     nameEn: "Greenland (Denmark)",
     flag: "🇬🇱",
     iso3: "GRL",
-    continent: "europe", // 親国家デンマーク（ヨーロッパ）に連動
+    continent: "north-america", // 地理的大陸は北アメリカ（所属: デンマーク）
     parentMapId: "208",
     parentNameJa: "デンマーク",
   },
@@ -149,6 +149,7 @@ function getFeatureMapId(f: Feature): string {
     return String(f.id);
   }
   const name = f.properties?.name;
+  if (name === "French Guiana") return "254";
   if (name === "Kosovo") return "383"; // コソボ
   if (name === "Somaliland") return "SOMALILAND";
   if (name === "N. Cyprus") return "NCYPRUS";
@@ -156,7 +157,52 @@ function getFeatureMapId(f: Feature): string {
   return "";
 }
 
-const collection = world as unknown as FeatureCollection;
+// フランス（250）のMultiPolygonから南米に位置する仏領ギアナ（part 0）を分離し、
+// 独立したフィーチャー（id: "254", South America）として正しく地域色・大陸名を描画する正規化コレクション
+function getNormalizedCollection(): FeatureCollection {
+  const rawFeatures = (world as unknown as FeatureCollection).features as Feature[];
+  const normalized: Feature[] = [];
+
+  for (const f of rawFeatures) {
+    if (
+      String(f.id) === "250" &&
+      f.geometry?.type === "MultiPolygon" &&
+      Array.isArray((f.geometry as any).coordinates) &&
+      (f.geometry as any).coordinates.length >= 3
+    ) {
+      const coords = (f.geometry as any).coordinates;
+      // part 0 は南アメリカの仏領ギアナ（南米色・紫色で独立描画）
+      normalized.push({
+        type: "Feature",
+        id: "254",
+        properties: { name: "French Guiana" },
+        geometry: {
+          type: "Polygon",
+          coordinates: coords[0],
+        },
+      } as unknown as Feature);
+      // part 1 & 2 はヨーロッパのフランス本土およびコルシカ島（ヨーロッパ色・青色）
+      normalized.push({
+        type: "Feature",
+        id: "250",
+        properties: { name: f.properties?.name ?? "France" },
+        geometry: {
+          type: "MultiPolygon",
+          coordinates: coords.slice(1),
+        },
+      } as unknown as Feature);
+    } else {
+      normalized.push(f);
+    }
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: normalized as any,
+  };
+}
+
+const collection = getNormalizedCollection();
 
 export type WorldMapProps = {
   learnedMapIds: Set<string>;
@@ -514,7 +560,7 @@ export function WorldMap({
             <span>ドラッグで360°回転</span>
           </span>
           <span className="text-border/80">•</span>
-          <span>クリックで国データ表示</span>
+          <span>タップで国データ表示</span>
           <span className="hidden sm:inline text-border/80">•</span>
           <span className="hidden sm:inline">ホイールで拡大縮小</span>
         </div>
@@ -620,21 +666,28 @@ export function WorldMap({
                 SPECIAL_TERRITORIES[p.mapId] ??
                 (p.name === "Greenland" ? SPECIAL_TERRITORIES["304"] : undefined);
               const parentCountry = special?.parentMapId ? byMapId(special.parentMapId) : undefined;
-              const effectiveContinent = country?.continent ?? parentCountry?.continent ?? special?.continent;
+              // その地域の実際の地理的大陸（領土・主権は親国でも、仏領ギアナは南アメリカ、ニューカレドニアはオセアニア、グリーンランドは北アメリカ）
+              const geographicContinent = special?.continent ?? country?.continent;
+              const effectiveContinent = geographicContinent ?? parentCountry?.continent;
 
               const isLearned =
                 learnedMapIds.has(p.mapId) ||
                 (!!special?.parentMapId && learnedMapIds.has(special.parentMapId));
+              // 大陸フィルター判定：その地域の地理的大陸、または所属親国の大陸のいずれかに該当していればハイライト
+              const matchesContinent =
+                activeContinent === "all" ||
+                geographicContinent === activeContinent ||
+                parentCountry?.continent === activeContinent;
               const dimmed =
                 activeContinent === "microstates"
                   ? true
-                  : activeContinent !== "all" && effectiveContinent !== activeContinent;
+                  : !matchesContinent;
               const selected = selectedId === p.mapId || (special?.parentMapId && selectedId === special.parentMapId);
-              const fill = !effectiveContinent
+              const fill = !geographicContinent
                 ? "var(--land)"
                 : isLearned
                   ? "var(--land-learned)"
-                  : continentColor(effectiveContinent);
+                  : continentColor(geographicContinent);
 
               const isClickable = !!country || !!special?.parentMapId;
               const targetMapId = country ? p.mapId : special?.parentMapId;
@@ -649,7 +702,7 @@ export function WorldMap({
                   subname: country ? country.nameEn : (special ? special.nameEn : undefined),
                   flag: country?.flag ?? special?.flag,
                   iso3: country?.iso3 ?? special?.iso3,
-                  continent: effectiveContinent,
+                  continent: geographicContinent ?? effectiveContinent,
                   parentNameJa: special?.parentNameJa,
                   capital: country?.basic.capital,
                   population: country?.society.population,

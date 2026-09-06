@@ -75,7 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "EarthScope (ES) — インタラクティブ世界地図で学ぶ地理・歴史・統計" },
       { name: "description", content: "全世界198ヵ国の統計・詳細歴史年表・文化・国旗・入試受験ポイントを学ぶインタラクティブ世界地図学習プラットフォーム EarthScope (ES)。" },
       { name: "author", content: "EarthScope" },
@@ -128,8 +128,8 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* モバイル用ボトムナビ分の余白: sm以上では不要 */}
-      <div className="pb-14 sm:pb-0">
+      {/* モバイル用ボトムナビ分の余白: ホームインジケーター(safe-area)を考慮して最適化 */}
+      <div className="pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] sm:pb-0">
         <Outlet />
       </div>
       {/* モバイル専用ボトムナビゲーションバー */}

@@ -467,7 +467,7 @@ function ComparePage() {
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5 hidden sm:block">
-                  💡 列ヘッダーをクリックするとその指標で並び替え（昇順・降順）でき、上のグラフとも自動連動します。
+                  💡 列ヘッダーをタップするとその指標で並び替え（昇順・降順）でき、上のグラフとも自動連動します。
                 </p>
               </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
@@ -522,7 +522,7 @@ function ComparePage() {
                               ? "bg-primary/10 text-primary font-extrabold border-x border-primary/20"
                               : "hover:bg-muted hover:text-foreground"
                           )}
-                          title="クリックしてこの指標で並び替え & グラフ表示"
+                          title="タップしてこの指標で並び替え & グラフ表示"
                         >
                           <div className="flex flex-col items-end gap-0.5 whitespace-nowrap">
                             <div className="flex items-center gap-1">
@@ -652,7 +652,7 @@ function ComparePage() {
           <div className="mt-8 rounded-xl border border-border bg-muted/40 p-3.5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold text-muted-foreground">
-                選択中の国（クリックで解除・最大10ヵ国）:
+                選択中の国（タップで解除・最大10ヵ国）:
               </span>
               <span className="text-xs font-semibold text-primary">{selected.length} / 10</span>
             </div>
@@ -683,7 +683,7 @@ function ComparePage() {
             <div>
               <h2 className="font-display text-lg font-bold">比較する国を選ぶ</h2>
               <p className="text-xs text-muted-foreground">
-                全198ヵ国から自由に選べます。クリックして追加・解除できます。
+                全198ヵ国から自由に選べます。タップして追加・解除できます。
               </p>
             </div>
 
@@ -694,7 +694,7 @@ function ComparePage() {
                 placeholder="国名・地域名で検索..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 pl-8 text-xs"
+                className="h-9.5 pl-8 text-base sm:text-xs"
               />
               {searchQuery && (
                 <button
