@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -17,6 +18,7 @@ import {
   FileText,
   Gem,
   Globe,
+  GraduationCap,
   Handshake,
   Heart,
   History,
@@ -154,6 +156,7 @@ export function CountryDetail({
   const favorite = useProgress((s) => s.favorites.includes(country.iso3));
   const toggleLearned = useProgress((s) => s.toggleLearned);
   const toggleFavorite = useProgress((s) => s.toggleFavorite);
+  const [activeTab, setActiveTab] = useState("basic");
 
   const photo = getCountryPhoto(country.iso3, country.continent);
 
@@ -193,7 +196,7 @@ export function CountryDetail({
       ) : null}
 
       {/* 象徴的な風景・名所写真ヒーローヘッダー */}
-      <div className="relative aspect-[21/9] sm:aspect-[16/7] w-full overflow-hidden bg-slate-900 group">
+      <div className={cn("relative w-full overflow-hidden bg-slate-900 group shrink-0", compact ? "h-28 sm:h-32" : "aspect-[21/9] sm:aspect-[16/7]")}>
         <img
           src={photo.url}
           aria-hidden
@@ -235,7 +238,7 @@ export function CountryDetail({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+      <div className={cn("flex flex-wrap items-center justify-between gap-2.5 border-b border-border shrink-0", compact ? "p-3" : "p-4")}>
         <div className="flex items-center gap-3 min-w-0">
           <FlagImage flag={country.flag} size="lg" className="rounded shadow shrink-0" />
           <div className="min-w-0">
@@ -254,6 +257,7 @@ export function CountryDetail({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* 学習済みにするボタン */}
           <Button
             size="sm"
             variant={learned ? "default" : "outline"}
@@ -262,14 +266,38 @@ export function CountryDetail({
             <Check className="size-4" />
             {learned ? "学習済み" : "学習済みにする"}
           </Button>
+
+          {/* 受験ポイントボタン（学習済みにするボタンの横に配置） */}
           <Button
             size="sm"
-            variant={favorite ? "secondary" : "outline"}
-            onClick={() => toggleFavorite(country.iso3)}
+            variant={activeTab === "exam" ? "default" : "outline"}
+            className={cn(
+              "gap-1.5 font-semibold transition-all shadow-xs",
+              activeTab === "exam"
+                ? "bg-amber-500 hover:bg-amber-600 text-white border-transparent"
+                : "text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/60 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+            )}
+            onClick={() => setActiveTab("exam")}
           >
-            <BookmarkCheck className="size-4" />
-            {favorite ? "お気に入り中" : "お気に入り"}
+            <GraduationCap className="size-4" />
+            受験ポイント
           </Button>
+
+          {/* お気に入りボタン（アイコンのみ） */}
+          <Button
+            size="icon"
+            variant={favorite ? "secondary" : "outline"}
+            className={cn(
+              "size-8.5 shrink-0 transition-all",
+              favorite && "border-amber-400 dark:border-amber-600 bg-amber-500/15 text-amber-500 hover:bg-amber-500/25"
+            )}
+            onClick={() => toggleFavorite(country.iso3)}
+            title={favorite ? "お気に入り解除" : "お気に入りに追加"}
+            aria-label={favorite ? "お気に入り解除" : "お気に入りに追加"}
+          >
+            <BookmarkCheck className={cn("size-4", favorite ? "fill-amber-500 text-amber-500" : "")} />
+          </Button>
+
           {compact && (
             <Button size="sm" variant="ghost" asChild>
               <Link to="/country/$iso3" params={{ iso3: country.iso3.toLowerCase() }}>
@@ -281,8 +309,8 @@ export function CountryDetail({
         </div>
       </div>
 
-      <Tabs defaultValue="basic" className="flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto px-3 sm:px-4 pt-3 scrollbar-hide">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto px-3 sm:px-4 pt-2 pb-1 scrollbar-hide shrink-0">
           <TabsList className="inline-flex min-w-full w-max justify-start sm:justify-between h-auto p-1 gap-1">
             <TabsTrigger value="basic" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">基本</TabsTrigger>
             <TabsTrigger value="history" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">歴史</TabsTrigger>
@@ -291,11 +319,10 @@ export function CountryDetail({
             <TabsTrigger value="economy" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">経済</TabsTrigger>
             <TabsTrigger value="military" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">軍事</TabsTrigger>
             <TabsTrigger value="geography" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">地理</TabsTrigger>
-            <TabsTrigger value="exam" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">受験ポイント</TabsTrigger>
           </TabsList>
         </div>
 
-        <div className={cn("p-4 text-sm leading-relaxed", compact ? "max-h-[60vh] overflow-y-auto" : "space-y-6")}>
+        <div className={cn("text-sm leading-relaxed", compact ? "flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4" : "p-4 space-y-6")}>
           {/* 1. 基本タブ */}
           <TabsContent value="basic" className="mt-0 space-y-4">
             {compact ? (

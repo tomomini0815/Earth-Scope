@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CountryDetail } from "@/components/CountryDetail";
+import { CountryDirectory } from "@/components/CountryDirectory";
 import { FlagImage } from "@/components/FlagImage";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorldMap } from "@/components/WorldMap";
@@ -96,19 +97,32 @@ function Index() {
     return MAJOR_COUNTRIES_ISO3.map((iso3) => byIso3(iso3)).filter((c): c is Country => !!c);
   }, []);
 
-  const [featuredIdx, setFeaturedIdx] = useState(0);
+  const [featuredIso3, setFeaturedIso3] = useState<string>("ISL");
+
+  // 初回表示時にランダムな国を選出
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * countries.length);
+    const c = countries[randomIndex];
+    if (c) {
+      setFeaturedIso3(c.iso3);
+    }
+  }, []);
 
   const featuredCountry = useMemo(() => {
-    const iso3 = FEATURED_EXPLORER_ISO3S[featuredIdx % FEATURED_EXPLORER_ISO3S.length] ?? "ISL";
-    return byIso3(iso3) || majorCountries[0]!;
-  }, [featuredIdx, majorCountries]);
+    return byIso3(featuredIso3) || countries[0]!;
+  }, [featuredIso3]);
 
   const featuredPhoto = useMemo(() => {
     return getCountryPhoto(featuredCountry.iso3, featuredCountry.continent);
   }, [featuredCountry]);
 
+  // 次のピックアップ国をランダム選出
   const nextFeatured = () => {
-    setFeaturedIdx((prev) => (prev + 1) % FEATURED_EXPLORER_ISO3S.length);
+    let next: Country;
+    do {
+      next = countries[Math.floor(Math.random() * countries.length)]!;
+    } while (next.iso3 === featuredCountry.iso3 && countries.length > 1);
+    setFeaturedIso3(next.iso3);
   };
 
   const list = useMemo(() => {
@@ -166,10 +180,8 @@ function Index() {
             <button
               onClick={() => setFilter("microstates")}
               className={cn(
-                "shrink-0 flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all shadow-sm",
-                filter === "microstates"
-                  ? "border-sky-500 bg-sky-500 text-white shadow-sky-500/20"
-                  : "border-sky-500/30 bg-sky-950/20 text-sky-400 hover:bg-sky-900/30",
+                "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors",
+                filter === "microstates" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
               )}
             >
               <span>🏝️</span>
@@ -178,7 +190,7 @@ function Index() {
           </div>
         </div>
 
-        <div className="grid gap-4 xl:gap-6 lg:grid-cols-[1.3fr_1fr] xl:grid-cols-[1.25fr_1fr]">
+        <div className="grid gap-4 xl:gap-6 lg:grid-cols-[1.3fr_1fr] xl:grid-cols-[1.25fr_1fr] lg:h-[580px] xl:h-[600px]">
           <WorldMap
             learnedMapIds={learnedSet}
             activeContinent={filter === "microstates" ? "all" : filter}
@@ -187,34 +199,34 @@ function Index() {
             onHover={setHoveredMapId}
           />
 
-            <div className="surface-card overflow-hidden">
+            <div className="surface-card overflow-hidden h-full flex flex-col">
               {!isMobile && activeCountry ? (
                 <CountryDetail country={activeCountry} compact isPreview={isPreview} />
               ) : (
-                <div className="flex h-full flex-col justify-between p-4 sm:p-6 space-y-4">
-                  {/* ヘッダーエリア：アイコンを廃止し、タイポグラフィで端正に表現 */}
-                  <div>
+                <div className="flex h-full flex-col justify-between p-3.5 sm:p-4 overflow-y-auto scrollbar-none">
+                  {/* ヘッダーエリア：端正なタイポグラフィ */}
+                  <div className="shrink-0">
                     <div className="flex items-center justify-between">
-                      <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                      <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-foreground">
                         国を選んで学ぶ
                       </h2>
-                      <span className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-2.5 py-0.5 rounded-full border border-border/60">
+                      <span className="text-[10px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border/60">
                         198カ国 収録
                       </span>
                     </div>
-                    <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      地図上の国にカーソルを合わせると基本データが表示され、クリックすると歴史年表・文化・経済・受験ポイントなどの詳細を固定して学習できます。
+                    <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                      地図上の国にカーソルを合わせると基本データが表示され、クリックすると歴史・文化・受験ポイントなどの詳細を固定して学習できます。
                     </p>
                   </div>
 
-                  {/* センターエリア：アイコンを排除し、写真＋知的な注目ポイント＋クリーンな統計数値で構成 */}
-                  <div className="flex-1 my-1 flex flex-col justify-center space-y-3">
+                  {/* センターエリア：写真＋重要データ＋入試頻出ポイントをバランス良く凝縮 */}
+                  <div className="my-auto py-1">
                     {/* ピックアップ探検国カード */}
                     <div
                       onClick={() => select(featuredCountry.id)}
                       className="group relative rounded-xl border border-border/80 bg-card overflow-hidden shadow-xs hover:border-primary/50 transition-all cursor-pointer"
                     >
-                      <div className="relative h-32 sm:h-36 w-full overflow-hidden bg-muted">
+                      <div className="relative h-24 sm:h-28 w-full overflow-hidden bg-muted">
                         <img
                           src={featuredPhoto.url}
                           alt={featuredCountry.nameJa}
@@ -224,8 +236,8 @@ function Index() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
 
                         {/* トップバー：テキストのみの洗練されたバッジ ＆ 切り替えボタン */}
-                        <div className="absolute top-2.5 inset-x-3 flex items-center justify-between text-white">
-                          <span className="rounded-md bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-semibold text-white/95 border border-white/15 tracking-wide">
+                        <div className="absolute top-2 inset-x-2.5 flex items-center justify-between text-white">
+                          <span className="rounded bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-semibold text-white/95 border border-white/15 tracking-wide">
                             注目ピックアップ国
                           </span>
                           <button
@@ -233,7 +245,7 @@ function Index() {
                               e.stopPropagation();
                               nextFeatured();
                             }}
-                            className="rounded-md bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-medium text-white/90 hover:bg-black/80 transition-colors border border-white/15 cursor-pointer"
+                            className="rounded bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-medium text-white/90 hover:bg-black/80 transition-colors border border-white/15 cursor-pointer"
                             title="別の国を表示"
                           >
                             別の国を表示
@@ -241,9 +253,9 @@ function Index() {
                         </div>
 
                         {/* ボトムバー：国名・首都・アクションリンク */}
-                        <div className="absolute bottom-2.5 inset-x-3 flex items-end justify-between gap-2 text-white">
+                        <div className="absolute bottom-2 inset-x-2.5 flex items-end justify-between gap-2 text-white">
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <FlagImage flag={featuredCountry.flag} size="sm" className="rounded shadow-xs shrink-0" />
                               <span className="font-bold text-sm sm:text-base text-white truncate drop-shadow-xs">
                                 {featuredCountry.nameJa}
@@ -257,79 +269,110 @@ function Index() {
                             </p>
                           </div>
 
-                          <span className="shrink-0 text-[11px] font-semibold text-slate-900 bg-white/95 px-2.5 py-1 rounded-md shadow-xs group-hover:bg-white transition-colors">
-                            詳細を見る
+                          <span className="shrink-0 text-[10px] font-semibold text-slate-900 bg-white/95 px-2 py-0.5 rounded shadow-xs group-hover:bg-white transition-colors">
+                            詳細を見る ➜
                           </span>
                         </div>
                       </div>
 
-                      {/* 写真下の国の特徴＆学習トピック */}
-                      <div className="p-3.5 bg-card border-t border-border/50 space-y-2.5">
+                      {/* 写真下の国の特徴＆学習トピック（アイコンを控え、品格あるタイポグラフィで構成） */}
+                      <div className="p-2.5 sm:p-3 bg-card border-t border-border/50 space-y-1.5">
                         {/* 基本スペック */}
-                        <div className="flex items-center justify-between text-xs pb-1.5 border-b border-border/40">
+                        <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] pb-1 border-b border-border/40">
                           <span className="font-bold text-foreground">
-                            {featuredCountry.nameJa}の特徴・基本情報
+                            {featuredCountry.nameJa}の基本データ
                           </span>
-                          <span className="text-[11px] text-muted-foreground font-medium">
+                          <span className="text-muted-foreground text-[10px]">
                             人口 約{(featuredCountry.society.population / 10000).toLocaleString()}万人 / 面積 約{featuredCountry.basic.area.toLocaleString()} km²
                           </span>
                         </div>
 
-                        {/* 特徴リスト（地理、産業、文化/社会、学習ポイント） */}
-                        <div className="space-y-1.5 text-xs">
-                          {/* 地理・気候 */}
-                          <div className="flex items-baseline gap-2">
-                            <span className="shrink-0 font-semibold text-muted-foreground text-[11px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                              地理・気候
+                        {/* クイック概要タグ（絵文字を全廃し、端正なラベル表示） */}
+                        <div className="flex flex-wrap gap-1 text-[10px]">
+                          <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-foreground/80 font-medium">
+                            <span className="text-muted-foreground mr-1">言語:</span>
+                            {featuredCountry.basic.languages.split("、")[0]}
+                          </span>
+                          <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-foreground/80 font-medium">
+                            <span className="text-muted-foreground mr-1">時差:</span>
+                            {featuredCountry.basic.timeDiffFromJapan}
+                          </span>
+                          {featuredCountry.culture.religion && (
+                            <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-foreground/80 font-medium">
+                              <span className="text-muted-foreground mr-1">宗教:</span>
+                              {featuredCountry.culture.religion.split("（")[0]?.split("、")[0]}
                             </span>
-                            <span className="text-foreground/90 line-clamp-1">
+                          )}
+                          {featuredCountry.basic.government && (
+                            <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-foreground/80 font-medium">
+                              <span className="text-muted-foreground mr-1">政体:</span>
+                              {featuredCountry.basic.government.split("（")[0]?.split("・")[0]}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 特徴リスト（地理・気候、産業・資源、文化・名物） */}
+                        <div className="space-y-1 text-xs">
+                          {/* 地理・気候 */}
+                          <div className="flex items-start gap-1.5">
+                            <span className="shrink-0 font-semibold text-muted-foreground text-[10px] bg-muted/70 px-1.5 py-0.2 rounded border border-border/50">
+                              地理・自然
+                            </span>
+                            <span className="text-foreground/90 text-[11px] leading-snug line-clamp-1">
                               {featuredCountry.geography.climate}
+                              {featuredCountry.geography.terrain && `。${featuredCountry.geography.terrain}`}
                             </span>
                           </div>
 
-                          {/* 主要産業 */}
-                          {featuredCountry.economy.industries.length > 0 && (
-                            <div className="flex items-baseline gap-2">
-                              <span className="shrink-0 font-semibold text-muted-foreground text-[11px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                                主要産業
+                          {/* 主要産業 & 資源 */}
+                          {(featuredCountry.economy.industries.length > 0 || featuredCountry.economy.resources.length > 0) && (
+                            <div className="flex items-start gap-1.5">
+                              <span className="shrink-0 font-semibold text-muted-foreground text-[10px] bg-muted/70 px-1.5 py-0.2 rounded border border-border/50">
+                                産業・資源
                               </span>
-                              <span className="text-foreground/90 line-clamp-1">
-                                {featuredCountry.economy.industries.join("、")}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* 歴史・社会 */}
-                          {(featuredCountry.society.note || featuredCountry.history.founding) && (
-                            <div className="flex items-baseline gap-2">
-                              <span className="shrink-0 font-semibold text-muted-foreground text-[11px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                                歴史・社会
-                              </span>
-                              <span className="text-foreground/90 line-clamp-1">
-                                {featuredCountry.society.note || featuredCountry.history.founding}
+                              <span className="text-foreground/90 text-[11px] leading-snug line-clamp-1">
+                                {featuredCountry.economy.industries.length > 0 && featuredCountry.economy.industries.join("、")}
+                                {featuredCountry.economy.resources.length > 0 && `（資源: ${featuredCountry.economy.resources.join("、")}）`}
                               </span>
                             </div>
                           )}
 
-                          {/* 学習・入試ポイント */}
-                          {featuredCountry.examPoints[0]?.q && (
-                            <div className="flex items-baseline gap-2 pt-0.5">
-                              <span className="shrink-0 font-semibold text-primary text-[11px] bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                                注目ポイント
+                          {/* 文化・食・世界遺産 */}
+                          {(featuredCountry.culture.food || (featuredCountry.culture.heritage && featuredCountry.culture.heritage.length > 0)) && (
+                            <div className="flex items-start gap-1.5">
+                              <span className="shrink-0 font-semibold text-muted-foreground text-[10px] bg-muted/70 px-1.5 py-0.2 rounded border border-border/50">
+                                文化・名物
                               </span>
-                              <span className="text-foreground/90 line-clamp-2 leading-relaxed">
-                                {featuredCountry.examPoints[0].q}
+                              <span className="text-foreground/90 text-[11px] leading-snug line-clamp-1">
+                                {featuredCountry.culture.food && `代表料理: ${featuredCountry.culture.food}`}
+                                {featuredCountry.culture.heritage && featuredCountry.culture.heritage.length > 0 && `。世界遺産: ${featuredCountry.culture.heritage.slice(0, 2).join("、")}`}
                               </span>
                             </div>
                           )}
                         </div>
+
+                        {/* 入試・学習頻出Q&Aハイライト（アイコン控えめ・コンパクト版） */}
+                        {featuredCountry.examPoints[0] && (
+                          <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 p-2 text-xs space-y-0.5">
+                            <div className="text-[10px] font-bold text-sky-600 dark:text-sky-400">
+                              受験・入試頻出ポイント
+                            </div>
+                            <p className="text-foreground font-semibold text-[11px] leading-tight line-clamp-1">
+                              Q. {featuredCountry.examPoints[0].q}
+                            </p>
+                            <p className="text-muted-foreground text-[10px] leading-tight pt-0.5">
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">解答: </span>
+                              {featuredCountry.examPoints[0].a}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* フッターエリア：主要15ヵ国 */}
-                  <div className="border-t border-border/60 pt-3">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">
+                  {/* フッターエリア：主要15ヵ国（すべて完全に枠内に収まるようパディング最適化） */}
+                  <div className="border-t border-border/60 pt-2 shrink-0">
+                    <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">
                       主要国から始める（15ヵ国）
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -337,7 +380,7 @@ function Index() {
                         <button
                           key={c.iso3}
                           onClick={() => select(c.id)}
-                          className="flex items-center gap-1.5 rounded-md border border-border/70 bg-card px-2.5 py-1 text-xs font-medium hover:bg-secondary hover:border-primary/40 transition-colors shadow-2xs cursor-pointer"
+                          className="flex items-center gap-1.5 rounded-md border border-border/70 bg-card px-2 py-0.5 text-[11px] font-medium hover:bg-secondary hover:border-primary/40 transition-colors shadow-2xs cursor-pointer"
                         >
                           <FlagImage flag={c.flag} size="xs" />
                           <span>{c.nameJa}</span>
@@ -350,31 +393,16 @@ function Index() {
             </div>
           </div>
 
-        <section className="mt-6 sm:mt-8">
-          <h2 className="font-display text-lg font-bold">
-            国の一覧（{list.length}か国）
-          </h2>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((c) => (
-              <Link
-                key={c.iso3}
-                to="/country/$iso3"
-                params={{ iso3: c.iso3.toLowerCase() }}
-                className="surface-card flex items-center justify-between px-3 py-2.5 transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
-              >
-                <span className="flex items-center gap-2 text-sm font-medium min-w-0">
-                  <FlagImage flag={c.flag} size="sm" />
-                  <span className="truncate">{c.nameJa}</span>
-                </span>
-                {learned.includes(c.iso3) && (
-                  <span className="ml-1 shrink-0 rounded-full bg-success px-1.5 py-0.5 text-[9px] font-bold text-success-foreground">
-                    ✓
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-        </section>
+        {/* 高機能 国の一覧ディレクトリ（198か国） */}
+        <CountryDirectory
+          countries={countries}
+          selectedCountryId={selectedMapId}
+          onSelectCountry={(c) => {
+            select(c.id);
+            window.scrollTo({ top: 120, behavior: "smooth" });
+          }}
+          className="mt-8 sm:mt-10"
+        />
 
 
         <div className="mt-8 flex flex-wrap gap-2">

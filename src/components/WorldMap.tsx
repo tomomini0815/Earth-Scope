@@ -352,7 +352,7 @@ export function WorldMap({
   const globeRadius = GLOBE_DEFAULT_RADIUS * zoom3d;
 
   return (
-    <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all flex flex-col">
+    <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all flex flex-col h-full">
       {/* 上部コントロールヘッダー：タブと操作ボタンを独立配置し、地球儀・地図への被りを100%解消 */}
       <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-2.5 bg-card/85 backdrop-blur-md border-b border-border/60 z-20 shrink-0">
         {/* 表示モード切替（3D地球儀 ⇄ 2D平面） */}
@@ -391,8 +391,8 @@ export function WorldMap({
           </button>
         </div>
 
-        {/* コントロールボタン群（自転、拡大、縮小、リセット） */}
-        <div className="flex items-center gap-1">
+        {/* コントロールボタン群（自転、拡大、縮小、リセット） - モバイル・iPadで押しやすいタッチ領域に最適化 */}
+        <div className="flex items-center gap-1.5">
           {viewMode === "3d" && (
             <button
               type="button"
@@ -400,11 +400,11 @@ export function WorldMap({
               title={autoRotate ? "自転を一時停止" : "自動で自転させる"}
               onClick={() => setAutoRotate(!autoRotate)}
               className={cn(
-                "rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs",
+                "size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation",
                 autoRotate && "bg-sky-500 text-white border-sky-500 hover:bg-sky-600 shadow-sky-500/20"
               )}
             >
-              {autoRotate ? <Pause className="size-3.5 sm:size-4" /> : <Play className="size-3.5 sm:size-4" />}
+              {autoRotate ? <Pause className="size-4" /> : <Play className="size-4" />}
             </button>
           )}
           <button
@@ -412,27 +412,27 @@ export function WorldMap({
             aria-label="拡大"
             title="拡大"
             onClick={() => buttonZoom(1.35)}
-            className="rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs"
+            className="size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation"
           >
-            <Plus className="size-3.5 sm:size-4" />
+            <Plus className="size-4" />
           </button>
           <button
             type="button"
             aria-label="縮小"
             title="縮小"
             onClick={() => buttonZoom(1 / 1.35)}
-            className="rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs"
+            className="size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation"
           >
-            <Minus className="size-3.5 sm:size-4" />
+            <Minus className="size-4" />
           </button>
           <button
             type="button"
             aria-label="表示をリセット"
             title="表示をリセット"
             onClick={resetView}
-            className="rounded-md border border-border bg-background p-1.5 text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-2xs"
+            className="size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation"
           >
-            <RotateCcw className="size-3.5 sm:size-4" />
+            <RotateCcw className="size-4" />
           </button>
         </div>
       </div>
@@ -454,7 +454,7 @@ export function WorldMap({
       {/* メイン地図 / 地球儀キャンバス */}
       <div
         ref={containerRef}
-        className="relative w-full cursor-grab touch-none active:cursor-grabbing"
+        className="relative w-full flex-1 min-h-0 flex items-center justify-center cursor-grab touch-none active:cursor-grabbing overflow-hidden"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -466,7 +466,7 @@ export function WorldMap({
       >
         <svg
           viewBox={`0 0 ${currentWidth} ${currentHeight}`}
-          className="block h-auto w-full select-none"
+          className="block h-full max-h-full w-full object-contain select-none"
           role="img"
           aria-label={viewMode === "2d" ? "インタラクティブ世界地図" : "3Dインタラクティブ地球儀"}
         >

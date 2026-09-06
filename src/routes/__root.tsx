@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useStudyTimer } from "@/hooks/useStudyTimer";
+import { AchievementDialog } from "@/components/AchievementDialog";
 
 function NotFoundComponent() {
   return (
@@ -121,6 +123,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // 全画面共通でアクティブ学習時間をバックグラウンド自動計測
+  useStudyTimer();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -130,6 +134,8 @@ function RootComponent() {
       </div>
       {/* モバイル専用ボトムナビゲーションバー */}
       <MobileBottomNav />
+      {/* アチーブメント達成通知ダイアログ */}
+      <AchievementDialog />
     </QueryClientProvider>
   );
 }
