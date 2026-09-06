@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpDown,
@@ -35,9 +35,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { continentLabel, CONTINENTS, type ContinentId, type Country } from "@/data/types";
+import { MICROSTATES } from "@/data/microstates";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
 
+export type RegionFilter = ContinentId | "all" | "microstates";
 type StatusFilter = "all" | "unlearned" | "learned" | "favorite";
 type ViewMode = "grid" | "table" | "compact";
 type SortOption =
@@ -51,6 +53,8 @@ type SortOption =
 
 interface CountryDirectoryProps {
   countries: Country[];
+  activeRegionFilter?: RegionFilter | undefined;
+  onRegionFilterChange?: ((filter: RegionFilter) => void) | undefined;
   selectedCountryId?: string | undefined;
   onSelectCountry?: ((country: Country) => void) | undefined;
   className?: string | undefined;
@@ -87,6 +91,8 @@ function formatGdp(gdpOkuUsd?: number): string {
 
 export function CountryDirectory({
   countries,
+  activeRegionFilter,
+  onRegionFilterChange,
   selectedCountryId,
   onSelectCountry,
   className = "",
@@ -95,9 +101,21 @@ export function CountryDirectory({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [continentFilter, setContinentFilter] = useState<ContinentId | "all">("all");
+  const [continentFilter, setContinentFilter] = useState<RegionFilter>(activeRegionFilter ?? "all");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [viewMode, setViewMode] = useState<ViewMode>("compact");
+
+  // 親コンポーネント（上のタブ）でフィルターが切り替わった場合に同期
+  useEffect(() => {
+    if (activeRegionFilter !== undefined) {
+      setContinentFilter(activeRegionFilter);
+    }
+  }, [activeRegionFilter]);
+
+  const handleContinentChange = (val: RegionFilter) => {
+    setContinentFilter(val);
+    onRegionFilterChange?.(val);
+  };
 
   // フィルタリングとソート
   const filteredCountries = useMemo(() => {
@@ -116,8 +134,11 @@ export function CountryDirectory({
       );
     }
 
-    // 2. 大陸フィルター
-    if (continentFilter !== "all") {
+    // 2. 大陸・小国フィルター
+    if (continentFilter === "microstates") {
+      const msSet = new Set(MICROSTATES.map((m) => m.id));
+      list = list.filter((c) => msSet.has(c.id));
+    } else if (continentFilter !== "all") {
       list = list.filter((c) => c.continent === continentFilter);
     }
 
@@ -241,17 +262,18 @@ export function CountryDirectory({
             )}
           </div>
 
-          {/* 2. 大陸セレクター */}
+          {/* 2. 大陸 & 小国セレクター */}
           <div>
             <Select
               value={continentFilter}
-              onValueChange={(val) => setContinentFilter(val as ContinentId | "all")}
+              onValueChange={(val) => handleContinentChange(val as RegionFilter)}
             >
               <SelectTrigger className="h-9.5 text-xs sm:text-sm bg-background/80">
-                <SelectValue placeholder="大陸で絞り込み" />
+                <SelectValue placeholder="地域・小国で絞り込み" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">すべての大陸（198か国）</SelectItem>
+                <SelectItem value="all">すべて（198か国）</SelectItem>
+                <SelectItem value="microstates">🏝️ 小国・島国 (32か国)</SelectItem>
                 {CONTINENTS.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.label} ({countries.filter((x) => x.continent === c.id).length}か国)

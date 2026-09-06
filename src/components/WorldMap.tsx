@@ -38,7 +38,7 @@ const SPECIAL_TERRITORIES: Record<
     nameEn: "Greenland (Denmark)",
     flag: "🇬🇱",
     iso3: "GRL",
-    continent: "north-america",
+    continent: "europe", // 親国家デンマーク（ヨーロッパ）に連動
     parentMapId: "208",
     parentNameJa: "デンマーク",
   },
@@ -51,6 +51,7 @@ const SPECIAL_TERRITORIES: Record<
     parentMapId: "840",
     parentNameJa: "アメリカ",
   },
+  // フランス海外県（仏領ギアナ）
   "254": {
     nameJa: "仏領ギアナ（フランス海外県）",
     nameEn: "French Guiana (France)",
@@ -60,20 +61,7 @@ const SPECIAL_TERRITORIES: Record<
     parentMapId: "250",
     parentNameJa: "フランス",
   },
-  "732": {
-    nameJa: "西サハラ",
-    nameEn: "Western Sahara",
-    flag: "🇪🇭",
-    iso3: "ESH",
-    continent: "africa",
-  },
-  "010": {
-    nameJa: "南極大陸",
-    nameEn: "Antarctica",
-    flag: "🇦🇶",
-    iso3: "ATA",
-    continent: "oceania",
-  },
+  // フランス特別自治体（ニューカレドニア）
   "540": {
     nameJa: "ニューカレドニア（仏特別自治体）",
     nameEn: "New Caledonia (France)",
@@ -83,15 +71,96 @@ const SPECIAL_TERRITORIES: Record<
     parentMapId: "250",
     parentNameJa: "フランス",
   },
+  // フランス領南方・南極地域
+  "260": {
+    nameJa: "フランス領南方・南極地域（仏海外領土）",
+    nameEn: "French Southern Territories (France)",
+    flag: "🇹🇫",
+    iso3: "ATF",
+    continent: "oceania",
+    parentMapId: "250",
+    parentNameJa: "フランス",
+  },
+  // イギリス領フォークランド諸島
+  "238": {
+    nameJa: "フォークランド諸島（英領）",
+    nameEn: "Falkland Islands (UK)",
+    flag: "🇫🇰",
+    iso3: "FLK",
+    continent: "south-america",
+    parentMapId: "826",
+    parentNameJa: "イギリス",
+  },
+  // 台湾（中国に連動）
+  "158": {
+    nameJa: "台湾",
+    nameEn: "Taiwan",
+    flag: "🇹🇼",
+    iso3: "TWN",
+    continent: "asia",
+    parentMapId: "156",
+    parentNameJa: "中国",
+  },
+  // 西サハラ（モロッコに連動）
+  "732": {
+    nameJa: "西サハラ",
+    nameEn: "Western Sahara",
+    flag: "🇪🇭",
+    iso3: "ESH",
+    continent: "africa",
+    parentMapId: "504",
+    parentNameJa: "モロッコ",
+  },
+  // 南極大陸
+  "010": {
+    nameJa: "南極大陸",
+    nameEn: "Antarctica",
+    flag: "🇦🇶",
+    iso3: "ATA",
+    continent: "oceania",
+  },
+  // ソマリランド
+  SOMALILAND: {
+    nameJa: "ソマリランド",
+    nameEn: "Somaliland",
+    flag: "🇸🇴",
+    iso3: "SOM",
+    continent: "africa",
+    parentMapId: "706",
+    parentNameJa: "ソマリア",
+  },
+  // 北キプロス
+  NCYPRUS: {
+    nameJa: "北キプロス（トルコ系未承認地域）",
+    nameEn: "Northern Cyprus",
+    flag: "🇨🇾",
+    iso3: "CYP",
+    continent: "asia",
+    parentMapId: "196",
+    parentNameJa: "キプロス",
+  },
 };
 
 type Feature = { id?: string | number; properties: { name?: string }; geometry: Geometry };
+
+// GeoJSONフィーチャーから対応するmapIdを正規化して取得するヘルパー
+function getFeatureMapId(f: Feature): string {
+  if (f.id !== undefined && f.id !== null && String(f.id) !== "undefined") {
+    return String(f.id);
+  }
+  const name = f.properties?.name;
+  if (name === "Kosovo") return "383"; // コソボ
+  if (name === "Somaliland") return "SOMALILAND";
+  if (name === "N. Cyprus") return "NCYPRUS";
+  if (name === "Greenland") return "304";
+  return "";
+}
 
 const collection = world as unknown as FeatureCollection;
 
 export type WorldMapProps = {
   learnedMapIds: Set<string>;
-  activeContinent: ContinentId | "all";
+  activeContinent: ContinentId | "all" | "microstates";
   selectedId?: string | undefined;
   onSelect: (mapId: string) => void;
   onHover?: (mapId: string | undefined) => void;
@@ -146,7 +215,7 @@ export function WorldMap({
     const projection = geoNaturalEarth1().fitSize([WIDTH_2D, HEIGHT_2D], collection);
     const path = geoPath(projection);
     const featurePaths = (collection.features as unknown as Feature[]).map((f) => ({
-      mapId: String(f.id ?? ""),
+      mapId: getFeatureMapId(f),
       name: f.properties?.name ?? "",
       d: path(f as never) ?? "",
     }));
@@ -182,7 +251,7 @@ export function WorldMap({
     };
 
     const featurePaths = (collection.features as unknown as Feature[]).map((f) => ({
-      mapId: String(f.id ?? ""),
+      mapId: getFeatureMapId(f),
       name: f.properties?.name ?? "",
       d: path(f as never) ?? "",
     }));
@@ -550,11 +619,16 @@ export function WorldMap({
               const special =
                 SPECIAL_TERRITORIES[p.mapId] ??
                 (p.name === "Greenland" ? SPECIAL_TERRITORIES["304"] : undefined);
-              const effectiveContinent = country?.continent ?? special?.continent;
+              const parentCountry = special?.parentMapId ? byMapId(special.parentMapId) : undefined;
+              const effectiveContinent = country?.continent ?? parentCountry?.continent ?? special?.continent;
 
-              const isLearned = learnedMapIds.has(p.mapId);
+              const isLearned =
+                learnedMapIds.has(p.mapId) ||
+                (!!special?.parentMapId && learnedMapIds.has(special.parentMapId));
               const dimmed =
-                activeContinent !== "all" && effectiveContinent !== activeContinent;
+                activeContinent === "microstates"
+                  ? true
+                  : activeContinent !== "all" && effectiveContinent !== activeContinent;
               const selected = selectedId === p.mapId || (special?.parentMapId && selectedId === special.parentMapId);
               const fill = !effectiveContinent
                 ? "var(--land)"
@@ -645,17 +719,22 @@ export function WorldMap({
               const country = byMapId(m.id);
               if (!country) return null;
 
+              const isMicrostateActive = activeContinent === "microstates";
               const isLearned = learnedMapIds.has(m.id);
               const dimmed =
-                activeContinent !== "all" && country.continent !== activeContinent;
+                !isMicrostateActive &&
+                activeContinent !== "all" &&
+                country.continent !== activeContinent;
               const selected = selectedId === m.id;
               const color = isLearned
                 ? "var(--land-learned)"
                 : continentColor(country.continent);
 
               // ズームに応じた視認性の良い半径（2Dではズーム逆数を乗じて一定の大きさを維持）
-              const baseR = viewMode === "2d" ? 4.2 / Math.sqrt(zoom2d) : 4.8;
-              const r = selected ? baseR * 1.6 : baseR;
+              // 小国・島国フィルターON時はピンを1.35倍に拡大して存在感を際立たせる
+              const baseScale = isMicrostateActive ? 1.35 : 1.0;
+              const baseR = (viewMode === "2d" ? 4.2 / Math.sqrt(zoom2d) : 4.8) * baseScale;
+              const r = selected ? baseR * 1.5 : baseR;
 
               const handleHover = (clientX: number, clientY: number) => {
                 const rect = containerRef.current?.getBoundingClientRect();
@@ -699,7 +778,7 @@ export function WorldMap({
                     fill="transparent"
                     pointerEvents="all"
                   />
-                  {/* 選択時の外側フォーカスリング（animate-pingの斜め右下拡大バグを完全解消） */}
+                  {/* 選択時の外側フォーカスリング */}
                   {selected && (
                     <circle
                       cx={m.x}
@@ -712,13 +791,26 @@ export function WorldMap({
                       filter="url(#selectedGlow)"
                     />
                   )}
+                  {/* 小国・島国フィルター時のハイライトリング（全32小国の位置を鮮やかに強調） */}
+                  {isMicrostateActive && !selected && (
+                    <circle
+                      cx={m.x}
+                      cy={m.y}
+                      r={r * 2.0}
+                      fill="none"
+                      stroke="#38bdf8"
+                      strokeWidth={viewMode === "2d" ? 1.4 / Math.sqrt(zoom2d) : 1.5}
+                      strokeOpacity="0.8"
+                      strokeDasharray={viewMode === "2d" ? `${3 / Math.sqrt(zoom2d)}, ${2 / Math.sqrt(zoom2d)}` : "3, 2"}
+                    />
+                  )}
                   {/* 外側のソフト光彩リング */}
                   <circle
                     cx={m.x}
                     cy={m.y}
                     r={r * 1.6}
                     fill={color}
-                    fillOpacity={selected ? 0.35 : dimmed ? 0.1 : 0.25}
+                    fillOpacity={selected ? 0.35 : isMicrostateActive ? 0.4 : dimmed ? 0.1 : 0.25}
                   />
                   {/* メインのピン（大陸カラー・学習済みカラー） */}
                   <circle
@@ -727,15 +819,17 @@ export function WorldMap({
                     r={r}
                     fill={color}
                     fillOpacity={dimmed ? 0.35 : 1}
-                    stroke={selected ? "#ffffff" : "#0f172a"}
+                    stroke={selected ? "#ffffff" : isMicrostateActive ? "#38bdf8" : "#0f172a"}
                     strokeWidth={
                       viewMode === "2d"
-                        ? (selected ? 2.0 : 1.2) / Math.sqrt(zoom2d)
+                        ? (selected ? 2.0 : isMicrostateActive ? 1.6 : 1.2) / Math.sqrt(zoom2d)
                         : selected
                         ? 2.2
+                        : isMicrostateActive
+                        ? 1.8
                         : 1.4
                     }
-                    filter={selected ? "url(#selectedGlow)" : undefined}
+                    filter={selected || isMicrostateActive ? "url(#selectedGlow)" : undefined}
                     className="drop-shadow-sm"
                   />
                   {/* 中心ホワイトドット（さらに見やすく） */}
@@ -803,6 +897,11 @@ export function WorldMap({
                 <span className="font-bold text-[13px] leading-none text-white tracking-tight">
                   {hover.name}
                 </span>
+                {hover.parentNameJa && (
+                  <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-sm font-semibold">
+                    所属: {hover.parentNameJa}
+                  </span>
+                )}
                 {hover.subname && (
                   <span className="text-[11px] text-slate-300 dark:text-slate-400 font-normal">
                     ({hover.subname})

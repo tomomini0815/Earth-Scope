@@ -97,6 +97,10 @@ function Index() {
     return MAJOR_COUNTRIES_ISO3.map((iso3) => byIso3(iso3)).filter((c): c is Country => !!c);
   }, []);
 
+  const microstateCountries = useMemo(() => {
+    return MICROSTATES.map((m) => byMapId(m.id)).filter((c): c is Country => !!c);
+  }, []);
+
   const [featuredIso3, setFeaturedIso3] = useState<string>("ISL");
 
   // 初回表示時にランダムな国を選出
@@ -193,7 +197,7 @@ function Index() {
         <div className="grid gap-4 xl:gap-6 lg:grid-cols-[1.3fr_1fr] xl:grid-cols-[1.25fr_1fr] lg:h-[580px] xl:h-[600px]">
           <WorldMap
             learnedMapIds={learnedSet}
-            activeContinent={filter === "microstates" ? "all" : filter}
+            activeContinent={filter}
             selectedId={selectedMapId}
             onSelect={select}
             onHover={setHoveredMapId}
@@ -370,13 +374,22 @@ function Index() {
                     </div>
                   </div>
 
-                  {/* フッターエリア：主要15ヵ国（すべて完全に枠内に収まるようパディング最適化） */}
+                  {/* フッターエリア：主要15ヵ国 または 小国・島国32ヵ国 */}
                   <div className="border-t border-border/60 pt-2 shrink-0">
-                    <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">
-                      主要国から始める（15ヵ国）
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {majorCountries.map((c) => (
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground">
+                        {filter === "microstates"
+                          ? "🏝️ 小国・島国から始める（全32ヵ国）"
+                          : "主要国から始める（15ヵ国）"}
+                      </p>
+                      {filter === "microstates" && (
+                        <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
+                          地図上の水色ピンと連動中
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-thin pr-1">
+                      {(filter === "microstates" ? microstateCountries : majorCountries).map((c) => (
                         <button
                           key={c.iso3}
                           onClick={() => select(c.id)}
@@ -396,6 +409,8 @@ function Index() {
         {/* 高機能 国の一覧ディレクトリ（198か国） */}
         <CountryDirectory
           countries={countries}
+          activeRegionFilter={filter}
+          onRegionFilterChange={(f) => setFilter(f)}
           selectedCountryId={selectedMapId}
           onSelectCountry={(c) => {
             select(c.id);
