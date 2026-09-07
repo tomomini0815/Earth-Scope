@@ -11,7 +11,11 @@ import {
   Sparkles,
   ChevronRight,
   Lightbulb,
+  Flag,
+  History,
+  Palette,
 } from "lucide-react";
+import { getFlagOrigin } from "@/data/flagOrigins";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { FlagImage } from "@/components/FlagImage";
@@ -61,8 +65,8 @@ const GLOBAL_MODES: { id: Mode; label: string; desc: string; icon: string }[] = 
 ];
 
 const COUNTRY_MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
-  { id: "exam", label: "受験ポイント（10問）", desc: "この国の入試頻出ポイントを全問マスター", icon: "📝" },
-  { id: "country_master", label: "国まるごと総合（10問）", desc: "国旗・首都・言語・産業・歴史を総合出題", icon: "🎯" },
+  { id: "exam", label: "受験ポイント", desc: "この国の入試頻出ポイントを全問マスター（全10問）", icon: "📝" },
+  { id: "country_master", label: "国まるごと総合", desc: "国旗・首都・言語・産業・歴史を総合出題（全10問）", icon: "🎯" },
   { id: "timeline", label: "歴史年表並べ替え", desc: "この国の出来事を古い順に並べ替える", icon: "⏳" },
 ];
 
@@ -233,6 +237,26 @@ const TOPIC_KNOWLEDGE: TopicKnowledge[] = [
     explanation: "北大西洋海流などの暖流と、年間を通じて吹く偏西風の影響により、高緯度の割に冬も温暖で年間を通して降水量が均等に得られる気候です。ロンドンやパリなどヨーロッパ西部に典型的に見られます。",
     mnemonic: "「偏西風＋暖流＝緯度が高いのに冬も凍らない」。年間の気温較差が小さいのが特徴です。",
   },
+  {
+    keywords: ["サラエボ事件", "サラエボ", "第一次世界大戦の契機", "オーストリア皇太子"],
+    explanation: "1914年6月28日、オーストリア＝ハンガリー帝国の皇太子夫妻が暗殺されたサラエボ事件は、第一次世界大戦勃発の直接の引き金となった歴史的事件です。現在サラエボはボスニア・ヘルツェゴビナの首都となっています。",
+    mnemonic: "「第一次世界大戦の契機（1914年）」「皇太子暗殺」が出たら即「サラエボ」！",
+  },
+  {
+    keywords: ["スタリ・モスト", "モスタル", "モスタルの古橋", "ネレトヴァ川"],
+    explanation: "モスタルのスタリ・モスト（古橋）は16世紀オスマン帝国時代に建造され、ボスニア内戦（1993年）で破壊された後、平和と多民族共生の象徴として国際支援で再建・世界遺産に登録されました。",
+    mnemonic: "「内戦復興・多民族共生の象徴」「モスタルの古橋」＝「スタリ・モスト」！",
+  },
+  {
+    keywords: ["ディナル・アルプス", "ディナル・アルプス山脈", "ネウム", "カルスト地形"],
+    explanation: "ボスニア・ヘルツェゴビナはバルカン半島中央部に位置し、ディナル・アルプス山脈が国土の大半を占める山がちな国です。海岸線はクロアチアに囲まれる中、唯一「ネウム」のわずか約20kmだけアドリア海に面する回廊地形を持つことが地理の最大の識別点です。",
+    mnemonic: "「ディナル・アルプス山脈」＋「アドリア海に約20km面する（ネウム）」＝ボスニア・ヘルツェゴビナ！",
+  },
+  {
+    keywords: ["デイトン合意", "デイトン", "ボスニア内戦"],
+    explanation: "旧ユーゴスラビア崩壊に伴い1992年に勃発したボスニア内戦は、1995年のアメリカ仲介による「デイトン和平合意」により停戦が成立し、2つの主体からなる連邦国家として再建されました。",
+    mnemonic: "ボスニア内戦（1992〜95）を終結させた和平合意＝「デイトン合意」！",
+  },
 ];
 
 function generateExamExplanation(
@@ -240,8 +264,9 @@ function generateExamExplanation(
   q: string,
   a: string
 ): { explanation: string; mnemonic: string } {
-  // 1. 専門辞書マッチ
   const query = `${q} ${a}`.toLowerCase();
+
+  // 1. 専門辞書マッチ（最優先で詳細解説）
   for (const topic of TOPIC_KNOWLEDGE) {
     if (topic.keywords.some((kw) => query.includes(kw.toLowerCase()))) {
       return {
@@ -251,25 +276,103 @@ function generateExamExplanation(
     }
   }
 
-  // 2. 地理・自然・気候
+  // 2. 地形・自然（山・川・海・平野・地形）
   if (
-    q.includes("気候") ||
+    q.includes("地形") ||
     q.includes("山") ||
     q.includes("川") ||
+    q.includes("河川") ||
     q.includes("海") ||
     q.includes("平野") ||
-    q.includes("面積") ||
-    q.includes("島") ||
-    q.includes("湖")
+    q.includes("半島") ||
+    q.includes("砂漠") ||
+    q.includes("高原") ||
+    q.includes("盆地")
   ) {
-    const geoInfo = country.geography.climate || country.geography.terrain || `${continentLabel(country.continent)}に位置する地域`;
+    const terrain = country.geography.terrain || "";
+    const borders = country.geography.borders || "";
+    const cleanA = a.length > 30 ? a.slice(0, 30) + "..." : a;
     return {
-      explanation: `${country.nameJa}の自然地理・環境に関する重要知識です。${country.nameJa}は「${geoInfo}」という地理的特徴を持ち、この自然環境や地形が地域社会の産業や生活文化を形成する基盤となっています。`,
-      mnemonic: `「${country.nameJa}」の大陸・位置関係と自然環境（気候・地形）を地図上でイメージしながら因果関係で覚えましょう。`,
+      explanation: terrain
+        ? `${country.nameJa}は${continentLabel(country.continent)}に位置し、国土は「${terrain}」が大きな特徴です。${borders ? `国境を接する${borders}との地理的境界や山脈・水系が正誤判定のポイントです。` : ""}`
+        : `${country.nameJa}（${continentLabel(country.continent)}）の地形・自然環境に関する重要設問です。正解は「${a}」となります。`,
+      mnemonic: `「${country.nameJa}の地形」＝「${cleanA}」と直結して覚える！`,
     };
   }
 
-  // 3. 産業・経済・貿易
+  // 3. 気候・風土（気候・雨・気温・降水）
+  if (
+    q.includes("気候") ||
+    q.includes("雨") ||
+    q.includes("降水") ||
+    q.includes("気温") ||
+    q.includes("乾季") ||
+    q.includes("雨季") ||
+    q.includes("風")
+  ) {
+    const climate = country.geography.climate || "";
+    const cleanClimate = climate ? (climate.length > 25 ? climate.slice(0, 25) + "..." : climate) : a;
+    return {
+      explanation: climate
+        ? `${country.nameJa}の気候区分は「${climate}」です。緯度や地形、海流の影響による気温と降水パターンの特徴が正解の根拠となります。`
+        : `${country.nameJa}の風土・気候に関する設問です。正解は「${a}」です。`,
+      mnemonic: `「${country.nameJa}の気候」＝「${cleanClimate}」を雨温図の形とセットで把握！`,
+    };
+  }
+
+  // 4. 言語・公用語
+  if (
+    q.includes("言語") ||
+    q.includes("公用語") ||
+    q.includes("語")
+  ) {
+    return {
+      explanation: `${country.nameJa}で公用語・主に使用される言語は「${country.basic.languages}」です。${country.basic.government ? `（政体：${country.basic.government}）` : ""}周辺地域との民族移動や歴史的支配関係が言語分布に色濃く反映されています。`,
+      mnemonic: `「${country.nameJa}の公用語」＝「${country.basic.languages}」を押さえておく！`,
+    };
+  }
+
+  // 5. 宗教・民族・文化
+  if (
+    q.includes("宗教") ||
+    q.includes("民族") ||
+    q.includes("文化") ||
+    q.includes("伝統") ||
+    q.includes("料理") ||
+    q.includes("世界遺産")
+  ) {
+    const rel = country.culture.religion || "";
+    const her = country.culture.heritage?.join("、") || "";
+    const cleanA = a.length > 30 ? a.slice(0, 30) + "..." : a;
+    return {
+      explanation: `${country.nameJa}の文化的特徴：${rel ? `宗教は「${rel}」` : ""}${her ? `、代表的な文化財・世界遺産に「${her}」` : ""}があります。多民族・多文化の共存や歴史的ルーツが正解の決め手です。`,
+      mnemonic: `「${country.nameJa}の文化・宗教」＝「${cleanA}」をキーワードで整理！`,
+    };
+  }
+
+  // 6. 歴史・建国・独立・政治・制度
+  if (
+    q.includes("歴史") ||
+    q.includes("建国") ||
+    q.includes("独立") ||
+    q.includes("内戦") ||
+    q.includes("合意") ||
+    q.includes("条約") ||
+    q.includes("年") ||
+    q.includes("世紀") ||
+    q.includes("大統領") ||
+    q.includes("戦争") ||
+    q.includes("革命")
+  ) {
+    const founding = country.history.founding || "";
+    const cleanA = a.length > 30 ? a.slice(0, 30) + "..." : a;
+    return {
+      explanation: `${country.nameJa}の歴史的背景：${founding || a}。時代の変遷や独立の契機となった出来事が問われています。`,
+      mnemonic: `「${country.nameJa}の歴史的転換点」＝「${cleanA}」を年表の流れでインプット！`,
+    };
+  }
+
+  // 7. 産業・経済・貿易・資源
   if (
     q.includes("産業") ||
     q.includes("輸出") ||
@@ -280,36 +383,30 @@ function generateExamExplanation(
     q.includes("農業") ||
     q.includes("貿易")
   ) {
-    const econInfo = country.economy.industries || country.economy.trade || "基幹産業の発展";
+    const ind = country.economy.industries?.slice(0, 3).join("・") || "";
+    const res = country.economy.resources?.slice(0, 3).join("・") || "";
     return {
-      explanation: `${country.nameJa}の経済構造・貿易に関する頻出ポイントです。同国では「${econInfo}」が大きな役割を果たしており、世界市場における主要輸出品目や国内産業の特色が入試で繰り返し問われます。`,
-      mnemonic: `その国の天然資源の有無と主要輸出品（農産物・鉱物・工業製品）の結びつきを意識するのが得点への近道です。`,
+      explanation: `${country.nameJa}の経済構造：主要産業は「${ind || a}」${res ? `、主要天然資源は「${res}」` : ""}です。${country.economy.trade ? `（貿易：${country.economy.trade}）` : ""}`,
+      mnemonic: `「${country.nameJa}の主要産業・資源」＝「${ind || a}」と直結して覚える！`,
     };
   }
 
-  // 4. 歴史・条約・政治制度
+  // 8. 首都・都市
   if (
-    q.includes("年") ||
-    q.includes("世紀") ||
-    q.includes("大統領") ||
-    q.includes("戦争") ||
-    q.includes("革命") ||
-    q.includes("独立") ||
-    q.includes("条約") ||
-    q.includes("国王") ||
-    q.includes("憲法")
+    q.includes("首都") ||
+    q.includes("都市")
   ) {
-    const histInfo = country.history.founding || country.society.note || "近代以降の変遷";
     return {
-      explanation: `${country.nameJa}の歩みにおける歴史的転換点・制度に関する重要事項です（背景：${histInfo}）。当時の国際情勢や隣国との関係、社会情勢の変遷と連動して理解しておく必要があります。`,
-      mnemonic: `単独の年号や単語として丸暗記するのではなく、「なぜその出来事や制度が必要とされたのか」という前後の因果関係でインプットしましょう。`,
+      explanation: `${country.nameJa}（${continentLabel(country.continent)}）の首都は「${country.basic.capital}」です。政治・行政の中心都市として機能しています。`,
+      mnemonic: `「${country.nameJa}」の首都＝「${country.basic.capital}」！`,
     };
   }
 
-  // 5. 汎用インテリジェント解説（オウム返しを完全排除）
+  // 9. 汎用フォールバック
+  const cleanA = a.length > 30 ? a.slice(0, 30) + "..." : a;
   return {
-    explanation: `${country.nameJa}（${continentLabel(country.continent)}、首都：${country.basic.capital}）の社会・地理・文化に関する核心的教養知識です。各種試験で正誤判定や選択問題として出題されやすい最重要論点です。`,
-    mnemonic: `問題文中のキーワードを手がかりに、「${country.nameJa}」の際立った特徴として整理して記憶に定着させましょう。`,
+    explanation: `${country.nameJa}（${continentLabel(country.continent)}、首都：${country.basic.capital}）において、この設問の正しい内容は「${a}」です。`,
+    mnemonic: `「${country.nameJa}」に関する重要ポイントとして「${cleanA}」を記憶しましょう！`,
   };
 }
 
@@ -415,6 +512,7 @@ function buildQuestions(
 
     // Q2: 首都あて
     const wrongCapitals = shuffle(otherCountries.filter((o) => o.basic.capital !== targetCountry.basic.capital)).slice(0, 3);
+    const capitalGeo = [targetCountry.geography.terrain, targetCountry.geography.climate].filter(Boolean).join("、");
     qList.push({
       country: targetCountry,
       prompt: `${targetCountry.nameJa}の首都はどこ？`,
@@ -423,12 +521,18 @@ function buildQuestions(
         ...wrongCapitals.map((o) => ({ id: o.basic.capital, label: o.basic.capital })),
       ]),
       answerId: targetCountry.basic.capital,
-      explanation: `${targetCountry.nameJa}の政治・行政の中枢が置かれた首都です。最大の商業・経済都市と首都が異なる国は特にテストで狙われやすいため区別が重要です。`,
-      mnemonic: `「${targetCountry.nameJa}の首都＝${targetCountry.basic.capital}」と声に出してリズムで覚えるのが最も効果的です。`,
+      explanation: [
+        `${targetCountry.nameJa}の首都は「${targetCountry.basic.capital}」。`,
+        `政体：${targetCountry.basic.government}　公用語：${targetCountry.basic.languages}`,
+        capitalGeo ? `地理：${capitalGeo}` : "",
+        targetCountry.history.founding ? `建国：${targetCountry.history.founding}` : "",
+      ].filter(Boolean).join("\n"),
+      mnemonic: `「${targetCountry.nameJa}」の首都は「${targetCountry.basic.capital}」。${targetCountry.basic.government}制・公用語「${targetCountry.basic.languages}」と合わせて整理しておきましょう。`,
     });
 
     // Q3: 公用語
     const wrongLangs = shuffle(otherCountries.filter((o) => o.basic.languages !== targetCountry.basic.languages)).slice(0, 3);
+    const langContext = [targetCountry.culture.religion, targetCountry.culture.tradition].filter(Boolean).join("　");
     qList.push({
       country: targetCountry,
       prompt: `${targetCountry.nameJa}の公用語・主な言語は？`,
@@ -437,8 +541,13 @@ function buildQuestions(
         ...wrongLangs.map((o) => ({ id: o.basic.languages, label: o.basic.languages })),
       ]),
       answerId: targetCountry.basic.languages,
-      explanation: `${targetCountry.nameJa}（${continentLabel(targetCountry.continent)}）で公的に用いられている言語です。地理的な位置関係や過去の交易・歴史的歩みが言語の分布に反映されています。`,
-      mnemonic: `周辺国や地域の歴史的ルーツ（文化圏や歴史的つながり）と連動させて納得して覚えると記憶に残りやすくなります。`,
+      explanation: [
+        `${targetCountry.nameJa}の公用語は「${targetCountry.basic.languages}」。`,
+        `大陸：${continentLabel(targetCountry.continent)}　首都：${targetCountry.basic.capital}　政体：${targetCountry.basic.government}`,
+        langContext ? `文化・宗教：${langContext}` : "",
+        targetCountry.history.founding ? `建国背景：${targetCountry.history.founding}` : "",
+      ].filter(Boolean).join("\n"),
+      mnemonic: `${targetCountry.nameJa}の公用語「${targetCountry.basic.languages}」は、${continentLabel(targetCountry.continent)}の歴史的ルーツ（宗教・植民地関係）と連動しています。地域の言語地図と一緒に覚えましょう。`,
     });
 
     // Q4: 政治体制
@@ -451,8 +560,13 @@ function buildQuestions(
         ...wrongGovs.map((o) => ({ id: o.basic.government, label: o.basic.government })),
       ]),
       answerId: targetCountry.basic.government,
-      explanation: `${targetCountry.nameJa}の統治機構の骨格です。国家元首（大統領か君主か）と議院内閣制の有無などの組み合わせが国の統治方針を決定づけています。`,
-      mnemonic: `国家元首が大統領制か立憲君主制（国王）かを整理しておくと、社会科の正誤判定問題で迷いません。`,
+      explanation: [
+        `${targetCountry.nameJa}の政体は「${targetCountry.basic.government}」。`,
+        `首都：${targetCountry.basic.capital}　公用語：${targetCountry.basic.languages}`,
+        targetCountry.history.founding ? `建国：${targetCountry.history.founding}` : "",
+        targetCountry.history.relations ? `国際関係：${targetCountry.history.relations}` : "",
+      ].filter(Boolean).join("\n"),
+      mnemonic: `${targetCountry.nameJa}は「${targetCountry.basic.government}」。国家元首（大統領 or 国王）と議会の関係を整理しておくと政体の正誤問題で確実に得点できます。`,
     });
 
     // Q5: 年表並べ替え（もし年表があれば）または主要産業
@@ -560,13 +674,29 @@ function buildQuestions(
         .map((o) => ({ id: o.basic.capital, label: o.basic.capital }));
       const answerChoice = { id: c.basic.capital, label: c.basic.capital };
       const choices = shuffle([answerChoice, ...wrongCapitals]);
+
+      // 具体的な国情報を使って役立つ解説を生成
+      const geoParts: string[] = [];
+      if (c.geography.terrain) geoParts.push(c.geography.terrain);
+      if (c.geography.climate) geoParts.push(c.geography.climate);
+      const geoContext = geoParts.join("、") || "";
+      const industryContext = c.economy.industries?.slice(0, 3).join("・") || "";
+      const populationStr = c.society.population ? `人口 ${(c.society.population / 10000).toFixed(0)} 万人` : "";
+
       return {
         country: c,
         prompt: `${c.nameJa}（${c.nameEn}）の首都はどこ？`,
         choices,
         answerId: c.basic.capital,
-        explanation: `${c.nameJa}（${continentLabel(c.continent)}）の政治・行政機能が置かれた中心都市です（公用語：${c.basic.languages}）。経済的な最大都市と首都が異なる国は特にテストで混同しやすいため注意が必要です。`,
-        mnemonic: `「${c.nameJa}の首都は${c.basic.capital}」と音読のリズムで覚えるのが効果的です。最大都市ではなく政治の中心都市として暗記しましょう。`,
+        explanation: [
+          `${c.nameJa}の首都は「${c.basic.capital}」。`,
+          `大陸：${continentLabel(c.continent)}　公用語：${c.basic.languages}　政体：${c.basic.government}`,
+          populationStr ? `${populationStr}` : "",
+          geoContext ? `地理的特徴：${geoContext}` : "",
+          industryContext ? `主要産業：${industryContext}` : "",
+          c.history.founding ? `建国・独立：${c.history.founding}` : "",
+        ].filter(Boolean).join("\n"),
+        mnemonic: `「${c.nameJa}の首都＝${c.basic.capital}」を覚えるコツ：${c.basic.capital}は${continentLabel(c.continent)}の${c.basic.government}の中枢都市。公用語「${c.basic.languages}」と合わせて覚えましょう。`,
       };
     });
   }
@@ -723,7 +853,20 @@ function QuizPage() {
     }
   }, [questions, index]);
 
-  const restart = (nextMode: Mode = mode, nextCountry?: Country | null) => {
+  const scrollToQuestion = () => {
+    setTimeout(() => {
+      questionCardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
+  };
+
+  const restart = (
+    nextMode: Mode = mode,
+    nextCountry?: Country | null,
+    autoScroll: boolean = false
+  ) => {
     if (nextCountry !== undefined) {
       setSelectedIso3(nextCountry ? nextCountry.iso3 : null);
       navigate({
@@ -739,20 +882,22 @@ function QuizPage() {
     setPickedId(null);
     setCorrect(0);
     setDone(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (autoScroll) {
+      scrollToQuestion();
+    }
   };
 
-  const handleSelectCountry = (c: Country | null) => {
+  const handleSelectCountry = (c: Country | null, autoScroll: boolean = false) => {
     setIsCountryPickerOpen(false);
     setSearchQuery("");
     if (c) {
       setSelectedIso3(c.iso3);
       setMode("exam");
-      restart("exam", c);
+      restart("exam", c, autoScroll);
     } else {
       setSelectedIso3(null);
       setMode("flag");
-      restart("flag", null);
+      restart("flag", null, autoScroll);
     }
   };
 
@@ -858,22 +1003,24 @@ function QuizPage() {
             </div>
 
             {/* 出題対象セグメント */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50">
+            <div className="grid grid-cols-2 gap-1 sm:gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50">
               <button
                 type="button"
-                onClick={() => handleSelectCountry(null)}
+                onClick={() => handleSelectCountry(null, true)}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all cursor-pointer touch-manipulation",
+                  "flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition-all cursor-pointer touch-manipulation whitespace-nowrap min-w-0",
                   !selectedCountry
                     ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                 )}
               >
-                <span>全世界から出題</span>
+                <span className="whitespace-nowrap">全世界から出題</span>
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.2 text-[10px]",
-                    !selectedCountry ? "bg-sky-500/20 text-sky-800 dark:text-sky-200 font-bold" : "text-muted-foreground"
+                    "rounded-full px-1.5 py-0.5 text-[9px] sm:text-[10px] leading-none whitespace-nowrap shrink-0",
+                    !selectedCountry
+                      ? "bg-sky-500/20 text-sky-800 dark:text-sky-200 font-bold"
+                      : "text-muted-foreground bg-muted/80"
                   )}
                 >
                   198ヵ国
@@ -884,14 +1031,16 @@ function QuizPage() {
                 type="button"
                 onClick={handleSwitchToCountryMode}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all cursor-pointer touch-manipulation",
+                  "flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition-all cursor-pointer touch-manipulation whitespace-nowrap min-w-0",
                   selectedCountry
                     ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                 )}
               >
-                <span>{selectedCountry ? `特訓中: ${selectedCountry.nameJa}` : "国を選んで集中特訓"}</span>
-                {selectedCountry && <FlagImage flag={selectedCountry.flag} size="xs" />}
+                <span className="truncate whitespace-nowrap">
+                  {selectedCountry ? `特訓中: ${selectedCountry.nameJa}` : "国を選んで集中特訓"}
+                </span>
+                {selectedCountry && <FlagImage flag={selectedCountry.flag} size="xs" className="shrink-0" />}
               </button>
             </div>
 
@@ -953,7 +1102,7 @@ function QuizPage() {
                       <button
                         key={iso3}
                         type="button"
-                        onClick={() => handleSelectCountry(c)}
+                        onClick={() => handleSelectCountry(c, true)}
                         className={cn(
                           "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors shadow-2xs cursor-pointer touch-manipulation",
                           isCur
@@ -1001,7 +1150,7 @@ function QuizPage() {
                       <button
                         key={c.iso3}
                         type="button"
-                        onClick={() => handleSelectCountry(c)}
+                        onClick={() => handleSelectCountry(c, true)}
                         className={cn(
                           "w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left hover:bg-secondary transition-colors cursor-pointer",
                           selectedIso3 === c.iso3 ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold" : "text-foreground"
@@ -1035,23 +1184,42 @@ function QuizPage() {
               </span>
               <span className="text-[11px] text-muted-foreground">全{questions.length}問</span>
             </div>
-            <div className="flex flex-wrap gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50">
+            <div
+              className={cn(
+                "p-1 bg-muted/60 rounded-xl border border-border/50",
+                selectedCountry
+                  ? "grid grid-cols-3 gap-1 sm:gap-1.5"
+                  : "flex flex-wrap gap-1.5"
+              )}
+            >
               {(selectedCountry ? COUNTRY_MODES : GLOBAL_MODES).map((m) => {
                 const isActive = mode === m.id;
                 return (
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => restart(m.id)}
+                    onClick={() => restart(m.id, undefined, true)}
                     className={cn(
-                      "flex-1 min-w-[84px] sm:min-w-[100px] flex items-center justify-center py-2 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap",
+                      "flex items-center justify-center py-2 px-1 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap min-w-0 overflow-hidden",
+                      selectedCountry
+                        ? "w-full"
+                        : "flex-1 min-w-[76px] sm:min-w-[90px]",
                       isActive
                         ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
                         : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                     )}
                     title={m.desc}
                   >
-                    <span>{m.label}</span>
+                    <span className="truncate">
+                      {m.id === "timeline" && selectedCountry ? (
+                        <>
+                          <span className="sm:hidden">歴史年表</span>
+                          <span className="hidden sm:inline">歴史年表並べ替え</span>
+                        </>
+                      ) : (
+                        m.label
+                      )}
+                    </span>
                   </button>
                 );
               })}
@@ -1099,7 +1267,7 @@ function QuizPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Button className="font-semibold gap-1.5 shadow-sm" onClick={() => restart()}>
+              <Button className="font-semibold gap-1.5 shadow-sm cursor-pointer" onClick={() => restart(mode, undefined, true)}>
                 <RefreshCw className="size-4" /> もう一度挑戦する
               </Button>
               {selectedCountry && (
@@ -1143,20 +1311,22 @@ function QuizPage() {
                 </div>
               )}
 
-              {/* テキストヒント（受験問題用など） */}
-              {q.textHint && (
-                <div className="mt-5 rounded-2xl border border-sky-500/25 bg-sky-500/5 p-4 text-left font-medium text-foreground text-sm sm:text-base leading-relaxed">
-                  {q.textHint}
-                </div>
-              )}
-
-              {/* 問題文 */}
-              <h2 className="mt-5 font-display text-lg font-bold leading-snug flex items-center gap-2">
+              {/* 問題タイトル・見出し（国旗 ＆ 【国名】重要入試ポイント） */}
+              <div className="mt-5 flex items-center gap-2">
                 {!q.flagHint && mode !== "flag_choice" && !q.isFlagGrid && (
                   <FlagImage flag={q.country.flag} size="md" className="rounded shadow-xs shrink-0" />
                 )}
-                <span>{q.prompt}</span>
-              </h2>
+                <h2 className="font-display text-base sm:text-lg font-bold text-foreground leading-snug">
+                  {q.prompt}
+                </h2>
+              </div>
+
+              {/* 問題文（Q. 〜〜） */}
+              {q.textHint && (
+                <div className="mt-3 rounded-xl border border-border/80 bg-muted/30 p-3.5 sm:p-4 text-left font-medium text-foreground text-sm sm:text-base leading-relaxed">
+                  {q.textHint}
+                </div>
+              )}
 
               {/* 選択肢一覧 */}
               <div className={cn("mt-5 grid gap-2.5", q.isFlagGrid ? "grid-cols-2 gap-3 sm:gap-4" : "grid-cols-1")}>
@@ -1222,10 +1392,10 @@ function QuizPage() {
                       onClick={() => answer(choice.id)}
                       disabled={!!pickedId}
                       className={cn(
-                        "flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-all shadow-xs cursor-pointer",
+                        "flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors cursor-pointer",
                         state === "idle" && "border-border bg-card hover:border-sky-500/50 hover:bg-secondary/40",
-                        state === "correct" && "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold",
-                        state === "wrong" && "border-destructive bg-destructive/15 text-destructive font-bold"
+                        state === "correct" && "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold",
+                        state === "wrong" && "border-destructive bg-destructive/10 text-destructive font-bold"
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1246,29 +1416,24 @@ function QuizPage() {
               </div>
 
               {/* 解答後の解説 & 次へボタン */}
-              {pickedId && (
-                <div className="mt-5 rounded-2xl border border-border bg-card p-4 sm:p-5 animate-fadeIn shadow-xs space-y-4">
-                  {pickedId === q.answerId ? (
-                    /* 正解時：説明不要！祝福メッセージと次へボタンのみでテンポ良く */
-                    <div className="flex items-center justify-between gap-2 py-1">
-                      <div className="flex items-center gap-2 font-bold text-sm sm:text-base text-emerald-600 dark:text-emerald-400">
-                        <Check className="size-5 shrink-0" />
-                        <span>正解！素晴らしい！</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground hidden sm:inline font-medium">
-                        ナイス正解！次の問題へ進みましょう ➜
-                      </span>
-                    </div>
-                  ) : (
-                    /* 不正解時：色数を抑えた洗練されたレイアウトで解説を表示 */
-                    <div className="space-y-4">
-                      {/* 正しい正解 ＆ 要復習ステータス（1つのすっきりしたヘッダーに整理） */}
-                      <div className="rounded-xl border border-border/70 bg-muted/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                        <div className="space-y-1">
-                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                            正しい正解
-                          </span>
-                          <div className="flex items-center gap-2.5 font-bold text-sm sm:text-base text-foreground">
+              {pickedId && (() => {
+                const isFlagMode = mode === "flag" || mode === "flag_choice";
+                const flagInfo = isFlagMode ? getFlagOrigin(q.country) : null;
+                const isCorrect = pickedId === q.answerId;
+                const timelineItems = q.country.history?.timeline?.slice(0, 2) ?? [];
+                return (
+                  <div className="mt-5 space-y-4 animate-fadeIn">
+                    {/* 解答結果＆解説（1枚のシンプルカード） */}
+                    <div className="rounded-xl border border-border bg-card p-4 sm:p-5 text-left space-y-3 shadow-xs">
+                      {isCorrect ? (
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm sm:text-base">
+                          <Check className="size-5 shrink-0" />
+                          <span>正解！素晴らしい！</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-semibold text-muted-foreground shrink-0">正しい正解：</span>
                             {q.choices.find((c) => c.id === q.answerId)?.flag && (
                               <FlagImage
                                 flag={q.choices.find((c) => c.id === q.answerId)!.flag!}
@@ -1276,50 +1441,119 @@ function QuizPage() {
                                 className="rounded shadow-2xs shrink-0 object-cover"
                               />
                             )}
-                            <span className="break-words">
+                            <span className="font-bold text-sm sm:text-base text-foreground break-words">
                               {q.choices.find((c) => c.id === q.answerId)?.label ?? q.answerId}
                             </span>
                           </div>
+                          <span className="text-[11px] text-destructive shrink-0 flex items-center gap-1">
+                            <X className="size-3" /> 要復習リストに追加
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground self-start sm:self-center shrink-0">
-                          <X className="size-3.5 text-destructive shrink-0" />
-                          <span>要復習リストに追加</span>
-                        </div>
-                      </div>
+                      )}
 
-                      {/* 背景知識 & 暗記のコツ（過剰な色分けを廃止し、統一感あるニュートラルトーンへ） */}
-                      <div className="space-y-3 pt-1">
-                        <div className="flex items-center gap-2 font-semibold text-xs sm:text-sm text-foreground">
-                          <BookOpen className="size-4 shrink-0 text-muted-foreground" />
-                          <span>背景知識・ポイント解説</span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-line pl-6">
+                      {/* 解説本文 */}
+                      {!isCorrect && (
+                        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
                           {q.explanation}
                         </p>
+                      )}
 
-                        {q.mnemonic && (
-                          <div className="ml-6 mt-3 rounded-lg border-l-2 border-primary/70 bg-muted/30 px-3.5 py-2.5 text-xs sm:text-sm">
-                            <div className="font-semibold text-foreground mb-1 flex items-center gap-1.5">
-                              <Lightbulb className="size-3.5 shrink-0 text-primary" />
-                              <span>暗記のコツ・試験対策</span>
-                            </div>
-                            <p className="leading-relaxed text-muted-foreground">{q.mnemonic}</p>
-                          </div>
-                        )}
-                      </div>
+                      {/* ポイント */}
+                      {q.mnemonic && (
+                        <div className="pt-2 border-t border-border/50 text-xs sm:text-sm text-foreground/85 leading-relaxed">
+                          <span className="font-semibold text-sky-600 dark:text-sky-400 mr-1.5">💡 ポイント：</span>
+                          <span className="break-words">{q.mnemonic}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  <Button
-                    ref={nextButtonRef}
-                    className="mt-2 w-full font-semibold gap-1.5 shadow-xs scroll-my-8 cursor-pointer"
-                    onClick={next}
-                  >
-                    <span>{index + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</span>
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
-              )}
+                    {/* ======================== */}
+                    {/* 国旗クイズ専用：国旗の由来と歴史 */}
+                    {/* ======================== */}
+                    {isFlagMode && flagInfo && (
+                      <div className="rounded-xl border border-border/60 bg-muted/20 overflow-hidden">
+                        <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/50">
+                          <Flag className="size-4 shrink-0 text-primary" />
+                          <span className="text-xs sm:text-sm font-semibold text-foreground">
+                            🏛️ 国旗の由来と歴史
+                          </span>
+                          <span className="ml-auto text-[10px] text-muted-foreground font-medium">
+                            {q.country.nameJa}
+                          </span>
+                        </div>
+                        <div className="p-4 space-y-3.5">
+                          {/* 由来 */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                              <Flag className="size-3 shrink-0" />
+                              国旗のデザイン由来
+                            </div>
+                            <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                              {flagInfo.origin}
+                            </p>
+                          </div>
+
+                          {/* 配色の意味 */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                              <Palette className="size-3 shrink-0" />
+                              色・シンボルの象徴
+                            </div>
+                            <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                              {flagInfo.colors}
+                            </p>
+                          </div>
+
+                          {/* 歴史的背景 */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                              <History className="size-3 shrink-0" />
+                              歴史的背景
+                            </div>
+                            <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                              {flagInfo.historicalContext}
+                            </p>
+                            {q.country.history?.founding && (
+                              <p className="text-xs text-muted-foreground leading-relaxed mt-1 pl-2 border-l border-border">
+                                📅 建国：{q.country.history.founding}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* 年表ハイライト */}
+                          {timelineItems.length > 0 && (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                <BookOpen className="size-3 shrink-0" />
+                                重要年表
+                              </div>
+                              <ul className="space-y-1">
+                                {timelineItems.map((item, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-foreground/85 leading-relaxed">
+                                    <span className="shrink-0 font-mono font-semibold text-primary text-[11px] mt-0.5 w-12">
+                                      {item.year}
+                                    </span>
+                                    <span>{item.event}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button
+                      ref={nextButtonRef}
+                      className="w-full font-semibold gap-1.5 shadow-xs scroll-my-8 cursor-pointer"
+                      onClick={next}
+                    >
+                      <span>{index + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</span>
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           )
         )}
