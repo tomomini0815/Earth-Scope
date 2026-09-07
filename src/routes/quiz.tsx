@@ -1159,13 +1159,66 @@ function QuizPage() {
               </h2>
 
               {/* 選択肢一覧 */}
-              <div className={cn("mt-5 grid gap-2.5", q.isFlagGrid ? "grid-cols-2 gap-3.5" : "grid-cols-1")}>
-                {q.choices.map((choice) => {
+              <div className={cn("mt-5 grid gap-2.5", q.isFlagGrid ? "grid-cols-2 gap-3 sm:gap-4" : "grid-cols-1")}>
+                {q.choices.map((choice, idx) => {
                   const isAnswer = choice.id === q.answerId;
                   const state = !pickedId ? "idle" : isAnswer ? "correct" : choice.id === pickedId ? "wrong" : "idle";
+
+                  // 国旗選択クイズ（国旗から選ぶ問題）：回答前は国名を非表示にし、純粋に国旗で解答させる
+                  if (q.isFlagGrid && choice.flag) {
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() => answer(choice.id)}
+                        disabled={!!pickedId}
+                        className={cn(
+                          "group relative flex flex-col items-center justify-center rounded-2xl border p-3.5 sm:p-5 text-center transition-all shadow-xs cursor-pointer",
+                          state === "idle" && "border-border bg-card hover:border-sky-500/50 hover:bg-secondary/40 hover:shadow-md hover:-translate-y-0.5",
+                          state === "correct" && "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold ring-2 ring-emerald-500/30",
+                          state === "wrong" && "border-destructive bg-destructive/15 text-destructive font-bold ring-2 ring-destructive/30"
+                        )}
+                      >
+                        {/* 国旗画像（中央に大きく鮮明に表示） */}
+                        <div className="relative flex items-center justify-center my-1">
+                          <FlagImage
+                            flag={choice.flag}
+                            size="lg"
+                            className="rounded-lg shadow-md object-cover w-28 h-18 sm:w-36 sm:h-22 transition-transform group-hover:scale-105"
+                          />
+                          {state === "correct" && (
+                            <div className="absolute -top-2.5 -right-2.5 size-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md">
+                              <Check className="size-4 stroke-[3]" />
+                            </div>
+                          )}
+                          {state === "wrong" && (
+                            <div className="absolute -top-2.5 -right-2.5 size-7 rounded-full bg-destructive text-white flex items-center justify-center shadow-md">
+                              <X className="size-4 stroke-[3]" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 回答前は国名を非表示！回答後のみ学習用に国名を表示 */}
+                        {pickedId ? (
+                          <div className="mt-2.5 pt-2 border-t border-border/60 w-full flex items-center justify-center gap-1.5 animate-fadeIn">
+                            <span className="text-xs sm:text-sm font-bold truncate">
+                              {choice.label}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-[11px] font-semibold text-muted-foreground/60 font-mono">
+                            選択肢 {idx + 1}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  }
+
+                  // 通常のテキスト選択肢
                   return (
                     <button
                       key={choice.id}
+                      type="button"
                       onClick={() => answer(choice.id)}
                       disabled={!!pickedId}
                       className={cn(
