@@ -194,7 +194,7 @@ function Index() {
           </div>
         </div>
 
-        <div className="grid gap-4 xl:gap-6 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] md:h-[540px] lg:h-[580px] xl:h-[600px]">
+        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-6 md:h-[540px] lg:h-[580px] xl:h-[600px]">
           <div className="h-[380px] sm:h-[430px] md:h-full">
             <WorldMap
               learnedMapIds={learnedSet}
@@ -205,11 +205,11 @@ function Index() {
             />
           </div>
 
-            <div className="surface-card overflow-hidden h-full flex flex-col">
-              {!isMobile && activeCountry ? (
-                <CountryDetail country={activeCountry} compact isPreview={isPreview} />
-              ) : (
-                <div className="flex h-full flex-col justify-between p-3.5 sm:p-4 overflow-y-auto scrollbar-none">
+          <div className="surface-card overflow-hidden md:h-full flex flex-col">
+            {!isMobile && activeCountry ? (
+              <CountryDetail country={activeCountry} compact isPreview={isPreview} />
+            ) : (
+              <div className="flex flex-col justify-between p-3.5 sm:p-4 md:h-full overflow-y-auto scrollbar-none space-y-3 md:space-y-0">
                   {/* ヘッダーエリア */}
                   <div className="shrink-0">
                     <div className="flex items-center justify-between">
