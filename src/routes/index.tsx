@@ -234,7 +234,7 @@ function Index() {
                       onClick={() => select(featuredCountry.id)}
                       className="group relative rounded-xl border border-border/80 bg-card overflow-hidden shadow-xs hover:border-primary/50 transition-all cursor-pointer"
                     >
-                      <div className="relative h-24 sm:h-28 w-full overflow-hidden bg-muted">
+                      <div className="relative h-40 sm:h-48 w-full overflow-hidden bg-muted">
                         <img
                           src={featuredPhoto.url}
                           alt={featuredCountry.nameJa}

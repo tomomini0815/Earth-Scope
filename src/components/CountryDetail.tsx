@@ -196,7 +196,7 @@ export function CountryDetail({
       ) : null}
 
       {/* 象徴的な風景・名所写真ヒーローヘッダー */}
-      <div className={cn("relative w-full overflow-hidden bg-slate-900 group shrink-0", compact ? "h-28 sm:h-32" : "aspect-[21/9] sm:aspect-[16/7]")}>
+      <div className={cn("relative w-full overflow-hidden bg-slate-900 group shrink-0", compact ? "h-48 sm:h-56 md:h-64" : "aspect-[16/9] sm:aspect-[2/1] md:h-80 lg:h-96")}>
         <img
           src={photo.url}
           aria-hidden
@@ -232,9 +232,9 @@ export function CountryDetail({
         )}
 
         {/* 写真グラデーション & キャプション */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3.5 py-1.5 flex items-center justify-between text-[11px] text-white/90">
-          <span className="font-medium truncate drop-shadow-sm">📷 {photo.caption}</span>
-          <span className="shrink-0 text-[10px] text-white/60 ml-2">名所・世界遺産</span>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-4 py-2 flex items-center justify-between text-xs text-white/95">
+          <span className="font-semibold truncate drop-shadow-sm">📷 {photo.caption}</span>
+          <span className="shrink-0 text-[11px] text-white/75 ml-2 font-medium bg-black/30 backdrop-blur-xs px-2 py-0.5 rounded border border-white/15">名所・世界遺産</span>
         </div>
       </div>
 
