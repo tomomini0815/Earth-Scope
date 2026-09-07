@@ -560,7 +560,10 @@ export function WorldMap({
             <span>ドラッグで360°回転</span>
           </span>
           <span className="text-border/80">•</span>
-          <span>タップで国データ表示</span>
+          <span>
+            <span className="md:hidden">タップで国データ表示</span>
+            <span className="hidden md:inline">クリックで国データ表示</span>
+          </span>
           <span className="hidden sm:inline text-border/80">•</span>
           <span className="hidden sm:inline">ホイールで拡大縮小</span>
         </div>

@@ -142,7 +142,8 @@ function Index() {
       <main className="mx-auto max-w-[1600px] w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <section className="mb-4 sm:mb-5">
           <h1 className="font-display text-2xl font-bold sm:text-3xl tracking-tight">
-            世界をタップして、学ぼう。
+            <span className="md:hidden">世界をタップして、学ぼう。</span>
+            <span className="hidden md:inline">世界をクリックして、学ぼう。</span>
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
             地図から国を選ぶと、歴史・文化・人口・経済・地理のデータが読めます。学習済みの国は緑色になります。
@@ -221,7 +222,8 @@ function Index() {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                      地図上の国をタップすると基本データが表示され、歴史・文化・受験ポイントなどの詳細を固定して学習できます。
+                      <span className="md:hidden">地図上の国をタップすると基本データが表示され、歴史・文化・受験ポイントなどの詳細を固定して学習できます。</span>
+                      <span className="hidden md:inline">地図上の国をクリックすると基本データが表示され、歴史・文化・受験ポイントなどの詳細を固定して学習できます。</span>
                     </p>
                   </div>
 
