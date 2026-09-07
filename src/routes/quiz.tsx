@@ -10,7 +10,6 @@ import {
   X,
   Sparkles,
   ChevronRight,
-  GraduationCap,
   Lightbulb,
 } from "lucide-react";
 
@@ -661,6 +660,7 @@ function QuizPage() {
   // 自動スクロール用Ref（全デバイス対応）
   const nextButtonRef = useRef<HTMLButtonElement | null>(null);
   const questionCardRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // 答えを選択したとき、次へボタンへ自動スクロール（スマホ・タブレット・PC全対応）
   useEffect(() => {
@@ -758,7 +758,7 @@ function QuizPage() {
 
   const handleSwitchToCountryMode = () => {
     if (selectedCountry) {
-      setIsCountryPickerOpen((prev) => !prev);
+      setIsCountryPickerOpen(true);
     } else {
       // まだ国が未選択の場合、日本を初期選択して即時国特訓モードを開始
       const defaultCountry = byIso3("JPN") ?? countries[0];
@@ -767,6 +767,13 @@ function QuizPage() {
         setIsCountryPickerOpen(true);
       }
     }
+    setTimeout(() => {
+      searchInputRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      searchInputRef.current?.focus();
+    }, 120);
   };
 
   const answer = (choiceId: string) => {
@@ -818,17 +825,11 @@ function QuizPage() {
     <div className="min-h-screen pb-16">
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-4 py-6">
-        {/* タイトル行 & 右端バッジ */}
+        {/* タイトル行 */}
         <div>
-          <div className="flex items-center justify-between gap-2.5 flex-wrap sm:flex-nowrap">
-            <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              世界地理・歴史マスタークイズ
-            </h1>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/25 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-700 dark:text-sky-300 shadow-2xs whitespace-nowrap shrink-0">
-              <GraduationCap className="size-3.5 text-sky-500 shrink-0" />
-              <span>入試頻出 1,980問</span>
-            </div>
-          </div>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+            世界地理・歴史マスタークイズ
+          </h1>
           <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground leading-relaxed">
             国旗・首都・入試頻出ポイント・歴史年表。全198ヵ国のランダム出題や、選択した国の集中特訓に対応。
           </p>
@@ -842,7 +843,7 @@ function QuizPage() {
               <span className="text-xs font-semibold text-muted-foreground">
                 クイズの出題対象
               </span>
-              {selectedCountry && (
+              {selectedCountry ? (
                 <button
                   type="button"
                   onClick={() => handleSelectCountry(null)}
@@ -851,6 +852,8 @@ function QuizPage() {
                   <X className="size-3.5" />
                   <span>全世界に戻す</span>
                 </button>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">入試頻出 1,980問</span>
               )}
             </div>
 
@@ -862,15 +865,15 @@ function QuizPage() {
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all cursor-pointer touch-manipulation",
                   !selectedCountry
-                    ? "bg-card text-foreground shadow-xs border border-border/70"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                 )}
               >
                 <span>全世界から出題</span>
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.2 text-[10px]",
-                    !selectedCountry ? "bg-muted text-foreground font-bold" : "text-muted-foreground"
+                    !selectedCountry ? "bg-sky-500/20 text-sky-800 dark:text-sky-200 font-bold" : "text-muted-foreground"
                   )}
                 >
                   198ヵ国
@@ -883,8 +886,8 @@ function QuizPage() {
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-semibold transition-all cursor-pointer touch-manipulation",
                   selectedCountry
-                    ? "bg-card text-foreground shadow-xs border border-border/70"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                 )}
               >
                 <span>{selectedCountry ? `特訓中: ${selectedCountry.nameJa}` : "国を選んで集中特訓"}</span>
@@ -915,7 +918,21 @@ function QuizPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setIsCountryPickerOpen((prev) => !prev)}
+                    onClick={() => {
+                      setIsCountryPickerOpen((prev) => {
+                        const nextState = !prev;
+                        if (nextState) {
+                          setTimeout(() => {
+                            searchInputRef.current?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            });
+                            searchInputRef.current?.focus();
+                          }, 120);
+                        }
+                        return nextState;
+                      });
+                    }}
                     className="h-7 px-2.5 text-xs shrink-0 gap-1 cursor-pointer"
                   >
                     <Search className="size-3" />
@@ -959,6 +976,7 @@ function QuizPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -1028,7 +1046,7 @@ function QuizPage() {
                     className={cn(
                       "flex-1 min-w-[84px] sm:min-w-[100px] flex items-center justify-center py-2 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap",
                       isActive
-                        ? "bg-card text-sky-600 dark:text-sky-400 shadow-xs border border-border/70 font-bold"
+                        ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
                         : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                     )}
                     title={m.desc}

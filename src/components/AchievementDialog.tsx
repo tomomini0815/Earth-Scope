@@ -1,95 +1,161 @@
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Award, Sparkles, Trophy, X, ArrowRight } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { ChevronRight, Sparkles, X, Trophy } from "lucide-react";
 import { useProgress } from "@/stores/progress";
+import { BADGE_DESIGNS } from "@/components/GemIcons";
 
 export function AchievementDialog() {
   const pendingAchievement = useProgress((s) => s.pendingAchievement);
   const dismissAchievement = useProgress((s) => s.dismissAchievement);
+  const [isVisible, setIsVisible] = useState(false);
 
-  const isOpen = !!pendingAchievement;
+  const [previewAchievement, setPreviewAchievement] = useState<typeof pendingAchievement>(null);
 
-  if (!pendingAchievement) return null;
+  useEffect(() => {
+    // プレビュー用カスタムイベントリスナー
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      if (customEvent.detail) {
+        setPreviewAchievement(customEvent.detail);
+      }
+    };
+    window.addEventListener("earthscope-achievement-preview", handler);
+    return () => window.removeEventListener("earthscope-achievement-preview", handler);
+  }, []);
+
+  const currentAchievement = pendingAchievement || previewAchievement;
+
+  useEffect(() => {
+    if (!currentAchievement) {
+      setIsVisible(false);
+      return;
+    }
+
+    // 表示開始アニメーション
+    setIsVisible(true);
+
+    // 5秒間だけ表示して自動で閉じる
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+      setTimeout(() => {
+        if (pendingAchievement) {
+          dismissAchievement();
+        }
+        setPreviewAchievement(null);
+      }, 250);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [currentAchievement, pendingAchievement, dismissAchievement]);
+
+  if (!currentAchievement) return null;
+
+  const gemMeta = BADGE_DESIGNS[currentAchievement.id];
+  const GemIcon = gemMeta?.icon;
+  // タイトルから「バッジ獲得: 」プレフィックスがあれば除外してバッジ名を取得
+  const badgeName = currentAchievement.title.replace(/^バッジ獲得:\s*/, "");
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && dismissAchievement()}>
-      <DialogContent className="sm:max-w-md overflow-hidden border-2 border-amber-400/40 bg-gradient-to-b from-card via-card to-amber-500/5 p-0 text-center shadow-2xl">
-        {/* 背景の光・装飾 */}
-        <div className="absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-amber-400/20 via-yellow-500/10 to-transparent blur-2xl pointer-events-none" />
+    <aside
+      aria-live="polite"
+      className={`fixed top-4 right-4 z-50 max-w-[calc(100vw-2rem)] sm:max-w-md transition-all duration-300 ease-out transform ${
+        isVisible
+          ? "translate-y-0 opacity-100 scale-100"
+          : "-translate-y-3 opacity-0 scale-95 pointer-events-none"
+      }`}
+    >
+      <div className="relative overflow-hidden rounded-2xl border border-amber-400/30 bg-card/95 dark:bg-slate-900/95 p-3.5 shadow-2xl shadow-amber-500/10 backdrop-blur-md">
+        {/* 背景の淡いグラデーション */}
+        <div className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-amber-400/15 blur-xl" />
 
-        {/* 閉じるボタン */}
-        <button
-          type="button"
-          onClick={dismissAchievement}
-          className="absolute right-3.5 top-3.5 z-10 rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors"
-          aria-label="閉じる"
-        >
-          <X className="size-4" />
-        </button>
-
-        <div className="relative px-6 pt-8 pb-6 flex flex-col items-center">
-          {/* 上部タグ */}
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest animate-bounce">
-            <Sparkles className="size-3.5" />
-            <span>ACHIEVEMENT UNLOCKED</span>
-            <Sparkles className="size-3.5" />
-          </div>
-
-          {/* バッジ大型アイコン */}
-          <div className="relative mt-5 mb-4">
-            <div className="size-24 rounded-3xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-xl shadow-amber-500/25 rotate-3 hover:rotate-0 transition-transform duration-300">
-              <div className="size-full rounded-[22px] bg-background/95 dark:bg-slate-900 flex items-center justify-center text-5xl select-none">
-                {pendingAchievement.badge}
-              </div>
+        <div className="relative flex items-center gap-3">
+          {/* 左：宝石/トロフィー アイコン */}
+          <div className="relative shrink-0">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500/20 via-yellow-400/20 to-amber-300/10 p-1 ring-1 ring-amber-400/40 shadow-inner">
+              {GemIcon ? (
+                <GemIcon className="size-8 drop-shadow-sm" />
+              ) : (
+                <span className="text-2xl select-none">{currentAchievement.badge || "💎"}</span>
+              )}
             </div>
-            <div className="absolute -bottom-2 -right-2 size-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
-              <Trophy className="size-4" />
-            </div>
+            <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[10px] text-white shadow">
+              <Trophy className="size-2.5" />
+            </span>
           </div>
 
-          <DialogHeader className="space-y-1.5 text-center">
-            <DialogTitle className="text-xl sm:text-2xl font-black font-display tracking-tight text-foreground">
-              {pendingAchievement.title}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              {pendingAchievement.desc}
-            </DialogDescription>
-          </DialogHeader>
+          {/* 中央：パンくず表示 */}
+          <div className="min-w-0 flex-1">
+            <nav aria-label="実績獲得パンくずリスト" className="overflow-hidden">
+              <ol className="flex flex-wrap items-center gap-1 text-[11px] font-medium leading-none text-muted-foreground">
+                <li className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                  <Sparkles className="size-3 shrink-0 text-amber-500 animate-pulse" />
+                  <span>アチーブメント</span>
+                </li>
 
-          {/* 祝福メッセージ */}
-          <div className="mt-4 w-full rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
-            🎉 おめでとうございます！探検の記録が更新されました！
-          </div>
+                <li aria-hidden="true" className="shrink-0 text-muted-foreground/40">
+                  <ChevronRight className="size-3" />
+                </li>
 
-          {/* アクションボタン */}
-          <div className="mt-6 flex w-full flex-col sm:flex-row gap-2.5">
-            <Button
-              asChild
-              className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-bold shadow-md shadow-amber-500/20 gap-1.5"
-              onClick={dismissAchievement}
-            >
-              <Link to="/mypage">
-                <span>マイページで確認</span>
-                <ArrowRight className="size-4" />
+                {gemMeta ? (
+                  <>
+                    <li className="shrink-0 font-semibold text-foreground/85">
+                      💎 {gemMeta.gemName}
+                    </li>
+                    <li aria-hidden="true" className="shrink-0 text-muted-foreground/40">
+                      <ChevronRight className="size-3" />
+                    </li>
+                  </>
+                ) : null}
+
+                <li className="truncate font-bold text-foreground">
+                  {badgeName}
+                </li>
+              </ol>
+            </nav>
+
+            {/* サブテキスト＆マイページ誘導リンク */}
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <p className="truncate text-xs text-muted-foreground">
+                {currentAchievement.desc}
+              </p>
+              <Link
+                to="/mypage"
+                onClick={dismissAchievement}
+                className="shrink-0 text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-0.5"
+              >
+                <span>確認</span>
+                <ChevronRight className="size-3" />
               </Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={dismissAchievement}
-            >
-              学習を続ける
-            </Button>
+            </div>
           </div>
+
+          {/* 右端：閉じるボタン */}
+          <button
+            type="button"
+            onClick={dismissAchievement}
+            className="shrink-0 rounded-full p-1 text-muted-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
+            aria-label="通知を閉じる"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* 最下部：5秒タイマーのプログレスバー */}
+        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-amber-500/20 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 origin-left"
+            style={{
+              animation: isVisible ? "achievementTimerBar 5000ms linear forwards" : "none",
+            }}
+          />
+        </div>
+        <style>{`
+          @keyframes achievementTimerBar {
+            from { width: 100%; }
+            to { width: 0%; }
+          }
+        `}</style>
+      </div>
+    </aside>
   );
 }

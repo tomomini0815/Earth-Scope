@@ -1,19 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
+  AlertTriangle,
   Award,
   BarChart3,
   BookOpen,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Compass,
+  Crown,
   ExternalLink,
+  Flag,
   Flame,
   Globe,
+  GraduationCap,
   HelpCircle,
   Hourglass,
   Lock,
+  Map,
+  ShieldCheck,
   Sparkles,
   Star,
   Target,
@@ -30,11 +38,21 @@ import { FlagImage } from "@/components/FlagImage";
 import { PassportStamp } from "@/components/PassportStamp";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { countries } from "@/data/countries";
 import { byIso3, learnedIds } from "@/data/lookup";
 import { CONTINENTS, type ContinentId, type Country } from "@/data/types";
 import { badgeList, getRank, useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
+
+import { BADGE_DESIGNS, EmeraldGem } from "@/components/GemIcons";
 
 // 学習時間の表示ヘルパー
 function formatTimeDisplay(seconds: number = 0): { main: string; unit: string } {
@@ -125,6 +143,19 @@ function MyPage() {
   } = useProgress();
   const [passportFilter, setPassportFilter] = useState<ContinentId | "all">("all");
   const [selectedMapId, setSelectedMapId] = useState<string | undefined>();
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  // 学習データの完全リセット処理
+  const handleResetData = () => {
+    reset();
+    try {
+      localStorage.removeItem("geoquest-progress");
+      localStorage.removeItem("earthscope_last_study_tick");
+    } catch {
+      // ignore
+    }
+    setIsResetDialogOpen(false);
+  };
 
   // 直近7日間の学習推移
   const last7Days = useMemo(() => {
@@ -217,6 +248,29 @@ function MyPage() {
     return list.filter((c) => c.continent === passportFilter);
   }, [learned, passportFilter]);
 
+  // パスポートスタンプの3行目以降のホバー展開状態
+  const [isStampHovered, setIsStampHovered] = useState(false);
+  const [isStampClickedOpen, setIsStampClickedOpen] = useState(false);
+  const [hasStampThirdRow, setHasStampThirdRow] = useState(false);
+  const stampGridRef = useRef<HTMLDivElement | null>(null);
+
+  const isStampOpen = isStampHovered || isStampClickedOpen;
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (stampGridRef.current) {
+        // 2行の高さは約430px。それを超える場合は3行目以降が存在する
+        setHasStampThirdRow(stampGridRef.current.scrollHeight > 450);
+      }
+    };
+    const t = setTimeout(checkOverflow, 50);
+    window.addEventListener("resize", checkOverflow);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", checkOverflow);
+    };
+  }, [passportCountries]);
+
   // 要復習リスト（クイズで間違えた国）
   const reviewCountries = useMemo(() => {
     return (wrongAnswers ?? []).map((iso3) => byIso3(iso3)).filter((c): c is Country => !!c);
@@ -276,13 +330,10 @@ function MyPage() {
                   <span className="text-[11px] font-normal text-muted-foreground"> / 198</span>
                 </p>
               </div>
-              <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-2.5 sm:p-3 text-center backdrop-blur-xs">
-                <span className="text-[11px] text-sky-600 dark:text-sky-400 font-semibold flex items-center justify-center gap-1">
-                  <Clock className="size-3" />
-                  総学習時間
-                </span>
-                <p className="font-display text-base sm:text-lg font-bold text-sky-600 dark:text-sky-400">
-                  {totalTime.main}<span className="text-[11px] font-normal">{totalTime.unit}</span>
+              <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3 text-center backdrop-blur-xs">
+                <span className="text-[11px] text-muted-foreground font-medium">総学習時間</span>
+                <p className="font-display text-base sm:text-lg font-bold text-foreground">
+                  {totalTime.main}<span className="text-[11px] font-normal text-muted-foreground">{totalTime.unit}</span>
                 </p>
               </div>
               <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3 text-center backdrop-blur-xs">
@@ -385,7 +436,7 @@ function MyPage() {
           <div className="rounded-2xl border border-border/80 bg-background/80 p-4 mb-4 shadow-2xs">
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <div className="size-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                   <BarChart3 className="size-4" />
                 </div>
                 <div>
@@ -424,11 +475,9 @@ function MyPage() {
                         style={{ height: `${heightPct}%` }}
                         className={cn(
                           "w-full rounded-t-md transition-all duration-500",
-                          d.isToday
-                            ? "bg-gradient-to-t from-sky-500 to-indigo-500 shadow-xs"
-                            : d.minutes > 0
-                              ? "bg-emerald-500/85 hover:bg-emerald-500"
-                              : "bg-muted/40",
+                          d.minutes > 0
+                            ? "bg-sky-500 hover:bg-sky-400 shadow-2xs"
+                            : "bg-muted/40",
                         )}
                       />
                     </div>
@@ -829,44 +878,87 @@ function MyPage() {
 
           {/* スタンプグリッド（円形消印スタンプコレクション） */}
           {passportCountries.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {passportCountries.map((c) => {
-                if (!c) return null;
-                const stampDate = learnedAt?.[c.iso3];
-                return (
-                  <Link
-                    key={c.iso3}
-                    to="/country/$iso3"
-                    params={{ iso3: c.iso3.toLowerCase() }}
-                    className="group relative rounded-3xl border border-amber-900/20 dark:border-amber-400/20 bg-amber-50/60 dark:bg-slate-900/70 p-3 text-center transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-amber-900/15 hover:border-amber-600 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-900 block overflow-hidden"
-                  >
-                    {/* パスポート査証ページの透かし模様装飾 */}
-                    <div className="absolute inset-0 bg-[radial-gradient(#92400e_0.75px,transparent_0.75px)] opacity-[0.08] dark:opacity-[0.12] [background-size:12px_12px] pointer-events-none" />
+            <div
+              className={cn(
+                "relative transition-[max-height] duration-500 ease-in-out",
+                hasStampThirdRow && !isStampOpen ? "max-h-[440px] overflow-hidden" : "max-h-[8000px]"
+              )}
+              onMouseEnter={() => setIsStampHovered(true)}
+              onMouseLeave={() => setIsStampHovered(false)}
+            >
+              <div
+                ref={stampGridRef}
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+              >
+                {passportCountries.map((c) => {
+                  if (!c) return null;
+                  const stampDate = learnedAt?.[c.iso3];
+                  return (
+                    <Link
+                      key={c.iso3}
+                      to="/country/$iso3"
+                      params={{ iso3: c.iso3.toLowerCase() }}
+                      className="group relative rounded-3xl border border-amber-900/20 dark:border-amber-400/20 bg-amber-50/60 dark:bg-slate-900/70 p-3 text-center transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-amber-900/15 hover:border-amber-600 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-900 block overflow-hidden"
+                    >
+                      {/* パスポート査証ページの透かし模様装飾 */}
+                      <div className="absolute inset-0 bg-[radial-gradient(#92400e_0.75px,transparent_0.75px)] opacity-[0.08] dark:opacity-[0.12] [background-size:12px_12px] pointer-events-none" />
 
-                    {/* 円形出入国スタンプ（参考画像右側を再現：二重円・円弧テキスト・飛行機✈・入国区分・入国日付・空港コード） */}
-                    <div className="my-1.5 flex justify-center">
-                      <PassportStamp
-                        country={c}
-                        learnedAt={stampDate}
-                        size="md"
-                      />
-                    </div>
+                      {/* 円形出入国スタンプ（参考画像右側を再現：二重円・円弧テキスト・飛行機✈・入国区分・入国日付・空港コード） */}
+                      <div className="my-1.5 flex justify-center">
+                        <PassportStamp
+                          country={c}
+                          learnedAt={stampDate}
+                          size="md"
+                        />
+                      </div>
 
-                    {/* 国情報フッター */}
-                    <div className="mt-2.5 pt-2 border-t border-amber-900/15 dark:border-white/10 flex items-center justify-between gap-1.5 text-left">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <FlagImage flag={c.flag} size="xs" className="rounded-xs shrink-0 shadow-2xs" />
-                        <span className="text-[11px] font-bold text-amber-950 dark:text-slate-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-                          {c.nameJa}
+                      {/* 国情報フッター */}
+                      <div className="mt-2.5 pt-2 border-t border-amber-900/15 dark:border-white/10 flex items-center justify-between gap-1.5 text-left">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <FlagImage flag={c.flag} size="xs" className="rounded-xs shrink-0 shadow-2xs" />
+                          <span className="text-[11px] font-bold text-amber-950 dark:text-slate-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                            {c.nameJa}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono text-amber-900/70 dark:text-slate-400 uppercase shrink-0">
+                          {c.iso3}
                         </span>
                       </div>
-                      <span className="text-[9px] font-mono text-amber-900/70 dark:text-slate-400 uppercase shrink-0">
-                        {c.iso3}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* 3行目以降がある場合の「もっと見る」（ホバーで自動展開、背景無し） */}
+              {hasStampThirdRow && !isStampOpen && (
+                <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#EFE8DC] via-[#EFE8DC]/85 to-transparent dark:from-[#0D1017] dark:via-[#0D1017]/85 flex items-end justify-center pb-2.5 pointer-events-none transition-opacity duration-300">
+                  <button
+                    type="button"
+                    onClick={() => setIsStampClickedOpen(true)}
+                    className="pointer-events-auto inline-flex items-center gap-1 text-xs font-bold text-amber-900/90 dark:text-amber-200/90 hover:text-amber-950 dark:hover:text-white transition-all cursor-pointer bg-transparent border-0 shadow-none p-1 group"
+                  >
+                    <span>もっと見る（全{passportCountries.length}スタンプを表示）</span>
+                    <ChevronDown className="size-3.5 transition-transform group-hover:translate-y-0.5 animate-bounce" />
+                  </button>
+                </div>
+              )}
+
+              {/* 展開中の折りたたみボタン（背景無し） */}
+              {hasStampThirdRow && isStampOpen && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsStampClickedOpen(false);
+                      setIsStampHovered(false);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-amber-900/80 dark:text-amber-300/80 hover:text-amber-950 dark:hover:text-white transition-colors cursor-pointer bg-transparent border-0 shadow-none p-1"
+                  >
+                    <span>閉じる</span>
+                    <ChevronUp className="size-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="py-12 text-center text-amber-900/70 dark:text-slate-300">
@@ -902,29 +994,68 @@ function MyPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {badgeList.map((b) => {
               const got = learned.length >= b.need;
+              const design = BADGE_DESIGNS[b.id] ?? {
+                gemName: "ジュエル",
+                icon: EmeraldGem,
+                gemRing: "ring-amber-400/40 shadow-amber-500/25",
+                cardBorder: "border-amber-500/30",
+                cardBg: "bg-amber-500/5",
+                textColor: "text-amber-700 dark:text-amber-400",
+              };
+              const GemIcon = design.icon;
+
               return (
                 <div
                   key={b.id}
+                  onClick={() => {
+                    window.dispatchEvent(
+                      new CustomEvent("earthscope-achievement-preview", {
+                        detail: {
+                          id: b.id,
+                          title: `バッジ獲得: ${b.label}`,
+                          badge: b.icon,
+                          desc: b.desc,
+                          type: "badge",
+                        },
+                      })
+                    );
+                  }}
+                  title={got ? "クリックして達成演出を表示" : `あと ${b.need - learned.length} カ国でアンロック`}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl border p-3.5 transition-all",
+                    "flex items-center gap-3.5 rounded-2xl border p-3.5 transition-all group cursor-pointer hover:shadow-md",
                     got
-                      ? "border-amber-500/30 bg-amber-500/5 shadow-xs"
-                      : "border-border/60 bg-muted/30 opacity-60"
+                      ? cn(design.cardBorder, design.cardBg, "shadow-xs")
+                      : "border-border/60 bg-muted/30 opacity-60 hover:opacity-80"
                   )}
                 >
-                  <span
+                  <div
                     className={cn(
-                      "grid size-11 shrink-0 place-items-center rounded-xl shadow-xs",
-                      got ? "bg-amber-400 text-slate-950 font-bold" : "bg-muted text-muted-foreground"
+                      "size-12 shrink-0 rounded-2xl flex items-center justify-center transition-all duration-300 relative",
+                      got
+                        ? cn("bg-background/90 dark:bg-slate-900/90 shadow-md ring-1 group-hover:scale-110", design.gemRing)
+                        : "bg-muted text-muted-foreground"
                     )}
                   >
-                    {got ? <Award className="size-6 text-amber-900" /> : <Lock className="size-4" />}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-foreground truncate">{b.label}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{b.desc}</p>
-                    <span className="text-[10px] font-semibold text-muted-foreground/80 mt-0.5 block">
-                      {got ? "達成済み ✓" : `必要: ${b.need}カ国`}
+                    {got ? (
+                      <GemIcon className="size-8 drop-shadow-sm" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center">
+                        <Lock className="size-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-xs font-bold text-foreground truncate">{b.label}</p>
+                      {got && (
+                        <span className={cn("text-[9px] font-bold px-1.5 py-0 rounded-full bg-background/80 border border-border/60 shrink-0", design.textColor)}>
+                          💎 {design.gemName}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{b.desc}</p>
+                    <span className="text-[10px] font-semibold text-muted-foreground/80 mt-1 block">
+                      {got ? "獲得済み ✓" : `必要: ${b.need}カ国`}
                     </span>
                   </div>
                 </div>
@@ -970,19 +1101,81 @@ function MyPage() {
           {/* 学習データのリセット */}
           <div className="mt-6 border-t border-border/60 pt-4 flex justify-end">
             <Button
+              type="button"
               size="sm"
               variant="ghost"
-              className="text-xs text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                if (window.confirm("すべての学習履歴・お気に入り・クイズ結果をリセットしますか？この操作は取り消せません。")) {
-                  reset();
-                }
-              }}
+              className="text-xs text-destructive hover:bg-destructive/10 cursor-pointer gap-1.5"
+              onClick={() => setIsResetDialogOpen(true)}
             >
-              <Trash2 className="size-3.5 mr-1" />
-              学習データをリセット
+              <Trash2 className="size-3.5" />
+              <span>学習データをリセット</span>
             </Button>
           </div>
+
+          {/* リセット確認モーダル */}
+          <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+            <DialogContent className="sm:max-w-md rounded-3xl border-destructive/30 bg-card p-6 shadow-2xl">
+              <div className="flex items-start gap-3.5 mb-2">
+                <div className="size-11 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0 ring-1 ring-destructive/20 shadow-xs">
+                  <AlertTriangle className="size-5" />
+                </div>
+                <DialogHeader className="text-left space-y-1 min-w-0">
+                  <DialogTitle className="text-lg font-bold text-foreground">
+                    学習データをリセットしますか？
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                    この操作を行うと、これまでのすべての学習データが初期化されます。
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="rounded-2xl bg-destructive/5 border border-destructive/15 p-4 my-2 text-xs space-y-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-foreground font-medium">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>学習達成した国（全 {learned.length} カ国）</span>
+                </div>
+                <div className="flex items-center gap-2 text-foreground font-medium">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>デジタル・パスポート入国スタンプ帳</span>
+                </div>
+                <div className="flex items-center gap-2 text-foreground font-medium">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>獲得したアチーブメント・バッジ（{badgeList.filter((b) => learned.length >= b.need).length}個）</span>
+                </div>
+                <div className="flex items-center gap-2 text-foreground font-medium">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>総学習時間・連続学習記録・日々の学習推移</span>
+                </div>
+                <div className="flex items-center gap-2 text-foreground font-medium">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>クイズ挑戦履歴とお気に入り登録国</span>
+                </div>
+                <p className="pt-2 border-t border-destructive/15 text-[11px] font-bold text-destructive">
+                  ※この操作は取り消すことができません。
+                </p>
+              </div>
+
+              <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 rounded-xl cursor-pointer"
+                  onClick={() => setIsResetDialogOpen(false)}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="flex-1 rounded-xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-md gap-1.5 cursor-pointer"
+                  onClick={handleResetData}
+                >
+                  <Trash2 className="size-4" />
+                  <span>完全にリセットする</span>
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </section>
       </main>
     </div>
