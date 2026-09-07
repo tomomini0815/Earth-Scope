@@ -199,43 +199,9 @@ export function CountryDirectory({
           <span>COUNTRY DIRECTORY</span>
         </div>
 
-        {/* タイトル行 ＆ 右端タブボタン */}
-        <div className="flex items-center justify-between gap-3 mt-0.5">
-          <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            全世界 探検ディレクトリ
-          </h2>
-
-          {/* ビュー切り替えボタングループ（簡易表示 -> テーブル -> カード） */}
-          <div className="flex items-center gap-1 shrink-0 bg-muted/60 p-1 rounded-xl border border-border/70">
-            <Button
-              size="sm"
-              variant={viewMode === "compact" ? "default" : "ghost"}
-              className="size-8 p-0 cursor-pointer touch-manipulation"
-              onClick={() => setViewMode("compact")}
-              title="簡易表示（コンパクト一覧）"
-            >
-              <List className="size-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "table" ? "default" : "ghost"}
-              className="size-8 p-0 cursor-pointer touch-manipulation"
-              onClick={() => setViewMode("table")}
-              title="統計テーブル表示"
-            >
-              <TableIcon className="size-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              className="size-8 p-0 cursor-pointer touch-manipulation"
-              onClick={() => setViewMode("grid")}
-              title="カードグリッド表示"
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
-          </div>
-        </div>
+        <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-0.5">
+          全世界 探検ディレクトリ
+        </h2>
 
         <p className="text-xs text-muted-foreground mt-1">
           人口・面積・GDPでの並び替えや、未学習・お気に入りでの絞り込みが可能です。
@@ -244,9 +210,9 @@ export function CountryDirectory({
 
       {/* 検索 & フィルターコントロールバー */}
       <div className="surface-card p-4 sm:p-5 rounded-2xl border border-border/80 space-y-3.5 shadow-2xs">
-        <div className="grid gap-2.5 md:grid-cols-[1.5fr_1fr_1fr]">
+        <div className="flex flex-col lg:flex-row gap-2.5">
           {/* 1. リアルタイム検索バー */}
-          <div className="relative">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
               value={searchQuery}
@@ -266,42 +232,76 @@ export function CountryDirectory({
           </div>
 
           {/* 2. 大陸 & 小国セレクター */}
-          <div>
-            <Select
-              value={continentFilter}
-              onValueChange={(val) => handleContinentChange(val as RegionFilter)}
-            >
-              <SelectTrigger className="h-10 text-base sm:text-sm bg-background/80">
-                <SelectValue placeholder="地域・小国で絞り込み" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて（198か国）</SelectItem>
-                <SelectItem value="microstates">🏝️ 小国・島国 (32か国)</SelectItem>
-                {CONTINENTS.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.label} ({countries.filter((x) => x.continent === c.id).length}か国)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* 2. 大陸 & 小国セレクター */}
+            <div className="flex-1 sm:flex-initial sm:w-[175px]">
+              <Select
+                value={continentFilter}
+                onValueChange={(val) => handleContinentChange(val as RegionFilter)}
+              >
+                <SelectTrigger className="h-10 text-base sm:text-sm bg-background/80">
+                  <SelectValue placeholder="地域・小国で絞り込み" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべて（198か国）</SelectItem>
+                  <SelectItem value="microstates">🏝️ 小国・島国 (32か国)</SelectItem>
+                  {CONTINENTS.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.label} ({countries.filter((x) => x.continent === c.id).length}か国)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* 3. ソートセレクター */}
-          <div>
-            <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
-              <SelectTrigger className="h-10 text-base sm:text-sm bg-background/80">
-                <SelectValue placeholder="並び替え" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">五十音順（あいうえお）</SelectItem>
-                <SelectItem value="unlearned-first">未学習の国を優先</SelectItem>
-                <SelectItem value="pop-desc">人口が多い順 ⬇</SelectItem>
-                <SelectItem value="pop-asc">人口が少ない順 ⬆</SelectItem>
-                <SelectItem value="area-desc">面積が広い順 ⬇</SelectItem>
-                <SelectItem value="area-asc">面積が狭い順 ⬆</SelectItem>
-                <SelectItem value="gdp-desc">名目GDPが大きい順 ⬇</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* 3. ソートセレクター */}
+            <div className="flex-1 sm:flex-initial sm:w-[175px]">
+              <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
+                <SelectTrigger className="h-10 text-base sm:text-sm bg-background/80">
+                  <SelectValue placeholder="並び替え" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">五十音順（あいうえお）</SelectItem>
+                  <SelectItem value="unlearned-first">未学習の国を優先</SelectItem>
+                  <SelectItem value="pop-desc">人口が多い順 ⬇</SelectItem>
+                  <SelectItem value="pop-asc">人口が少ない順 ⬆</SelectItem>
+                  <SelectItem value="area-desc">面積が広い順 ⬇</SelectItem>
+                  <SelectItem value="area-asc">面積が狭い順 ⬆</SelectItem>
+                  <SelectItem value="gdp-desc">名目GDPが大きい順 ⬇</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 4. 表示形式切り替えタブ */}
+            <div className="flex items-center gap-1 shrink-0 bg-muted/70 p-1 rounded-xl border border-border/80 h-10">
+              <Button
+                size="sm"
+                variant={viewMode === "compact" ? "default" : "ghost"}
+                className="size-8 p-0 cursor-pointer touch-manipulation"
+                onClick={() => setViewMode("compact")}
+                title="簡易表示（コンパクト一覧）"
+              >
+                <List className="size-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "table" ? "default" : "ghost"}
+                className="size-8 p-0 cursor-pointer touch-manipulation"
+                onClick={() => setViewMode("table")}
+                title="統計テーブル表示"
+              >
+                <TableIcon className="size-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                className="size-8 p-0 cursor-pointer touch-manipulation"
+                onClick={() => setViewMode("grid")}
+                title="カードグリッド表示"
+              >
+                <LayoutGrid className="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
