@@ -284,12 +284,12 @@ function MyPage() {
   const targetPct = Math.min(100, Math.round(((totalStudySeconds || 0) / (flightMetaphor.nextTargetMin * 60)) * 100));
 
   return (
-    <div className="min-h-screen pb-12">
+    <div className="min-h-screen pb-12 overflow-x-hidden">
       <SiteHeader />
-      <main className="mx-auto max-w-5xl px-4 py-6 space-y-6">
+      <main className="mx-auto max-w-5xl px-3 sm:px-4 py-6 space-y-6 w-full min-w-0">
 
         {/* 1. 冒険者プロファイル & ランク（③ 称号システム） */}
-        <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-secondary/40 p-5 sm:p-7 shadow-sm">
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-secondary/40 p-4 sm:p-7 shadow-sm w-full min-w-0">
           <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
           <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             {/* ランク & アバター */}
@@ -322,25 +322,25 @@ function MyPage() {
             </div>
 
             {/* 主要ステータスグリッド（制覇国数・総学習時間・正答率・経験値） */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 shrink-0">
-              <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3 text-center backdrop-blur-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 w-full sm:w-auto">
+              <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3 text-center backdrop-blur-xs min-w-0">
                 <span className="text-[11px] text-muted-foreground font-medium">制覇国数</span>
                 <p className="font-display text-base sm:text-lg font-bold text-foreground">
                   {learned.length}
                   <span className="text-[11px] font-normal text-muted-foreground"> / 198</span>
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3 text-center backdrop-blur-xs">
+              <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3 text-center backdrop-blur-xs min-w-0">
                 <span className="text-[11px] text-muted-foreground font-medium">総学習時間</span>
                 <p className="font-display text-base sm:text-lg font-bold text-foreground">
                   {totalTime.main}<span className="text-[11px] font-normal text-muted-foreground">{totalTime.unit}</span>
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3 text-center backdrop-blur-xs">
+              <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3 text-center backdrop-blur-xs min-w-0">
                 <span className="text-[11px] text-muted-foreground font-medium">正答率</span>
                 <p className="font-display text-base sm:text-lg font-bold text-foreground">{accuracy}%</p>
               </div>
-              <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3 text-center backdrop-blur-xs">
+              <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3 text-center backdrop-blur-xs min-w-0">
                 <span className="text-[11px] text-muted-foreground font-medium">獲得経験値</span>
                 <p className="font-display text-base sm:text-lg font-bold text-amber-500">{xp} <span className="text-[10px] font-normal">XP</span></p>
               </div>
@@ -363,7 +363,7 @@ function MyPage() {
         </section>
 
         {/* 2. 学習タイムマスター ＆ 努力の軌跡（達成感向上セクション） */}
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-gradient-to-br from-card via-card to-sky-500/5 p-5 sm:p-6 shadow-sm">
+        <section className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-gradient-to-br from-card via-card to-sky-500/5 p-4 sm:p-6 shadow-sm w-full min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 text-[11px] font-bold uppercase tracking-wider">
@@ -390,41 +390,41 @@ function MyPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3 mb-4 w-full">
             {/* 総学習時間 */}
-            <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3.5 shadow-2xs">
-              <div className="size-8 sm:size-11 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                <Hourglass className="size-4 sm:size-5" />
+            <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3.5 shadow-2xs min-w-0">
+              <div className="size-7 sm:size-11 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                <Hourglass className="size-3.5 sm:size-5" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium block truncate">総学習時間</span>
-                <p className="font-display text-sm sm:text-xl font-black text-foreground leading-tight mt-0.5">
+                <p className="font-display text-sm sm:text-xl font-black text-foreground leading-tight mt-0.5 truncate">
                   {totalTime.main} <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground">{totalTime.unit}</span>
                 </p>
               </div>
             </div>
 
             {/* 今日の学習時間 */}
-            <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3.5 shadow-2xs">
-              <div className="size-8 sm:size-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <Clock className="size-4 sm:size-5" />
+            <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3.5 shadow-2xs min-w-0">
+              <div className="size-7 sm:size-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Clock className="size-3.5 sm:size-5" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium block truncate">今日の学習時間</span>
-                <p className="font-display text-sm sm:text-xl font-black text-foreground leading-tight mt-0.5">
+                <p className="font-display text-sm sm:text-xl font-black text-foreground leading-tight mt-0.5 truncate">
                   {todayTime.main} <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground">{todayTime.unit}</span>
                 </p>
               </div>
             </div>
 
             {/* 1カ国あたりの平均探検時間 */}
-            <div className="rounded-2xl border border-border/80 bg-background/80 p-2.5 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3.5 shadow-2xs">
-              <div className="size-8 sm:size-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                <Zap className="size-4 sm:size-5" />
+            <div className="rounded-2xl border border-border/80 bg-background/80 p-2 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3.5 shadow-2xs min-w-0">
+              <div className="size-7 sm:size-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Zap className="size-3.5 sm:size-5" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium block truncate">1カ国平均探検</span>
-                <p className="font-display text-sm sm:text-xl font-black text-foreground leading-tight mt-0.5">
+                <p className="font-display text-sm sm:text-xl font-black text-foreground leading-tight mt-0.5 truncate">
                   {learned.length > 0 ? Math.max(1, Math.round((totalStudySeconds || 0) / learned.length / 60)) : 0}{" "}
                   <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground">分/国</span>
                 </p>
@@ -531,9 +531,9 @@ function MyPage() {
         </section>
 
         {/* 2. 学習済みマップ & 大陸別達成度 */}
-        <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr] w-full min-w-0">
           {/* 左：学習済みマップ */}
-          <div className="surface-card p-4 sm:p-5 flex flex-col justify-between">
+          <div className="surface-card p-4 sm:p-5 flex flex-col justify-between w-full min-w-0 overflow-hidden">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-display text-lg font-bold flex items-center gap-2">
@@ -546,7 +546,7 @@ function MyPage() {
                 制覇率 {rate}%
               </span>
             </div>
-            <div className="relative rounded-2xl overflow-hidden border border-border/80">
+            <div className="relative w-full min-w-0 h-[320px] sm:h-[380px] lg:h-[420px]">
               <WorldMap
                 learnedMapIds={learnedSet}
                 activeContinent="all"
@@ -557,7 +557,7 @@ function MyPage() {
           </div>
 
           {/* 右：大陸ごとの達成度 & 地球踏破ハイライト */}
-          <div className="surface-card p-4 sm:p-5 flex flex-col justify-between space-y-4">
+          <div className="surface-card p-4 sm:p-5 flex flex-col justify-between space-y-4 w-full min-w-0 overflow-hidden">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <h2 className="font-display text-lg font-bold flex items-center gap-2">

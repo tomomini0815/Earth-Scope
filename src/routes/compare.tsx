@@ -453,32 +453,31 @@ function ComparePage() {
         {/* 比較データ詳細テーブル */}
         {selected.length > 0 && (
           <div className="mt-8">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-sm sm:text-base font-bold text-foreground">
-                    比較データ詳細テーブル
-                  </h2>
-                  <span className="text-[10px] sm:text-xs font-normal text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/50">
-                    日本語単位 ＋ 実数値
-                  </span>
-                  <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 sm:hidden">
-                    👉 横スクロール（国名固定）
-                  </span>
-                </div>
+                <h2 className="text-sm sm:text-base font-bold text-foreground">
+                  比較データ詳細テーブル
+                </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5 hidden sm:block">
                   💡 列ヘッダーをタップするとその指標で並び替え（昇順・降順）でき、上のグラフとも自動連動します。
                 </p>
               </div>
-              <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
-                <span>ソート中:</span>
-                <span className="font-semibold text-primary">
-                  {sortConfig.key === "name"
-                    ? "国名"
-                    : METRICS.find((m) => m.id === sortConfig.key)?.label}
-                </span>
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary text-[11px]">
-                  {sortConfig.direction === "desc" ? "大きい順 ↓" : "小さい順 ↑"}
+              <div className="flex items-center justify-between sm:justify-end gap-2 text-xs text-muted-foreground w-full sm:w-auto">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span>ソート中:</span>
+                  <span className="font-semibold text-primary">
+                    {sortConfig.key === "name"
+                      ? "国名"
+                      : METRICS.find((m) => m.id === sortConfig.key)?.label}
+                  </span>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary text-[11px]">
+                    {sortConfig.direction === "desc" ? "大きい順 ↓" : "小さい順 ↑"}
+                  </span>
+                </div>
+
+                {/* モバイル時の横スクロール案内バッジ（ソート情報と同じ行の右端に配置） */}
+                <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 sm:hidden ml-auto">
+                  👉 横スクロール（国名固定）
                 </span>
               </div>
             </div>
