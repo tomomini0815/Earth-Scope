@@ -239,40 +239,56 @@ export function CountryDetail({
       </div>
 
       <div className={cn("flex flex-wrap items-center justify-between gap-2.5 border-b border-border shrink-0", compact ? "p-3" : "p-4")}>
-        <div className="flex items-center gap-3 min-w-0">
-          <FlagImage flag={country.flag} size="lg" className="rounded shadow shrink-0" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-display text-xl sm:text-2xl font-bold leading-tight">{country.nameJa}</h2>
-              <Badge variant="outline" className="text-xs font-medium shrink-0">
-                {continentLabel(country.continent)}
-              </Badge>
-              {!compact && (
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-mono text-muted-foreground">
-                  ISO: {country.iso3}
-                </span>
-              )}
+        <div className={cn("flex items-center justify-between gap-3 min-w-0", compact ? "w-full" : "w-full sm:w-auto")}>
+          <div className="flex items-center gap-3 min-w-0">
+            <FlagImage flag={country.flag} size="lg" className="rounded shadow shrink-0" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-display text-xl sm:text-2xl font-bold leading-tight">{country.nameJa}</h2>
+                <Badge variant="outline" className="text-xs font-medium shrink-0">
+                  {continentLabel(country.continent)}
+                </Badge>
+                {!compact && (
+                  <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-mono text-muted-foreground">
+                    ISO: {country.iso3}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">{country.nameEn}</p>
             </div>
-            <p className="text-xs text-muted-foreground">{country.nameEn}</p>
           </div>
+
+          {/* compact時の詳細リンク（青系テキストボタン・国名行の右端に配置） */}
+          {compact && (
+            <Link
+              to="/country/$iso3"
+              params={{ iso3: country.iso3.toLowerCase() }}
+              className="inline-flex items-center gap-1 py-1 px-2 rounded-md text-xs sm:text-sm font-semibold text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 hover:bg-sky-500/10 transition-colors shrink-0 cursor-pointer ml-auto"
+            >
+              <span>詳細</span>
+              <ExternalLink className="size-3.5" />
+            </Link>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* 学習済みにするボタン */}
           <Button
             size="sm"
             variant={learned ? "default" : "outline"}
+            className="h-8.5 px-2.5 sm:px-3 text-xs sm:text-sm shrink-0"
             onClick={() => toggleLearned(country.iso3)}
           >
             <Check className="size-4" />
-            {learned ? "学習済み" : "学習済みにする"}
+            <span>{learned ? "学習済み" : "学習済みにする"}</span>
           </Button>
 
-          {/* 受験ポイントボタン（学習済みにするボタンの横に配置） */}
+          {/* 受験ポイントボタン */}
           <Button
             size="sm"
             variant={activeTab === "exam" ? "default" : "outline"}
             className={cn(
-              "gap-1.5 font-semibold transition-all shadow-xs",
+              "h-8.5 px-2.5 sm:px-3 text-xs sm:text-sm gap-1.5 font-semibold transition-all shadow-xs shrink-0",
               activeTab === "exam"
                 ? "bg-amber-500 hover:bg-amber-600 text-white border-transparent"
                 : "text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/60 hover:bg-amber-50 dark:hover:bg-amber-950/40"
@@ -280,7 +296,7 @@ export function CountryDetail({
             onClick={() => setActiveTab("exam")}
           >
             <GraduationCap className="size-4" />
-            受験ポイント
+            <span>受験ポイント</span>
           </Button>
 
           {/* お気に入りボタン（アイコンのみ） */}
@@ -297,15 +313,6 @@ export function CountryDetail({
           >
             <BookmarkCheck className={cn("size-4", favorite ? "fill-amber-500 text-amber-500" : "")} />
           </Button>
-
-          {compact && (
-            <Button size="sm" variant="ghost" asChild>
-              <Link to="/country/$iso3" params={{ iso3: country.iso3.toLowerCase() }}>
-                詳細ページ
-                <ExternalLink className="size-4" />
-              </Link>
-            </Button>
-          )}
         </div>
       </div>
 

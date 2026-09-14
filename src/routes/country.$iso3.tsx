@@ -45,10 +45,6 @@ function CountryPage() {
             <ArrowLeft className="size-4" /> 地図に戻る
           </Link>
           <div className="flex items-center gap-3 text-xs">
-            <Link to="/compare" className="text-sky-500 hover:underline">
-              他の国と比較する ➜
-            </Link>
-            <span className="text-border">|</span>
             <Link
               to="/quiz"
               search={{ country: country.iso3.toLowerCase(), mode: "exam" }}

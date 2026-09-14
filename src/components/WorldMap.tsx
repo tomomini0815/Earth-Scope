@@ -645,7 +645,7 @@ export function WorldMap({
     <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all flex flex-col h-full">
       {/* 上部コントロールヘッダー：タブと操作ボタンを独立配置し、モバイルでも一切改行されない最適レイアウト */}
       <div className="flex items-center justify-between gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-card/85 backdrop-blur-md border-b border-border/60 z-20 shrink-0 select-none">
-        {/* 表示モード切替（3D地球儀 ⇄ 2D平面） - モバイルでは「3D」「平面」とスリム化して改行を100%防止 */}
+        {/* 表示モード切替（3D地球儀 ⇄ 2D平面） - モバイルでも押しやすいタップ領域を確保しつつUIはそのまま */}
         <div className="flex items-center gap-0.5 sm:gap-1 rounded-full border border-border/80 bg-background/90 p-0.5 shadow-2xs shrink-0">
           <button
             type="button"
@@ -654,10 +654,10 @@ export function WorldMap({
               setHover(null);
             }}
             className={cn(
-              "flex items-center gap-1 sm:gap-1.5 rounded-full px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0",
+              "relative flex items-center justify-center gap-1 sm:gap-1.5 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-1.5 h-8 sm:h-8.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap touch-manipulation select-none shrink-0",
               viewMode === "3d"
                 ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary/80"
             )}
           >
             <Globe className="size-3.5 shrink-0" />
@@ -670,10 +670,10 @@ export function WorldMap({
               setHover(null);
             }}
             className={cn(
-              "flex items-center gap-1 sm:gap-1.5 rounded-full px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0",
+              "relative flex items-center justify-center gap-1 sm:gap-1.5 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-1.5 h-8 sm:h-8.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap touch-manipulation select-none shrink-0",
               viewMode === "2d"
                 ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary/80"
             )}
           >
             <MapIcon className="size-3.5 shrink-0" />
@@ -690,11 +690,11 @@ export function WorldMap({
               title={autoRotate ? "自転を一時停止" : "自動で自転させる"}
               onClick={() => setAutoRotate(!autoRotate)}
               className={cn(
-                "size-8 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation shrink-0",
+                "size-8.5 sm:size-9 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation shrink-0 relative",
                 autoRotate && "bg-sky-500 text-white border-sky-500 hover:bg-sky-600 shadow-sky-500/20"
               )}
             >
-              {autoRotate ? <Pause className="size-3.5 sm:size-4" /> : <Play className="size-3.5 sm:size-4" />}
+              {autoRotate ? <Pause className="size-4" /> : <Play className="size-4" />}
             </button>
           )}
 
@@ -705,7 +705,7 @@ export function WorldMap({
               aria-label="縮小"
               title="縮小"
               onClick={() => buttonZoom(1 / 1.35)}
-              className="size-7 sm:size-7.5 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+              className="size-7.5 sm:size-8 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
             >
               <Minus className="size-3.5" />
             </button>
@@ -716,7 +716,7 @@ export function WorldMap({
               aria-label="倍率を等倍にリセット"
               title="クリック/タップで等倍（1.0×）にリセット"
               className={cn(
-                "h-7 sm:h-7.5 px-1.5 sm:px-2 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 shrink-0",
+                "h-7.5 sm:h-8 px-2 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 shrink-0",
                 isDefaultZoom
                   ? "text-muted-foreground hover:bg-secondary"
                   : "bg-primary/15 text-primary hover:bg-primary/25"
@@ -733,7 +733,7 @@ export function WorldMap({
               aria-label="拡大"
               title="拡大"
               onClick={() => buttonZoom(1.35)}
-              className="size-7 sm:size-7.5 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+              className="size-7.5 sm:size-8 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
             >
               <Plus className="size-3.5" />
             </button>

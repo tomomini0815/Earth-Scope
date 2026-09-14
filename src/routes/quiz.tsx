@@ -10,6 +10,7 @@ import {
   X,
   Sparkles,
   ChevronRight,
+  ChevronDown,
   Lightbulb,
   Flag,
   History,
@@ -787,23 +788,28 @@ function QuizPage() {
   const [correct, setCorrect] = useState(0);
   const [done, setDone] = useState(false);
 
+  // 詳細・解説アコーディオンの開閉状態
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
+
   // 自動スクロール用Ref（全デバイス対応）
   const nextButtonRef = useRef<HTMLButtonElement | null>(null);
+  const resultCardRef = useRef<HTMLDivElement | null>(null);
   const questionCardRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // 答えを選択したとき、次へボタンへ自動スクロール（スマホ・タブレット・PC全対応）
+  // 答えを選択したとき、解答結果カード（正解・不正解）へ自動スクロール（スマホ画面に確実に収まる）
   useEffect(() => {
     if (!pickedId) return;
     const timer = setTimeout(() => {
-      if (nextButtonRef.current) {
-        nextButtonRef.current.scrollIntoView({
+      if (resultCardRef.current) {
+        resultCardRef.current.scrollIntoView({
           behavior: "smooth",
           block: "center",
           inline: "nearest",
         });
       }
-    }, 100);
+    }, 120);
     return () => clearTimeout(timer);
   }, [pickedId]);
 
@@ -880,6 +886,8 @@ function QuizPage() {
     setSeed((s) => s + 1);
     setIndex(0);
     setPickedId(null);
+    setIsDetailsOpen(false);
+    setIsExplanationExpanded(false);
     setCorrect(0);
     setDone(false);
     if (autoScroll) {
@@ -945,6 +953,8 @@ function QuizPage() {
     }
     setIndex((i) => i + 1);
     setPickedId(null);
+    setIsDetailsOpen(false);
+    setIsExplanationExpanded(false);
     setTimeout(() => {
       questionCardRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -1002,25 +1012,25 @@ function QuizPage() {
               )}
             </div>
 
-            {/* 出題対象セグメント */}
-            <div className="grid grid-cols-2 gap-1 sm:gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50">
+            {/* 出題対象セグメント（文字サイズ・コントラスト・タップしやすさを大幅強化） */}
+            <div className="grid grid-cols-2 gap-1 sm:gap-1.5 p-1 bg-muted/70 dark:bg-muted/50 rounded-xl border border-border/70">
               <button
                 type="button"
                 onClick={() => handleSelectCountry(null, true)}
                 className={cn(
-                  "flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition-all cursor-pointer touch-manipulation whitespace-nowrap min-w-0",
+                  "flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg py-2.5 px-2 sm:px-3.5 min-h-[40px] text-xs sm:text-sm font-bold transition-all cursor-pointer touch-manipulation whitespace-nowrap min-w-0 shadow-2xs",
                   !selectedCountry
-                    ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                    ? "bg-sky-500/20 dark:bg-sky-500/30 text-sky-950 dark:text-sky-100 border border-sky-500/50 font-bold shadow-xs"
+                    : "text-foreground/75 hover:text-foreground hover:bg-card/70 font-semibold"
                 )}
               >
                 <span className="whitespace-nowrap">全世界から出題</span>
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[9px] sm:text-[10px] leading-none whitespace-nowrap shrink-0",
+                    "rounded-full px-1.5 py-0.5 text-[10px] sm:text-[11px] leading-none whitespace-nowrap shrink-0 font-bold",
                     !selectedCountry
-                      ? "bg-sky-500/20 text-sky-800 dark:text-sky-200 font-bold"
-                      : "text-muted-foreground bg-muted/80"
+                      ? "bg-sky-500/30 text-sky-950 dark:text-sky-100"
+                      : "text-muted-foreground bg-background/80 border border-border/50"
                   )}
                 >
                   198ヵ国
@@ -1031,10 +1041,10 @@ function QuizPage() {
                 type="button"
                 onClick={handleSwitchToCountryMode}
                 className={cn(
-                  "flex items-center justify-center gap-1 sm:gap-2 rounded-lg py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition-all cursor-pointer touch-manipulation whitespace-nowrap min-w-0",
+                  "flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg py-2.5 px-2 sm:px-3.5 min-h-[40px] text-xs sm:text-sm font-bold transition-all cursor-pointer touch-manipulation whitespace-nowrap min-w-0 shadow-2xs",
                   selectedCountry
-                    ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                    ? "bg-sky-500/20 dark:bg-sky-500/30 text-sky-950 dark:text-sky-100 border border-sky-500/50 font-bold shadow-xs"
+                    : "text-foreground/75 hover:text-foreground hover:bg-card/70 font-semibold"
                 )}
               >
                 <span className="truncate whitespace-nowrap">
@@ -1186,7 +1196,7 @@ function QuizPage() {
             </div>
             <div
               className={cn(
-                "p-1 bg-muted/60 rounded-xl border border-border/50",
+                "p-1 bg-muted/70 dark:bg-muted/50 rounded-xl border border-border/70",
                 selectedCountry
                   ? "grid grid-cols-3 gap-1 sm:gap-1.5"
                   : "flex flex-wrap gap-1.5"
@@ -1200,13 +1210,13 @@ function QuizPage() {
                     type="button"
                     onClick={() => restart(m.id, undefined, true)}
                     className={cn(
-                      "flex items-center justify-center py-2 px-1 sm:px-2 rounded-lg text-[11px] sm:text-xs font-semibold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap min-w-0 overflow-hidden",
+                      "flex items-center justify-center py-2.5 px-1 sm:px-2.5 min-h-[38px] rounded-lg text-xs font-bold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap min-w-0 overflow-hidden shadow-2xs",
                       selectedCountry
                         ? "w-full"
                         : "flex-1 min-w-[76px] sm:min-w-[90px]",
                       isActive
-                        ? "bg-sky-500/15 dark:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-400/40 dark:border-sky-500/40 font-bold shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                        ? "bg-sky-500/20 dark:bg-sky-500/30 text-sky-950 dark:text-sky-100 border border-sky-500/50 font-bold shadow-xs"
+                        : "text-foreground/75 hover:text-foreground hover:bg-card/70 font-semibold"
                     )}
                     title={m.desc}
                   >
@@ -1371,12 +1381,12 @@ function QuizPage() {
                         {/* 回答前は国名を非表示！回答後のみ学習用に国名を表示 */}
                         {pickedId ? (
                           <div className="mt-2.5 pt-2 border-t border-border/60 w-full flex items-center justify-center gap-1.5 animate-fadeIn">
-                            <span className="text-xs sm:text-sm font-bold truncate">
+                            <span className="text-xs sm:text-sm font-bold text-foreground truncate">
                               {choice.label}
                             </span>
                           </div>
                         ) : (
-                          <div className="mt-2 text-[11px] font-semibold text-muted-foreground/60 font-mono">
+                          <div className="mt-2 text-xs font-bold text-foreground/70 font-mono px-2 py-0.5 rounded-md bg-muted/70 border border-border/50">
                             選択肢 {idx + 1}
                           </div>
                         )}
@@ -1384,7 +1394,7 @@ function QuizPage() {
                     );
                   }
 
-                  // 通常のテキスト選択肢
+                  // 通常のテキスト選択肢（視認性・文字サイズ・コントラストを大幅強化）
                   return (
                     <button
                       key={choice.id}
@@ -1392,24 +1402,46 @@ function QuizPage() {
                       onClick={() => answer(choice.id)}
                       disabled={!!pickedId}
                       className={cn(
-                        "flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors cursor-pointer",
-                        state === "idle" && "border-border bg-card hover:border-sky-500/50 hover:bg-secondary/40",
-                        state === "correct" && "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold",
-                        state === "wrong" && "border-destructive bg-destructive/10 text-destructive font-bold"
+                        "flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3.5 sm:px-4.5 sm:py-4 min-h-[52px] sm:min-h-[56px] text-left transition-all cursor-pointer shadow-2xs touch-manipulation",
+                        state === "idle" && "border-border/90 bg-card hover:border-sky-500/60 hover:bg-secondary/40 active:scale-[0.99]",
+                        state === "correct" && "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-bold ring-2 ring-emerald-500/30",
+                        state === "wrong" && "border-destructive bg-destructive/15 text-destructive font-bold ring-2 ring-destructive/30"
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* 選択肢番号インデックスバッジ */}
+                        <div
+                          className={cn(
+                            "size-6 sm:size-7 rounded-full border text-xs sm:text-sm font-bold flex items-center justify-center shrink-0 transition-colors",
+                            state === "idle" && "bg-muted/80 border-border/80 text-muted-foreground",
+                            state === "correct" && "bg-emerald-500 text-white border-emerald-600",
+                            state === "wrong" && "bg-destructive text-white border-destructive"
+                          )}
+                        >
+                          {idx + 1}
+                        </div>
+
                         {choice.flag && (
                           <FlagImage
                             flag={choice.flag}
                             size="lg"
-                            className="rounded shadow-xs shrink-0 object-cover w-14 h-9 sm:w-16 sm:h-10"
+                            className="rounded shadow-xs shrink-0 object-cover w-14 h-9 sm:w-16 sm:h-10 border border-black/10 dark:border-white/10"
                           />
                         )}
-                        <span className="text-xs sm:text-sm leading-relaxed break-words">{choice.label}</span>
+                        <span className="text-sm sm:text-base font-semibold text-foreground leading-snug sm:leading-relaxed break-words flex-1">
+                          {choice.label}
+                        </span>
                       </div>
-                      {state === "correct" && <Check className="size-5 shrink-0 text-emerald-500" />}
-                      {state === "wrong" && <X className="size-5 shrink-0 text-destructive" />}
+                      {state === "correct" && (
+                        <div className="size-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Check className="size-4 stroke-[3]" />
+                        </div>
+                      )}
+                      {state === "wrong" && (
+                        <div className="size-6 rounded-full bg-destructive text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <X className="size-4 stroke-[3]" />
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -1417,12 +1449,12 @@ function QuizPage() {
 
               {/* 解答後の解説 & 次へボタン */}
               {pickedId && (() => {
-                const isFlagMode = mode === "flag" || mode === "flag_choice";
+                const isFlagMode = mode === "flag" || mode === "flag_choice" || !!q.isFlagGrid || !!q.flagHint;
                 const flagInfo = isFlagMode ? getFlagOrigin(q.country) : null;
                 const isCorrect = pickedId === q.answerId;
                 const timelineItems = q.country.history?.timeline?.slice(0, 2) ?? [];
                 return (
-                  <div className="mt-5 space-y-4 animate-fadeIn">
+                  <div ref={resultCardRef} className="mt-5 space-y-3 animate-fadeIn scroll-mt-16 sm:scroll-mt-20">
                     {/* 解答結果＆解説（1枚のシンプルカード） */}
                     <div className="rounded-xl border border-border bg-card p-4 sm:p-5 text-left space-y-3 shadow-xs">
                       {isCorrect ? (
@@ -1443,17 +1475,17 @@ function QuizPage() {
                             </span>
                           </div>
 
-                          {/* 正解の表示エリア（全幅を活用して長文も美しく表示） */}
+                          {/* 正解の表示エリア（国旗を大きく、国名を小さく表示） */}
                           {(() => {
-                            const correctChoice = q.choices.find((c) => c.id === q.answerId)
+                            const correctChoice = q.choices.find((c) => c.id === q.answerId);
                             return (
-                              <div className="rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 p-3 flex items-start gap-2.5">
+                              <div className="rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 p-3 flex items-center gap-3">
                                 {correctChoice?.flag && (
-                                  <div className="shrink-0 mt-0.5">
+                                  <div className="shrink-0">
                                     <FlagImage
                                       flag={correctChoice.flag}
-                                      size="sm"
-                                      className="rounded shadow-2xs object-cover border border-black/10 dark:border-white/10"
+                                      size="lg"
+                                      className="w-16 h-11 sm:w-20 sm:h-13 rounded-md shadow-sm object-cover border border-black/15 dark:border-white/15"
                                     />
                                   </div>
                                 )}
@@ -1461,25 +1493,55 @@ function QuizPage() {
                                   <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 mb-0.5">
                                     正しい正解
                                   </div>
-                                  <div className="font-bold text-sm sm:text-base text-foreground leading-snug break-words">
+                                  <div className="text-xs sm:text-sm font-semibold text-foreground/85 leading-snug break-words">
                                     {correctChoice?.label ?? q.answerId}
                                   </div>
                                 </div>
                               </div>
-                            )
+                            );
                           })()}
                         </div>
                       )}
 
-                      {/* 解説本文 */}
-                      {!isCorrect && (
-                        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
-                          {q.explanation}
-                        </p>
+                      {/* 国旗クイズ以外の通常問題の解説本文（国旗クイズ時は画像の簡易説明は不要なため省略） */}
+                      {!isFlagMode && !isCorrect && q.explanation && (
+                        <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed pt-0.5">
+                          {q.explanation.length > 110 && !isExplanationExpanded ? (
+                            <div>
+                              <p className="whitespace-pre-line">
+                                {q.explanation.slice(0, 105)}...
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setIsExplanationExpanded(true)}
+                                className="mt-1 text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <span>解説をもっと見る</span>
+                                <ChevronDown className="size-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="whitespace-pre-line">
+                                {q.explanation}
+                              </p>
+                              {q.explanation.length > 110 && isExplanationExpanded && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsExplanationExpanded(false)}
+                                  className="mt-1 text-xs font-semibold text-muted-foreground hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>閉じる</span>
+                                  <ChevronDown className="size-3.5 rotate-180" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
 
-                      {/* ポイント */}
-                      {q.mnemonic && (
+                      {/* ポイント（国旗クイズ以外の通常問題） */}
+                      {!isFlagMode && q.mnemonic && (
                         <div className="pt-2 border-t border-border/50 text-xs sm:text-sm text-foreground/85 leading-relaxed">
                           <span className="font-semibold text-sky-600 dark:text-sky-400 mr-1.5">💡 ポイント：</span>
                           <span className="break-words">{q.mnemonic}</span>
@@ -1488,75 +1550,89 @@ function QuizPage() {
                     </div>
 
                     {/* ======================== */}
-                    {/* 国旗クイズ専用：国旗の由来と歴史 */}
+                    {/* 国旗クイズ専用：国旗の由来と歴史（途中まで表示＋続きを読む展開） */}
                     {/* ======================== */}
                     {isFlagMode && flagInfo && (
-                      <div className="rounded-xl border border-border/60 bg-muted/20 overflow-hidden">
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/50">
-                          <Flag className="size-4 shrink-0 text-primary" />
-                          <span className="text-xs sm:text-sm font-semibold text-foreground">
-                            🏛️ 国旗の由来と歴史
-                          </span>
-                          <span className="ml-auto text-[10px] text-muted-foreground font-medium">
-                            {q.country.nameJa}
-                          </span>
-                        </div>
-                        <div className="p-4 space-y-3.5">
-                          {/* 由来 */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                              <Flag className="size-3 shrink-0" />
-                              国旗のデザイン由来
+                      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+                        <div className="p-3 sm:p-4 space-y-2.5">
+                          <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Flag className="size-4 shrink-0 text-primary" />
+                              <span className="text-xs sm:text-sm font-bold text-foreground truncate">
+                                🏛️ 国旗の由来と歴史（{q.country.nameJa}）
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsDetailsOpen((prev) => !prev)}
+                              className="text-xs text-primary font-semibold hover:underline inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                            >
+                              <span>{isDetailsOpen ? "閉じる" : "続きを読む"}</span>
+                              <ChevronDown className={cn("size-3.5 transition-transform duration-200", isDetailsOpen && "rotate-180")} />
+                            </button>
+                          </div>
+
+                          {/* デザイン由来：初期状態で途中（または全文）を表示 */}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                              デザイン由来
                             </div>
                             <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
-                              {flagInfo.origin}
+                              {!isDetailsOpen && flagInfo.origin.length > 70
+                                ? `${flagInfo.origin.slice(0, 68)}...`
+                                : flagInfo.origin}
                             </p>
                           </div>
 
-                          {/* 配色の意味 */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                              <Palette className="size-3 shrink-0" />
-                              色・シンボルの象徴
-                            </div>
-                            <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
-                              {flagInfo.colors}
-                            </p>
-                          </div>
-
-                          {/* 歴史的背景 */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                              <History className="size-3 shrink-0" />
-                              歴史的背景
-                            </div>
-                            <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
-                              {flagInfo.historicalContext}
-                            </p>
-                            {q.country.history?.founding && (
-                              <p className="text-xs text-muted-foreground leading-relaxed mt-1 pl-2 border-l border-border">
-                                📅 建国：{q.country.history.founding}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* 年表ハイライト */}
-                          {timelineItems.length > 0 && (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                <BookOpen className="size-3 shrink-0" />
-                                重要年表
+                          {/* 続きを読む押下時：色・シンボルの象徴、歴史的背景、年表 */}
+                          {isDetailsOpen && (
+                            <div className="pt-2.5 space-y-3 border-t border-border/50 animate-fadeIn">
+                              {/* 配色の意味 */}
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                  <Palette className="size-3 shrink-0" />
+                                  色・シンボルの象徴
+                                </div>
+                                <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                                  {flagInfo.colors}
+                                </p>
                               </div>
-                              <ul className="space-y-1">
-                                {timelineItems.map((item, i) => (
-                                  <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-foreground/85 leading-relaxed">
-                                    <span className="shrink-0 font-mono font-semibold text-primary text-[11px] mt-0.5 w-12">
-                                      {item.year}
-                                    </span>
-                                    <span>{item.event}</span>
-                                  </li>
-                                ))}
-                              </ul>
+
+                              {/* 歴史的背景 */}
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                  <History className="size-3 shrink-0" />
+                                  歴史的背景
+                                </div>
+                                <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                                  {flagInfo.historicalContext}
+                                </p>
+                                {q.country.history?.founding && (
+                                  <p className="text-xs text-muted-foreground leading-relaxed mt-1 pl-2 border-l border-border">
+                                    📅 建国：{q.country.history.founding}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* 年表ハイライト */}
+                              {timelineItems.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    <BookOpen className="size-3 shrink-0" />
+                                    重要年表
+                                  </div>
+                                  <ul className="space-y-1">
+                                    {timelineItems.map((item, i) => (
+                                      <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-foreground/85 leading-relaxed">
+                                        <span className="shrink-0 font-mono font-semibold text-primary text-[11px] mt-0.5 w-12">
+                                          {item.year}
+                                        </span>
+                                        <span>{item.event}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1565,7 +1641,7 @@ function QuizPage() {
 
                     <Button
                       ref={nextButtonRef}
-                      className="w-full font-semibold gap-1.5 shadow-xs scroll-my-8 cursor-pointer"
+                      className="w-full font-semibold gap-1.5 shadow-xs cursor-pointer h-11 text-sm sm:text-base"
                       onClick={next}
                     >
                       <span>{index + 1 >= questions.length ? "結果を見る" : "次の問題へ"}</span>
