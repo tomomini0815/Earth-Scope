@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { geoDistance, geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
+import { geoCentroid, geoDistance, geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
-import { Globe, Map, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
+import { Globe, Map as MapIcon, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 
 import world from "@/data/world.geo.json";
 import { byMapId } from "@/data/lookup";
@@ -16,8 +16,10 @@ const WIDTH_3D = 660; // 3D時は正方形寄りのアスペクト比で、モ�
 const HEIGHT_3D = 600;
 const CX_3D = WIDTH_3D / 2; // 330
 const CY_3D = HEIGHT_3D / 2; // 300
-const MIN_ZOOM_2D = 1;
-const MAX_ZOOM_2D = 8;
+const MIN_ZOOM_2D = 0.8;
+const MAX_ZOOM_2D = 24;
+const MIN_ZOOM_3D = 0.6;
+const MAX_ZOOM_3D = 8.0;
 const GLOBE_DEFAULT_RADIUS = 270; // 半径270（直径540pxの特大迫力）
 
 // 地図データ上に存在する独立198ヵ国外の自治領・海外領土のマッピング
@@ -204,6 +206,30 @@ function getNormalizedCollection(): FeatureCollection {
 
 const collection = getNormalizedCollection();
 
+// 全国の中心座標（経度・緯度 [lon, lat]）マップ
+const COUNTRY_CENTERS: Map<string, [number, number]> = (() => {
+  const map = new Map<string, [number, number]>();
+  // 1. 小国の精密座標
+  for (const ms of MICROSTATES) {
+    map.set(ms.id, ms.coordinates);
+  }
+  // 2. GeoJSONフィーチャーの重心
+  for (const f of collection.features as Feature[]) {
+    const mapId = getFeatureMapId(f);
+    if (mapId && !map.has(mapId)) {
+      try {
+        const c = geoCentroid(f as never);
+        if (!isNaN(c[0]) && !isNaN(c[1])) {
+          map.set(mapId, c);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return map;
+})();
+
 export type WorldMapProps = {
   learnedMapIds: Set<string>;
   activeContinent: ContinentId | "all" | "microstates";
@@ -254,6 +280,13 @@ export function WorldMap({
     startOffset: { x: number; y: number };
     startRotation: [number, number, number];
     isDragging: boolean;
+  } | null>(null);
+
+  // マルチタッチ（ピンチイン・ピンチアウト）用のポインター座標追跡
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{
+    lastDistance: number;
+    lastCenter: { x: number; y: number };
   } | null>(null);
 
   // 2D用 projection & paths & microstates
@@ -331,13 +364,33 @@ export function WorldMap({
     };
   }, [rotation, zoom3d]);
 
-  // 選択された国が小国の場合は、3D地球儀をその座標へ自動フォーカス
+  // 選択された国への自動フォーカス ＆ ズームイン拡大（3D地球儀 & 2D平面地図）
   useEffect(() => {
-    if (!selectedId || viewMode !== "3d") return;
-    const ms = microstateById.get(selectedId);
-    if (ms) {
-      setRotation([-ms.coordinates[0], -ms.coordinates[1], 0]);
+    if (!selectedId) return;
+    const coords = COUNTRY_CENTERS.get(selectedId);
+    if (!coords) return;
+
+    const [lon, lat] = coords;
+    const isMicro = microstateById.has(selectedId);
+
+    if (viewMode === "3d") {
+      // 3D地球儀：その国を正面に向け、ズームイン拡大
+      setRotation([-lon, -lat, 0]);
       setAutoRotate(false);
+      setZoom3d((z) => Math.max(z, isMicro ? 3.0 : 2.2));
+    } else {
+      // 2D平面地図：その国の座標を中心にズームイン拡大
+      const projection = geoNaturalEarth1().fitSize([WIDTH_2D, HEIGHT_2D], collection);
+      const pt = projection([lon, lat]);
+      if (pt) {
+        const targetZoom = Math.max(zoom2d, isMicro ? 5.0 : 3.0);
+        const [px, py] = pt;
+        // キャンバス中心 (WIDTH_2D / 2, HEIGHT_2D / 2) に pt が来るオフセット
+        const nextOffsetX = (WIDTH_2D / 2) - (px * targetZoom);
+        const nextOffsetY = (HEIGHT_2D / 2) - (py * targetZoom);
+        setZoom2d(targetZoom);
+        setOffset2d({ x: nextOffsetX, y: nextOffsetY });
+      }
     }
   }, [selectedId, viewMode]);
 
@@ -370,7 +423,7 @@ export function WorldMap({
 
   // 3D ズーム処理
   const zoomAt3D = (factor: number) => {
-    setZoom3d((z) => Math.min(3.0, Math.max(0.75, z * factor)));
+    setZoom3d((z) => Math.min(MAX_ZOOM_3D, Math.max(MIN_ZOOM_3D, z * factor)));
   };
 
   // マウスホイールイベント
@@ -391,8 +444,20 @@ export function WorldMap({
       }
     };
 
+    // iOS Safariでのgesturestart/gesturechange（ページ拡大ピンチ）を防止し、地図内ピンチを優先
+    const preventGesture = (e: Event) => {
+      e.preventDefault();
+    };
+
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    el.addEventListener("gesturestart", preventGesture, { passive: false });
+    el.addEventListener("gesturechange", preventGesture, { passive: false });
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("gesturestart", preventGesture);
+      el.removeEventListener("gesturechange", preventGesture);
+    };
   }, [viewMode, zoom2d, zoom3d]);
 
   const resetView = () => {
@@ -419,20 +484,99 @@ export function WorldMap({
   const continentColor = (id: ContinentId) =>
     CONTINENTS.find((c) => c.id === id)?.colorVar ?? "var(--land)";
 
-  // ポインタードラッグ操作（2D: パン移動 / 3D: 地球回転）
+  // ポインタードラッグ & マルチタッチピンチ操作
   const handlePointerDown = (e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    try {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
     setHover(null);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startOffset: { ...offset2d },
-      startRotation: [...rotation],
-      isDragging: true,
-    };
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const pointers = Array.from(activePointersRef.current.values());
+
+    if (pointers.length === 1) {
+      // 1本指での操作開始（パンまたは3D回転）
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startOffset: { ...offset2d },
+        startRotation: [...rotation],
+        isDragging: true,
+      };
+      pinchRef.current = null;
+    } else if (pointers.length >= 2) {
+      // 2本指によるピンチイン・ピンチアウト操作開始
+      dragRef.current = null;
+      const p1 = pointers[0];
+      const p2 = pointers[1];
+      if (p1 && p2) {
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        const center = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        pinchRef.current = {
+          lastDistance: dist,
+          lastCenter: center,
+        };
+      }
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (!activePointersRef.current.has(e.pointerId)) return;
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const pointers = Array.from(activePointersRef.current.values());
+
+    // 2本指以上：ピンチイン・ピンチアウト（拡大・縮小）
+    if (pointers.length >= 2) {
+      const p1 = pointers[0];
+      const p2 = pointers[1];
+      if (!p1 || !p2) return;
+
+      const currentDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      const currentCenter = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+      if (pinchRef.current && pinchRef.current.lastDistance > 0 && currentDist > 0) {
+        const factor = currentDist / pinchRef.current.lastDistance;
+        const dx = currentCenter.x - pinchRef.current.lastCenter.x;
+        const dy = currentCenter.y - pinchRef.current.lastCenter.y;
+
+        const el = containerRef.current;
+        const rect = el?.getBoundingClientRect();
+
+        if (viewMode === "2d") {
+          // 2本指の中心位置を基準にズーム
+          const px = currentCenter.x - (rect?.left ?? 0);
+          const py = currentCenter.y - (rect?.top ?? 0);
+          zoomAt2D(zoom2d * factor, px, py);
+
+          // ピンチ操作中の自然なパン移動
+          if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+            setOffset2d((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+          }
+        } else {
+          // 3D地球儀のピンチズーム
+          zoomAt3D(factor);
+
+          // 2本指移動での地球回転
+          const sensitivity = 0.28 / zoom3d;
+          setRotation(([yaw, pitch, roll]) => [
+            yaw + dx * sensitivity,
+            Math.max(-85, Math.min(85, pitch - dy * sensitivity)),
+            roll,
+          ]);
+        }
+      }
+
+      pinchRef.current = {
+        lastDistance: currentDist,
+        lastCenter: currentCenter,
+      };
+      return;
+    }
+
+    // 1本指での通常ドラッグ操作
     if (!dragRef.current || !dragRef.current.isDragging) return;
 
     const dx = e.clientX - dragRef.current.startX;
@@ -453,11 +597,40 @@ export function WorldMap({
     }
   };
 
-  const handlePointerUp = () => {
-    if (dragRef.current) {
-      dragRef.current.isDragging = false;
+  const handlePointerUp = (e?: React.PointerEvent) => {
+    if (e) {
+      try {
+        (e.target as Element).releasePointerCapture?.(e.pointerId);
+      } catch {
+        // ignore
+      }
+      activePointersRef.current.delete(e.pointerId);
+    } else {
+      activePointersRef.current.clear();
     }
-    dragRef.current = null;
+
+    const pointers = Array.from(activePointersRef.current.values());
+
+    if (pointers.length === 1) {
+      // 2本指から1本指に戻った場合：急激な位置ジャンプ（ワープ）を防止し、残った指でドラッグを再開
+      const p = pointers[0];
+      if (p) {
+        dragRef.current = {
+          startX: p.x,
+          startY: p.y,
+          startOffset: { ...offset2d },
+          startRotation: [...rotation],
+          isDragging: true,
+        };
+      }
+      pinchRef.current = null;
+    } else if (pointers.length === 0) {
+      if (dragRef.current) {
+        dragRef.current.isDragging = false;
+      }
+      dragRef.current = null;
+      pinchRef.current = null;
+    }
   };
 
   const currentPaths = viewMode === "2d" ? paths2D : paths3D;
@@ -465,13 +638,15 @@ export function WorldMap({
   const currentWidth = viewMode === "2d" ? WIDTH_2D : WIDTH_3D;
   const currentHeight = viewMode === "2d" ? HEIGHT_2D : HEIGHT_3D;
   const globeRadius = GLOBE_DEFAULT_RADIUS * zoom3d;
+  const currentZoomScale = viewMode === "2d" ? zoom2d : zoom3d;
+  const isDefaultZoom = Math.abs(currentZoomScale - 1) < 0.05;
 
   return (
     <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-[var(--ocean)] shadow-[var(--shadow-panel)] transition-all flex flex-col h-full">
-      {/* 上部コントロールヘッダー：タブと操作ボタンを独立配置し、地球儀・地図への被りを100%解消 */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-2.5 bg-card/85 backdrop-blur-md border-b border-border/60 z-20 shrink-0">
-        {/* 表示モード切替（3D地球儀 ⇄ 2D平面） */}
-        <div className="flex items-center gap-1 rounded-full border border-border/80 bg-background/90 p-0.5 shadow-2xs">
+      {/* 上部コントロールヘッダー：タブと操作ボタンを独立配置し、モバイルでも一切改行されない最適レイアウト */}
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-card/85 backdrop-blur-md border-b border-border/60 z-20 shrink-0 select-none">
+        {/* 表示モード切替（3D地球儀 ⇄ 2D平面） - モバイルでは「3D」「平面」とスリム化して改行を100%防止 */}
+        <div className="flex items-center gap-0.5 sm:gap-1 rounded-full border border-border/80 bg-background/90 p-0.5 shadow-2xs shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -479,14 +654,14 @@ export function WorldMap({
               setHover(null);
             }}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer",
+              "flex items-center gap-1 sm:gap-1.5 rounded-full px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0",
               viewMode === "3d"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
-            <Globe className="size-3.5" />
-            <span>3D地球儀</span>
+            <Globe className="size-3.5 shrink-0" />
+            <span>3D<span className="hidden sm:inline">地球儀</span></span>
           </button>
           <button
             type="button"
@@ -495,19 +670,19 @@ export function WorldMap({
               setHover(null);
             }}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer",
+              "flex items-center gap-1 sm:gap-1.5 rounded-full px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0",
               viewMode === "2d"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
-            <Map className="size-3.5" />
-            <span>平面地図</span>
+            <MapIcon className="size-3.5 shrink-0" />
+            <span>平面<span className="hidden sm:inline">地図</span></span>
           </button>
         </div>
 
-        {/* コントロールボタン群（自転、拡大、縮小、リセット） - モバイル・iPadで押しやすいタッチ領域に最適化 */}
-        <div className="flex items-center gap-1.5">
+        {/* コントロールボタン群（自転、一体型ズームステッパー、リセット） */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {viewMode === "3d" && (
             <button
               type="button"
@@ -515,67 +690,103 @@ export function WorldMap({
               title={autoRotate ? "自転を一時停止" : "自動で自転させる"}
               onClick={() => setAutoRotate(!autoRotate)}
               className={cn(
-                "size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation",
+                "size-8 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation shrink-0",
                 autoRotate && "bg-sky-500 text-white border-sky-500 hover:bg-sky-600 shadow-sky-500/20"
               )}
             >
-              {autoRotate ? <Pause className="size-4" /> : <Play className="size-4" />}
+              {autoRotate ? <Pause className="size-3.5 sm:size-4" /> : <Play className="size-3.5 sm:size-4" />}
             </button>
           )}
-          <button
-            type="button"
-            aria-label="拡大"
-            title="拡大"
-            onClick={() => buttonZoom(1.35)}
-            className="size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation"
-          >
-            <Plus className="size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="縮小"
-            title="縮小"
-            onClick={() => buttonZoom(1 / 1.35)}
-            className="size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation"
-          >
-            <Minus className="size-4" />
-          </button>
+
+          {/* 一体型ズームステッパー（縮小・倍率・拡大をワンピルに集約し、劇的に省スペース化） */}
+          <div className="flex items-center rounded-full border border-border/80 bg-background/95 backdrop-blur-xs shadow-xs p-0.5 shrink-0">
+            <button
+              type="button"
+              aria-label="縮小"
+              title="縮小"
+              onClick={() => buttonZoom(1 / 1.35)}
+              className="size-7 sm:size-7.5 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+            >
+              <Minus className="size-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={resetView}
+              aria-label="倍率を等倍にリセット"
+              title="クリック/タップで等倍（1.0×）にリセット"
+              className={cn(
+                "h-7 sm:h-7.5 px-1.5 sm:px-2 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 shrink-0",
+                isDefaultZoom
+                  ? "text-muted-foreground hover:bg-secondary"
+                  : "bg-primary/15 text-primary hover:bg-primary/25"
+              )}
+            >
+              <span className="tabular-nums">{currentZoomScale.toFixed(1)}×</span>
+              {!isDefaultZoom && (
+                <RotateCcw className="size-2.5 opacity-70" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              aria-label="拡大"
+              title="拡大"
+              onClick={() => buttonZoom(1.35)}
+              className="size-7 sm:size-7.5 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+            >
+              <Plus className="size-3.5" />
+            </button>
+          </div>
+
+          {/* 全体視点リセットボタン */}
           <button
             type="button"
             aria-label="表示をリセット"
             title="表示をリセット"
             onClick={resetView}
-            className="size-9 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation"
+            className="size-8 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation shrink-0"
           >
-            <RotateCcw className="size-4" />
+            <RotateCcw className="size-3.5 sm:size-4" />
           </button>
         </div>
       </div>
 
-      {/* 3Dモード時：下部操作ガイド（ボタンと誤認されない控えめな凡例デザイン） */}
-      {viewMode === "3d" && (
-        <div className="pointer-events-none absolute left-3 bottom-2.5 z-20 flex items-center gap-2 text-[11px] font-normal text-muted-foreground/80 select-none drop-shadow-xs">
+      {/* 操作ガイド（モバイル・タブレットのピンチ操作対応を明示） */}
+      <div className="pointer-events-none absolute left-3 bottom-2.5 z-20 flex items-center gap-1.5 sm:gap-2 text-[11px] font-normal text-muted-foreground/80 select-none drop-shadow-xs">
+        {viewMode === "3d" ? (
           <span className="flex items-center gap-1">
             <span className="text-sky-500 font-bold text-xs">↻</span>
-            <span>ドラッグで360°回転</span>
+            <span className="hidden sm:inline">ドラッグで360°回転</span>
+            <span className="sm:hidden">回転</span>
           </span>
-          <span className="text-border/80">•</span>
-          <span>
-            <span className="md:hidden">タップで国データ表示</span>
-            <span className="hidden md:inline">クリックで国データ表示</span>
+        ) : (
+          <span className="flex items-center gap-1">
+            <span className="text-sky-500 font-bold text-xs">✥</span>
+            <span className="hidden sm:inline">ドラッグで移動</span>
+            <span className="sm:hidden">移動</span>
           </span>
-          <span className="hidden sm:inline text-border/80">•</span>
-          <span className="hidden sm:inline">ホイールで拡大縮小</span>
-        </div>
-      )}
+        )}
+        <span className="text-border/80">•</span>
+        <span>
+          <span className="md:hidden">タップで国データ</span>
+          <span className="hidden md:inline">クリックで国データ</span>
+        </span>
+        <span className="text-border/80">•</span>
+        <span className="text-sky-600 dark:text-sky-400 font-medium">
+          <span className="md:hidden">2本指ピンチで拡大縮小</span>
+          <span className="hidden md:inline">ピンチ / ホイールで拡大縮小</span>
+        </span>
+      </div>
 
       {/* メイン地図 / 地球儀キャンバス */}
       <div
         ref={containerRef}
-        className="relative w-full flex-1 min-h-0 flex items-center justify-center cursor-grab touch-none active:cursor-grabbing overflow-hidden"
+        className="relative w-full flex-1 min-h-0 flex items-center justify-center cursor-grab touch-none active:cursor-grabbing overflow-hidden select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         onPointerLeave={() => {
           handlePointerUp();
           setHover(null);

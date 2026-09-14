@@ -195,7 +195,7 @@ function Index() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-6 items-stretch">
+        <div id="map-section" className="scroll-mt-20 sm:scroll-mt-24 grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-6 items-stretch">
           <div className="h-[380px] sm:h-[430px] md:h-auto md:min-h-[560px]">
             <WorldMap
               learnedMapIds={learnedSet}
@@ -418,7 +418,12 @@ function Index() {
           selectedCountryId={selectedMapId}
           onSelectCountry={(c) => {
             select(c.id);
-            window.scrollTo({ top: 120, behavior: "smooth" });
+            const mapEl = document.getElementById("map-section");
+            if (mapEl) {
+              mapEl.scrollIntoView({ behavior: "smooth", block: "start" });
+            } else {
+              window.scrollTo({ top: 120, behavior: "smooth" });
+            }
           }}
           className="mt-8 sm:mt-10"
         />

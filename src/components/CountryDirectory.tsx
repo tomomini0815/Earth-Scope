@@ -192,49 +192,16 @@ export function CountryDirectory({
 
   return (
     <section className={`space-y-3 ${className}`}>
-      {/* セクションヘッダー ＆ 表示形式タブ */}
+      {/* セクションヘッダー */}
       <div className="space-y-1">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
           <Compass className="size-3.5" />
           <span>COUNTRY DIRECTORY</span>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            全世界 探検ディレクトリ
-          </h2>
-
-          {/* 表示形式切り替えタブ */}
-          <div className="flex items-center gap-1 shrink-0 bg-muted/70 p-1 rounded-xl border border-border/80 shadow-2xs">
-            <Button
-              size="sm"
-              variant={viewMode === "compact" ? "default" : "ghost"}
-              className="size-8 p-0 cursor-pointer touch-manipulation"
-              onClick={() => setViewMode("compact")}
-              title="簡易表示（コンパクト一覧）"
-            >
-              <List className="size-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "table" ? "default" : "ghost"}
-              className="size-8 p-0 cursor-pointer touch-manipulation"
-              onClick={() => setViewMode("table")}
-              title="統計テーブル表示"
-            >
-              <TableIcon className="size-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              className="size-8 p-0 cursor-pointer touch-manipulation"
-              onClick={() => setViewMode("grid")}
-              title="カードグリッド表示"
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
-          </div>
-        </div>
+        <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          全世界 探検ディレクトリ
+        </h2>
 
         <p className="text-xs text-muted-foreground">
           人口・面積・GDPでの並び替えや、未学習・お気に入りでの絞り込みが可能です。
@@ -304,63 +271,95 @@ export function CountryDirectory({
           </div>
         </div>
 
-        {/* ステータスフィルタータブ ＆ 件数カウンター */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-border/60">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-muted-foreground mr-1">状態:</span>
-            <Button
-              size="sm"
-              variant={statusFilter === "all" ? "default" : "outline"}
-              className="h-7 px-2.5 text-xs rounded-lg"
-              onClick={() => setStatusFilter("all")}
-            >
-              すべて ({countries.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={statusFilter === "unlearned" ? "default" : "outline"}
-              className="h-7 px-2.5 text-xs rounded-lg"
-              onClick={() => setStatusFilter("unlearned")}
-            >
-              未学習 ({countries.length - learned.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={statusFilter === "learned" ? "default" : "outline"}
-              className="h-7 px-2.5 text-xs rounded-lg"
-              onClick={() => setStatusFilter("learned")}
-            >
-              <Check className="size-3 mr-1 text-emerald-500" />
-              学習済み ({learned.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={statusFilter === "favorite" ? "default" : "outline"}
-              className="h-7 px-2.5 text-xs rounded-lg"
-              onClick={() => setStatusFilter("favorite")}
-            >
-              <BookmarkCheck className="size-3 mr-1 text-amber-500" />
-              お気に入り ({favorites.length})
-            </Button>
-          </div>
+        {/* ステータスフィルタータブ */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
+          <span className="text-[11px] font-semibold text-muted-foreground mr-1">状態:</span>
+          <Button
+            size="sm"
+            variant={statusFilter === "all" ? "default" : "outline"}
+            className="h-7 px-2.5 text-xs rounded-lg"
+            onClick={() => setStatusFilter("all")}
+          >
+            すべて ({countries.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "unlearned" ? "default" : "outline"}
+            className="h-7 px-2.5 text-xs rounded-lg"
+            onClick={() => setStatusFilter("unlearned")}
+          >
+            未学習 ({countries.length - learned.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "learned" ? "default" : "outline"}
+            className="h-7 px-2.5 text-xs rounded-lg"
+            onClick={() => setStatusFilter("learned")}
+          >
+            <Check className="size-3 mr-1 text-emerald-500" />
+            学習済み ({learned.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === "favorite" ? "default" : "outline"}
+            className="h-7 px-2.5 text-xs rounded-lg"
+            onClick={() => setStatusFilter("favorite")}
+          >
+            <BookmarkCheck className="size-3 mr-1 text-amber-500" />
+            お気に入り ({favorites.length})
+          </Button>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground">
-              表示: <strong className="text-foreground">{filteredCountries.length}</strong> /{" "}
-              {countries.length} か国
-            </span>
-            {hasActiveFilters && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
-                onClick={resetFilters}
-              >
-                <RotateCcw className="size-3" />
-                リセット
-              </Button>
-            )}
-          </div>
+      {/* テーブル直上のコントロールバー：件数表示 ＆ 表示形式切り替えタブを横一列に配置 */}
+      <div className="flex items-center justify-between gap-3 pt-1 px-0.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+          <span>
+            表示: <strong className="text-foreground text-sm font-bold">{filteredCountries.length}</strong> /{" "}
+            {countries.length} か国
+          </span>
+          {hasActiveFilters && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6.5 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 cursor-pointer"
+              onClick={resetFilters}
+            >
+              <RotateCcw className="size-3" />
+              リセット
+            </Button>
+          )}
+        </div>
+
+        {/* 表示形式切り替えタブ（簡易一覧 / 統計テーブル / カードグリッド） */}
+        <div className="flex items-center gap-1 shrink-0 bg-muted/70 p-1 rounded-xl border border-border/80 shadow-2xs">
+          <Button
+            size="sm"
+            variant={viewMode === "compact" ? "default" : "ghost"}
+            className="size-8 p-0 cursor-pointer touch-manipulation"
+            onClick={() => setViewMode("compact")}
+            title="簡易表示（コンパクト一覧）"
+          >
+            <List className="size-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant={viewMode === "table" ? "default" : "ghost"}
+            className="size-8 p-0 cursor-pointer touch-manipulation"
+            onClick={() => setViewMode("table")}
+            title="統計テーブル表示"
+          >
+            <TableIcon className="size-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant={viewMode === "grid" ? "default" : "ghost"}
+            className="size-8 p-0 cursor-pointer touch-manipulation"
+            onClick={() => setViewMode("grid")}
+            title="カードグリッド表示"
+          >
+            <LayoutGrid className="size-4" />
+          </Button>
         </div>
       </div>
 

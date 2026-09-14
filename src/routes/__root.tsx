@@ -75,7 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" },
       { title: "EarthScope (ES) — インタラクティブ世界地図で学ぶ地理・歴史・統計" },
       { name: "description", content: "全世界198ヵ国の統計・詳細歴史年表・文化・国旗・入試受験ポイントを学ぶインタラクティブ世界地図学習プラットフォーム EarthScope (ES)。" },
       { name: "author", content: "EarthScope" },
