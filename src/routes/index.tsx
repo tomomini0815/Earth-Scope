@@ -76,6 +76,7 @@ function Index() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [selectedMapId, setSelectedMapId] = useState<string | undefined>();
   const [hoveredMapId, setHoveredMapId] = useState<string | undefined>();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const learned = useProgress((s) => s.learned);
   const markLearned = useProgress((s) => s.markLearned);
   const isMobile = useIsMobile();
@@ -91,6 +92,9 @@ function Index() {
 
   const select = (mapId: string) => {
     setSelectedMapId(mapId);
+    if (isMobile) {
+      setIsDrawerOpen(true);
+    }
   };
 
   const majorCountries = useMemo(() => {
@@ -195,7 +199,7 @@ function Index() {
           </div>
         </div>
 
-        <div id="map-section" className="scroll-mt-20 sm:scroll-mt-24 grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-6 items-stretch">
+        <div id="map-section" className="scroll-mt-14 sm:scroll-mt-20 grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-6 items-stretch">
           <div className="h-[380px] sm:h-[430px] md:h-auto md:min-h-[560px]">
             <WorldMap
               learnedMapIds={learnedSet}
@@ -207,8 +211,16 @@ function Index() {
           </div>
 
           <div className="surface-card overflow-hidden flex flex-col h-full">
-            {!isMobile && activeCountry ? (
-              <CountryDetail country={activeCountry} compact isPreview={isPreview} />
+            {activeCountry ? (
+              <CountryDetail
+                country={activeCountry}
+                compact
+                isPreview={isPreview}
+                onClose={() => {
+                  setSelectedMapId(undefined);
+                  setIsDrawerOpen(false);
+                }}
+              />
             ) : (
               <div className="flex flex-col justify-between p-3.5 sm:p-4 h-full space-y-3">
                   {/* ヘッダーエリア */}
@@ -417,12 +429,13 @@ function Index() {
           onRegionFilterChange={(f) => setFilter(f)}
           selectedCountryId={selectedMapId}
           onSelectCountry={(c) => {
-            select(c.id);
+            setSelectedMapId(c.id);
+            setIsDrawerOpen(false); // モバイル時は最初に地図箇所をじっくり表示するためドロワーは開かない
             const mapEl = document.getElementById("map-section");
             if (mapEl) {
               mapEl.scrollIntoView({ behavior: "smooth", block: "start" });
             } else {
-              window.scrollTo({ top: 120, behavior: "smooth" });
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }
           }}
           className="mt-8 sm:mt-10"
@@ -440,9 +453,9 @@ function Index() {
       </main>
 
       <Drawer
-        open={isMobile && !!selected}
+        open={isMobile && isDrawerOpen && !!selected}
         onOpenChange={(o) => {
-          if (!o) setSelectedMapId(undefined);
+          setIsDrawerOpen(o);
         }}
       >
         <DrawerContent className="max-h-[88vh] overflow-hidden p-0 flex flex-col">
@@ -451,7 +464,7 @@ function Index() {
               <CountryDetail
                 country={selected}
                 compact
-                onClose={() => setSelectedMapId(undefined)}
+                onClose={() => setIsDrawerOpen(false)}
               />
             )}
           </div>

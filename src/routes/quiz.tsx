@@ -1431,23 +1431,43 @@ function QuizPage() {
                           <span>正解！素晴らしい！</span>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-xs font-semibold text-muted-foreground shrink-0">正しい正解：</span>
-                            {q.choices.find((c) => c.id === q.answerId)?.flag && (
-                              <FlagImage
-                                flag={q.choices.find((c) => c.id === q.answerId)!.flag!}
-                                size="sm"
-                                className="rounded shadow-2xs shrink-0 object-cover"
-                              />
-                            )}
-                            <span className="font-bold text-sm sm:text-base text-foreground break-words">
-                              {q.choices.find((c) => c.id === q.answerId)?.label ?? q.answerId}
+                        <div className="space-y-2.5 pb-2.5 border-b border-border/60">
+                          {/* ステータス & 要復習バッジ */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-destructive font-bold text-xs sm:text-sm">
+                              <X className="size-4 shrink-0" />
+                              <span>不正解</span>
+                            </div>
+                            <span className="text-[11px] font-medium text-rose-500 bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                              要復習リストに追加済
                             </span>
                           </div>
-                          <span className="text-[11px] text-destructive shrink-0 flex items-center gap-1">
-                            <X className="size-3" /> 要復習リストに追加
-                          </span>
+
+                          {/* 正解の表示エリア（全幅を活用して長文も美しく表示） */}
+                          {(() => {
+                            const correctChoice = q.choices.find((c) => c.id === q.answerId)
+                            return (
+                              <div className="rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 p-3 flex items-start gap-2.5">
+                                {correctChoice?.flag && (
+                                  <div className="shrink-0 mt-0.5">
+                                    <FlagImage
+                                      flag={correctChoice.flag}
+                                      size="sm"
+                                      className="rounded shadow-2xs object-cover border border-black/10 dark:border-white/10"
+                                    />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 mb-0.5">
+                                    正しい正解
+                                  </div>
+                                  <div className="font-bold text-sm sm:text-base text-foreground leading-snug break-words">
+                                    {correctChoice?.label ?? q.answerId}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })()}
                         </div>
                       )}
 
