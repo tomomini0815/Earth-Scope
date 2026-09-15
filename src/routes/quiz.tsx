@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Check,
@@ -15,6 +15,9 @@ import {
   Flag,
   History,
   Palette,
+  GraduationCap,
+  Layers,
+  ArrowUpRight,
 } from "lucide-react";
 import { getFlagOrigin } from "@/data/flagOrigins";
 
@@ -28,12 +31,22 @@ import { byIso3, sortedCountries } from "@/data/lookup";
 import { continentLabel, type Country } from "@/data/types";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
+import {
+  type GradeLevel,
+  type TextbookUnitId,
+  GRADE_LEVELS,
+  TEXTBOOK_UNITS,
+  TEXTBOOK_QUESTIONS,
+  type TextbookQuestion,
+} from "@/data/textbookQuestions";
 
-type Mode = "flag" | "flag_choice" | "capital" | "exam" | "timeline" | "country_master";
+type Mode = "textbook" | "flag" | "flag_choice" | "capital" | "exam" | "timeline" | "country_master";
 
 type QuizSearch = {
   country?: string | undefined;
   mode?: Mode | undefined;
+  grade?: (GradeLevel | "all") | undefined;
+  unit?: (TextbookUnitId | "all") | undefined;
 };
 
 export const Route = createFileRoute("/quiz")({
@@ -41,34 +54,37 @@ export const Route = createFileRoute("/quiz")({
     return {
       country: typeof search["country"] === "string" ? search["country"] : undefined,
       mode: typeof search["mode"] === "string" ? (search["mode"] as Mode) : undefined,
+      grade: typeof search["grade"] === "string" ? (search["grade"] as GradeLevel | "all") : undefined,
+      unit: typeof search["unit"] === "string" ? (search["unit"] as TextbookUnitId | "all") : undefined,
     };
   },
   head: () => ({
     meta: [
-      { title: "世界地理クイズ — 国名・首都・国旗・入試ポイント | EarthScope (ES)" },
+      { title: "世界地理・歴史教科書連動クイズ — 中学・高校入試・共通テスト対策 | EarthScope (ES)" },
       {
         name: "description",
-        content: "全世界198ヵ国の国旗・首都・入試受験ポイント・歴史年表クイズ。全10問・即時採点と詳しい解説付き。",
+        content: "日本の文部科学省学習指導要領・教科書に完全準拠。中学入試・高校入試・大学入学共通テストの3段階難易度と大州別・テーマ別特訓で実力アップ。",
       },
-      { property: "og:title", content: "世界地理クイズ | EarthScope (ES)" },
-      { property: "og:description", content: "国旗・国名・首都・受験ポイント・年表並べ替えの5モードで実力チェック。" },
+      { property: "og:title", content: "世界地理・歴史教科書連動クイズ | EarthScope (ES)" },
+      { property: "og:description", content: "中学・高校入試・共通テストに直結。大州別・雨温図・農業資源テーマ別特訓。" },
     ],
   }),
   component: QuizPage,
 });
 
-const GLOBAL_MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
-  { id: "flag", label: "国旗あて", desc: "表示された国旗から国名を選ぶ", icon: "🚩" },
-  { id: "flag_choice", label: "国旗えらび", desc: "国名から正しい国旗を選ぶ", icon: "🌐" },
-  { id: "capital", label: "首都あて", desc: "国旗と国名から首都を選ぶ", icon: "🏛️" },
-  { id: "exam", label: "受験ポイント", desc: "中学・高校入試頻出の地理・歴史問題（10問）", icon: "📝" },
-  { id: "timeline", label: "年表並べ替え", desc: "出来事を古い順に並べ替える", icon: "⏳" },
+const GLOBAL_MODES: { id: Mode; label: string; desc: string; badge?: string }[] = [
+  { id: "textbook", label: "教科書・入試特訓", desc: "大州別・頻出テーマ別の指導要領完全連動（全10問）", badge: "新登場" },
+  { id: "exam", label: "入試頻出ポイント", desc: "世界198ヵ国の重要入試ポイント（全10問）" },
+  { id: "flag", label: "国旗あて", desc: "表示された国旗から国名を選ぶ" },
+  { id: "flag_choice", label: "国旗えらび", desc: "国名から正しい国旗を選ぶ" },
+  { id: "capital", label: "首都あて", desc: "国旗と国名から首都を選ぶ" },
+  { id: "timeline", label: "年表並べ替え", desc: "出来事を古い順に並べ替える" },
 ];
 
-const COUNTRY_MODES: { id: Mode; label: string; desc: string; icon: string }[] = [
-  { id: "exam", label: "受験ポイント", desc: "この国の入試頻出ポイントを全問マスター（全10問）", icon: "📝" },
-  { id: "country_master", label: "国まるごと総合", desc: "国旗・首都・言語・産業・歴史を総合出題（全10問）", icon: "🎯" },
-  { id: "timeline", label: "歴史年表並べ替え", desc: "この国の出来事を古い順に並べ替える", icon: "⏳" },
+const COUNTRY_MODES: { id: Mode; label: string; desc: string }[] = [
+  { id: "exam", label: "受験ポイント", desc: "この国の入試頻出ポイントを全問マスター（全10問）" },
+  { id: "country_master", label: "国まるごと総合", desc: "国旗・首都・言語・産業・歴史を総合出題（全10問）" },
+  { id: "timeline", label: "歴史年表並べ替え", desc: "この国の出来事を古い順に並べ替える" },
 ];
 
 // クイック選択におすすめの主要国
@@ -97,6 +113,9 @@ type Question = {
   explanation: string;
   mnemonic?: string | undefined; // 次から間違えない覚え方・暗記のコツ
   isFlagGrid?: boolean;
+  gradeBadge?: string | undefined; // 例: 高校入試・標準
+  unitBadge?: string | undefined; // 例: アジア州
+  examTip?: string | undefined; // 教科書・入試重要ポイント
 };
 
 function parseYear(yearStr: string): number {
@@ -414,12 +433,14 @@ function generateExamExplanation(
 function buildQuestions(
   mode: Mode,
   usedCodes: Set<string> = new Set(),
-  targetCountry?: Country | undefined
+  targetCountry?: Country | undefined,
+  grade: GradeLevel | "all" = "all",
+  unit: TextbookUnitId | "all" = "all"
 ): Question[] {
   // === 特定の国が選択されている場合 ===
   if (targetCountry) {
     // 1. その国の受験ポイント特化（全10問）
-    if (mode === "exam") {
+    if (mode === "exam" || mode === "textbook") {
       const allExams = countries
         .filter((c) => c.iso3 !== targetCountry.iso3)
         .flatMap((c) => c.examPoints.map((ep) => ep.a));
@@ -439,6 +460,9 @@ function buildQuestions(
           answerId: item.a,
           explanation,
           mnemonic,
+          gradeBadge: "高校入試・頻出",
+          unitBadge: continentLabel(targetCountry.continent),
+          examTip: `教科書・入試で差がつく【${targetCountry.nameJa}】の重要論点です。`,
         };
       });
     }
@@ -469,13 +493,16 @@ function buildQuestions(
             answerId: answer,
             explanation: `歴史の年代順・背景：\n${sorted.map((t, i) => `${i + 1}. 【${t.year}年】${t.event}`).join("\n")}\n\n前の出来事が次の出来事を引き起こす因果関係を意識すると記憶が定着します。`,
             mnemonic: `起点となる最初の出来事「${sorted[0]?.year}年」を基準点にして、その後の歴史のストーリー展開で覚えましょう。`,
+            gradeBadge: "歴史総合・探究",
+            unitBadge: continentLabel(targetCountry.continent),
+            examTip: "歴史の並べ替え問題は、因果関係（ある出来事が次の契機になる）を意識して解くのが鉄則です。",
           });
         }
         // もし年表だけで10問に満たない場合は受験ポイントで補完
         const remaining = QUESTION_COUNT - questions.length;
         const examPool = targetCountry.examPoints.slice(0, remaining);
         const allExams = countries.filter((c) => c.iso3 !== targetCountry.iso3).flatMap((c) => c.examPoints.map((ep) => ep.a));
-        examPool.forEach((ep, idx) => {
+        examPool.forEach((ep) => {
           const wrongPool = shuffle(allExams.filter((a) => a !== ep.a)).slice(0, 3);
           const { explanation, mnemonic } = generateExamExplanation(targetCountry, ep.q, ep.a);
           questions.push({
@@ -486,6 +513,9 @@ function buildQuestions(
             answerId: ep.a,
             explanation,
             mnemonic,
+            gradeBadge: "高校入試・頻出",
+            unitBadge: continentLabel(targetCountry.continent),
+            examTip: `教科書・入試で差がつく【${targetCountry.nameJa}】の重要論点です。`,
           });
         });
         return questions;
@@ -509,6 +539,8 @@ function buildQuestions(
       explanation: `${targetCountry.nameJa}（${continentLabel(targetCountry.continent)}、首都：${targetCountry.basic.capital}）の正式な国旗です。国旗の配色や紋章には、その国の自然環境や独立の歴史、国民の結束の願いが込められています。`,
       mnemonic: `デザインの特徴（ストライプの向きや星・紋章などのシンボルマーク）と国名「${targetCountry.nameJa}」を視覚的にリンクさせましょう。`,
       isFlagGrid: true,
+      gradeBadge: "中学入試・基礎",
+      unitBadge: continentLabel(targetCountry.continent),
     });
 
     // Q2: 首都あて
@@ -529,6 +561,8 @@ function buildQuestions(
         targetCountry.history.founding ? `建国：${targetCountry.history.founding}` : "",
       ].filter(Boolean).join("\n"),
       mnemonic: `「${targetCountry.nameJa}」の首都は「${targetCountry.basic.capital}」。${targetCountry.basic.government}制・公用語「${targetCountry.basic.languages}」と合わせて整理しておきましょう。`,
+      gradeBadge: "中学入試・基礎",
+      unitBadge: continentLabel(targetCountry.continent),
     });
 
     // Q3: 公用語
@@ -549,6 +583,8 @@ function buildQuestions(
         targetCountry.history.founding ? `建国背景：${targetCountry.history.founding}` : "",
       ].filter(Boolean).join("\n"),
       mnemonic: `${targetCountry.nameJa}の公用語「${targetCountry.basic.languages}」は、${continentLabel(targetCountry.continent)}の歴史的ルーツ（宗教・植民地関係）と連動しています。地域の言語地図と一緒に覚えましょう。`,
+      gradeBadge: "高校入試・標準",
+      unitBadge: continentLabel(targetCountry.continent),
     });
 
     // Q4: 政治体制
@@ -568,9 +604,11 @@ function buildQuestions(
         targetCountry.history.relations ? `国際関係：${targetCountry.history.relations}` : "",
       ].filter(Boolean).join("\n"),
       mnemonic: `${targetCountry.nameJa}は「${targetCountry.basic.government}」。国家元首（大統領 or 国王）と議会の関係を整理しておくと政体の正誤問題で確実に得点できます。`,
+      gradeBadge: "高校入試・標準",
+      unitBadge: continentLabel(targetCountry.continent),
     });
 
-    // Q5: 年表並べ替え（もし年表があれば）または主要産業
+    // Q5: 年表並べ替え（もし年表があれば）
     if (targetCountry.history.timeline.length >= 3) {
       const picked = shuffle(targetCountry.history.timeline).slice(0, 3);
       const sorted = [...picked].sort((a, b) => parseYear(a.year) - parseYear(b.year));
@@ -592,6 +630,8 @@ function buildQuestions(
         answerId: answer,
         explanation: `出来事の年代順：\n${sorted.map((t, i) => `${i + 1}. 【${t.year}年】${t.event}`).join("\n")}`,
         mnemonic: `一番古い出来事「${sorted[0]?.year}年」を時代のアンカー（基準）にして因果関係を追っていきましょう。`,
+        gradeBadge: "共通テスト・発展",
+        unitBadge: continentLabel(targetCountry.continent),
       });
     }
 
@@ -610,10 +650,85 @@ function buildQuestions(
         answerId: ep.a,
         explanation,
         mnemonic,
+        gradeBadge: "高校入試・頻出",
+        unitBadge: continentLabel(targetCountry.continent),
+        examTip: `教科書・入試で差がつく【${targetCountry.nameJa}】の重要論点です。`,
       });
     });
 
     return qList.slice(0, QUESTION_COUNT);
+  }
+
+  // === 教科書・入試特訓モード（大州別・頻出テーマ別） ===
+  if (mode === "textbook") {
+    let pool = [...TEXTBOOK_QUESTIONS];
+
+    if (unit !== "all") {
+      pool = pool.filter((q) => q.unit === unit);
+    }
+    if (grade !== "all") {
+      const gradeFiltered = pool.filter((q) => q.grade === grade);
+      if (gradeFiltered.length >= 3) {
+        pool = gradeFiltered;
+      }
+    }
+
+    if (pool.length < QUESTION_COUNT && unit !== "all") {
+      const sameUnitRest = TEXTBOOK_QUESTIONS.filter((q) => q.unit === unit && !pool.some((p) => p.id === q.id));
+      pool = [...pool, ...sameUnitRest];
+    }
+    if (pool.length < QUESTION_COUNT) {
+      const anyRest = shuffle(TEXTBOOK_QUESTIONS.filter((q) => !pool.some((p) => p.id === q.id)));
+      pool = [...pool, ...anyRest];
+    }
+
+    const selectedTQs = shuffle(pool).slice(0, QUESTION_COUNT);
+    const resultQs: Question[] = selectedTQs.map((tq) => {
+      const c = byIso3(tq.targetCountryIso3) ?? countries[0]!;
+      const gradeObj = GRADE_LEVELS.find((g) => g.id === tq.grade);
+      return {
+        country: c,
+        prompt: `【${tq.unitLabel}】${tq.prompt}`,
+        choices: shuffle(tq.choices),
+        answerId: tq.answerId,
+        explanation: tq.explanation,
+        mnemonic: tq.mnemonic,
+        gradeBadge: gradeObj?.badge ?? "入試頻出",
+        unitBadge: tq.unitLabel,
+        examTip: tq.examTip,
+      };
+    });
+
+    if (resultQs.length >= QUESTION_COUNT) {
+      return resultQs;
+    }
+
+    const remaining = QUESTION_COUNT - resultQs.length;
+    const allExams: { country: Country; q: string; a: string }[] = [];
+    for (const c of countries) {
+      for (const ep of c.examPoints) {
+        allExams.push({ country: c, q: ep.q, a: ep.a });
+      }
+    }
+    const extra = shuffle(allExams).slice(0, remaining);
+    extra.forEach((ex) => {
+      const wrongPool = shuffle(allExams.filter((o) => o.a !== ex.a)).slice(0, 3).map((o) => ({ id: o.a, label: o.a }));
+      const { explanation, mnemonic } = generateExamExplanation(ex.country, ex.q, ex.a);
+      resultQs.push({
+        country: ex.country,
+        prompt: `【${continentLabel(ex.country.continent)}】${ex.country.nameJa}の重要ポイント`,
+        textHint: `Q. ${ex.q}`,
+        choices: shuffle([{ id: ex.a, label: ex.a }, ...wrongPool]),
+        answerId: ex.a,
+        explanation,
+        mnemonic,
+        gradeBadge: "高校入試・標準",
+        unitBadge: continentLabel(ex.country.continent),
+        examTip: `教科書・定期テストで頻出の【${ex.country.nameJa}】の重要知識です。`,
+      });
+    });
+
+    return resultQs;
   }
 
   // === 全世界モードの場合 ===
@@ -775,11 +890,15 @@ function QuizPage() {
     return selectedIso3 ? byIso3(selectedIso3) : undefined;
   }, [selectedIso3]);
 
-  // モード：国選択時はデフォルトで "exam"（受験ポイント）
+  // モード：国選択時はデフォルトで "exam"（受験ポイント）、全世界は "textbook"（教科書・入試特訓）
   const [mode, setMode] = useState<Mode>(() => {
     if (search.mode) return search.mode;
-    return search.country ? "exam" : "flag";
+    return search.country ? "exam" : "textbook";
   });
+
+  // 対象・難易度レベル & 単元フィルター
+  const [grade, setGrade] = useState<GradeLevel | "all">(search.grade ?? "all");
+  const [unit, setUnit] = useState<TextbookUnitId | "all">(search.unit ?? "all");
 
   const [seed, setSeed] = useState(0);
   const [usedCountryCodes, setUsedCountryCodes] = useState<Set<string>>(new Set());
@@ -835,8 +954,8 @@ function QuizPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const questions = useMemo(
-    () => buildQuestions(mode, usedCountryCodes, selectedCountry),
-    [mode, seed, selectedCountry]
+    () => buildQuestions(mode, usedCountryCodes, selectedCountry, grade, unit),
+    [mode, seed, selectedCountry, grade, unit]
   );
   const q = questions[index];
 
@@ -871,17 +990,25 @@ function QuizPage() {
   const restart = (
     nextMode: Mode = mode,
     nextCountry?: Country | null,
+    nextGrade?: GradeLevel | "all",
+    nextUnit?: TextbookUnitId | "all",
     autoScroll: boolean = false
   ) => {
+    const updatedGrade = nextGrade !== undefined ? nextGrade : grade;
+    const updatedUnit = nextUnit !== undefined ? nextUnit : unit;
     if (nextCountry !== undefined) {
       setSelectedIso3(nextCountry ? nextCountry.iso3 : null);
-      navigate({
-        search: {
-          country: nextCountry ? nextCountry.iso3.toLowerCase() : undefined,
-          mode: nextMode,
-        },
-      });
     }
+    navigate({
+      search: {
+        country: (nextCountry !== undefined ? nextCountry?.iso3 : selectedIso3)?.toLowerCase() || undefined,
+        mode: nextMode,
+        grade: updatedGrade !== "all" ? updatedGrade : undefined,
+        unit: updatedUnit !== "all" ? updatedUnit : undefined,
+      },
+    });
+    if (nextGrade !== undefined) setGrade(nextGrade);
+    if (nextUnit !== undefined) setUnit(nextUnit);
     setMode(nextMode);
     setSeed((s) => s + 1);
     setIndex(0);
@@ -901,11 +1028,11 @@ function QuizPage() {
     if (c) {
       setSelectedIso3(c.iso3);
       setMode("exam");
-      restart("exam", c, autoScroll);
+      restart("exam", c, grade, unit, autoScroll);
     } else {
       setSelectedIso3(null);
-      setMode("flag");
-      restart("flag", null, autoScroll);
+      setMode("textbook");
+      restart("textbook", null, grade, unit, autoScroll);
     }
   };
 
@@ -1186,7 +1313,42 @@ function QuizPage() {
             )}
           </div>
 
-          {/* 2. クイズ種別 */}
+          {/* 2. 対象・難易度レベル（全世界モード時） */}
+          {!selectedCountry && (
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  対象・難易度レベル
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {grade === "all" ? "全学年対応" : GRADE_LEVELS.find((g) => g.id === grade)?.label}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-1.5 p-1 bg-muted/70 dark:bg-muted/50 rounded-xl border border-border/70">
+                {GRADE_LEVELS.map((g) => {
+                  const isActive = grade === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => restart(mode, undefined, g.id, unit, true)}
+                      className={cn(
+                        "flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer touch-manipulation shadow-2xs text-center",
+                        isActive
+                          ? "bg-sky-500/20 dark:bg-sky-500/30 text-sky-950 dark:text-sky-100 border border-sky-500/50 shadow-xs"
+                          : "text-foreground/75 hover:text-foreground hover:bg-card/70 font-medium"
+                      )}
+                    >
+                      <span className="text-xs truncate max-w-full">{g.label}</span>
+                      <span className="text-[10px] text-muted-foreground font-normal truncate max-w-full">{g.badge}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 3. クイズ種別 */}
           <div className="pt-3 border-t border-border/50">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-muted-foreground">
@@ -1199,7 +1361,7 @@ function QuizPage() {
                 "p-1 bg-muted/70 dark:bg-muted/50 rounded-xl border border-border/70",
                 selectedCountry
                   ? "grid grid-cols-3 gap-1 sm:gap-1.5"
-                  : "flex flex-wrap gap-1.5"
+                  : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1 sm:gap-1.5"
               )}
             >
               {(selectedCountry ? COUNTRY_MODES : GLOBAL_MODES).map((m) => {
@@ -1208,33 +1370,72 @@ function QuizPage() {
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => restart(m.id, undefined, true)}
+                    onClick={() => restart(m.id, undefined, grade, unit, true)}
                     className={cn(
-                      "flex items-center justify-center py-2.5 px-1 sm:px-2.5 min-h-[38px] rounded-lg text-xs font-bold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap min-w-0 overflow-hidden shadow-2xs",
-                      selectedCountry
-                        ? "w-full"
-                        : "flex-1 min-w-[76px] sm:min-w-[90px]",
+                      "relative flex flex-col items-center justify-center py-2 px-1 min-h-[44px] rounded-lg text-xs font-bold transition-all cursor-pointer touch-manipulation text-center whitespace-nowrap min-w-0 overflow-hidden shadow-2xs",
                       isActive
                         ? "bg-sky-500/20 dark:bg-sky-500/30 text-sky-950 dark:text-sky-100 border border-sky-500/50 font-bold shadow-xs"
-                        : "text-foreground/75 hover:text-foreground hover:bg-card/70 font-semibold"
+                        : "text-foreground/75 hover:text-foreground hover:bg-card/70 font-medium"
                     )}
                     title={m.desc}
                   >
-                    <span className="truncate">
-                      {m.id === "timeline" && selectedCountry ? (
-                        <>
-                          <span className="sm:hidden">歴史年表</span>
-                          <span className="hidden sm:inline">歴史年表並べ替え</span>
-                        </>
-                      ) : (
-                        m.label
-                      )}
-                    </span>
+                    <span className="truncate max-w-full">{m.label}</span>
+                    {"badge" in m && typeof (m as { badge?: string }).badge === "string" && (
+                      <span className="text-[9px] font-semibold text-sky-600 dark:text-sky-400">
+                        {(m as { badge?: string }).badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
+
+          {/* 4. 教科書単元セレクター（教科書・入試特訓モード時） */}
+          {!selectedCountry && mode === "textbook" && (
+            <div className="pt-3 border-t border-border/50 animate-fadeIn">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  教科書単元・分野
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {unit === "all" ? "全単元から出題" : TEXTBOOK_UNITS.find((u) => u.id === unit)?.label}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => restart(mode, undefined, grade, "all", true)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors shadow-2xs cursor-pointer touch-manipulation",
+                    unit === "all"
+                      ? "border-sky-500 bg-sky-500 text-white font-bold"
+                      : "border-border bg-card hover:bg-secondary text-foreground"
+                  )}
+                >
+                  全単元総合
+                </button>
+                {TEXTBOOK_UNITS.map((u) => {
+                  const isCur = unit === u.id;
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => restart(mode, undefined, grade, u.id, true)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors shadow-2xs cursor-pointer touch-manipulation",
+                        isCur
+                          ? "border-sky-500 bg-sky-500 text-white font-bold"
+                          : "border-border bg-card hover:bg-secondary text-foreground"
+                      )}
+                    >
+                      {u.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 3. クイズ結果画面 */}
@@ -1277,7 +1478,7 @@ function QuizPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Button className="font-semibold gap-1.5 shadow-sm cursor-pointer" onClick={() => restart(mode, undefined, true)}>
+              <Button className="font-semibold gap-1.5 shadow-sm cursor-pointer" onClick={() => restart(mode, undefined, grade, unit, true)}>
                 <RefreshCw className="size-4" /> もう一度挑戦する
               </Button>
               {selectedCountry && (
@@ -1286,7 +1487,7 @@ function QuizPage() {
                   className="font-semibold"
                   onClick={() => handleSelectCountry(null)}
                 >
-                  🌍 全世界クイズに切り替え
+                  全世界クイズに切り替え
                 </Button>
               )}
             </div>
@@ -1321,8 +1522,24 @@ function QuizPage() {
                 </div>
               )}
 
+              {/* 問題バッジ（対象学年・教科書単元） */}
+              {(q.gradeBadge || q.unitBadge) && (
+                <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                  {q.gradeBadge && (
+                    <Badge variant="secondary" className="text-[11px] font-semibold">
+                      {q.gradeBadge}
+                    </Badge>
+                  )}
+                  {q.unitBadge && (
+                    <Badge variant="outline" className="text-[11px] font-medium text-muted-foreground">
+                      {q.unitBadge}
+                    </Badge>
+                  )}
+                </div>
+              )}
+
               {/* 問題タイトル・見出し（国旗 ＆ 【国名】重要入試ポイント） */}
-              <div className="mt-5 flex items-center gap-2">
+              <div className={cn("flex items-center gap-2", (q.gradeBadge || q.unitBadge) ? "mt-2" : "mt-5")}>
                 {!q.flagHint && mode !== "flag_choice" && !q.isFlagGrid && (
                   <FlagImage flag={q.country.flag} size="md" className="rounded shadow-xs shrink-0" />
                 )}
@@ -1540,10 +1757,18 @@ function QuizPage() {
                         </div>
                       )}
 
-                      {/* ポイント（国旗クイズ以外の通常問題） */}
+                      {/* 教科書・入試の重要チェック */}
+                      {!isFlagMode && q.examTip && (
+                        <div className="pt-2 border-t border-border/50 text-xs sm:text-sm text-foreground/85 leading-relaxed">
+                          <span className="font-semibold text-sky-600 dark:text-sky-400 mr-1.5">教科書・入試の重要チェック：</span>
+                          <span className="break-words">{q.examTip}</span>
+                        </div>
+                      )}
+
+                      {/* 暗記のコツ（国旗クイズ以外の通常問題） */}
                       {!isFlagMode && q.mnemonic && (
                         <div className="pt-2 border-t border-border/50 text-xs sm:text-sm text-foreground/85 leading-relaxed">
-                          <span className="font-semibold text-sky-600 dark:text-sky-400 mr-1.5">💡 ポイント：</span>
+                          <span className="font-semibold text-sky-600 dark:text-sky-400 mr-1.5">暗記のコツ：</span>
                           <span className="break-words">{q.mnemonic}</span>
                         </div>
                       )}
@@ -1559,7 +1784,7 @@ function QuizPage() {
                             <div className="flex items-center gap-1.5 min-w-0">
                               <Flag className="size-4 shrink-0 text-primary" />
                               <span className="text-xs sm:text-sm font-bold text-foreground truncate">
-                                🏛️ 国旗の由来と歴史（{q.country.nameJa}）
+                                国旗の由来と歴史（{q.country.nameJa}）
                               </span>
                             </div>
                             <button
@@ -1609,7 +1834,7 @@ function QuizPage() {
                                 </p>
                                 {q.country.history?.founding && (
                                   <p className="text-xs text-muted-foreground leading-relaxed mt-1 pl-2 border-l border-border">
-                                    📅 建国：{q.country.history.founding}
+                                    建国：{q.country.history.founding}
                                   </p>
                                 )}
                               </div>

@@ -232,7 +232,9 @@ const COUNTRY_CENTERS: Map<string, [number, number]> = (() => {
 
 export type WorldMapProps = {
   learnedMapIds: Set<string>;
+  visitedMapIds?: Set<string> | undefined;
   activeContinent: ContinentId | "all" | "microstates";
+  isVisitedFilter?: boolean | undefined;
   selectedId?: string | undefined;
   onSelect: (mapId: string) => void;
   onHover?: (mapId: string | undefined) => void;
@@ -240,7 +242,9 @@ export type WorldMapProps = {
 
 export function WorldMap({
   learnedMapIds,
+  visitedMapIds,
   activeContinent,
+  isVisitedFilter,
   selectedId,
   onSelect,
   onHover,
@@ -887,11 +891,16 @@ export function WorldMap({
               const isLearned =
                 learnedMapIds.has(p.mapId) ||
                 (!!special?.parentMapId && learnedMapIds.has(special.parentMapId));
-              // 大陸フィルター判定：その地域の地理的大陸、または所属親国の大陸のいずれかに該当していればハイライト
-              const matchesContinent =
-                activeContinent === "all" ||
-                geographicContinent === activeContinent ||
-                parentCountry?.continent === activeContinent;
+              const isVisited =
+                (visitedMapIds?.has(p.mapId) ?? false) ||
+                (!!special?.parentMapId && (visitedMapIds?.has(special.parentMapId) ?? false));
+
+              // 大陸・訪問フィルター判定
+              const matchesContinent = isVisitedFilter
+                ? isVisited
+                : activeContinent === "all" ||
+                  geographicContinent === activeContinent ||
+                  parentCountry?.continent === activeContinent;
               const dimmed =
                 activeContinent === "microstates"
                   ? true
@@ -899,9 +908,11 @@ export function WorldMap({
               const selected = selectedId === p.mapId || (special?.parentMapId && selectedId === special.parentMapId);
               const fill = !geographicContinent
                 ? "var(--land)"
-                : isLearned
-                  ? "var(--land-learned)"
-                  : continentColor(geographicContinent);
+                : isVisitedFilter && isVisited
+                  ? "#ea580c"
+                  : isLearned
+                    ? "var(--land-learned)"
+                    : continentColor(geographicContinent);
 
               const isClickable = !!country || !!special?.parentMapId;
               const targetMapId = country ? p.mapId : special?.parentMapId;
@@ -988,14 +999,18 @@ export function WorldMap({
 
               const isMicrostateActive = activeContinent === "microstates";
               const isLearned = learnedMapIds.has(m.id);
-              const dimmed =
-                !isMicrostateActive &&
-                activeContinent !== "all" &&
-                country.continent !== activeContinent;
+              const isVisited = visitedMapIds?.has(m.id) ?? false;
+              const dimmed = isVisitedFilter
+                ? !isVisited
+                : !isMicrostateActive &&
+                  activeContinent !== "all" &&
+                  country.continent !== activeContinent;
               const selected = selectedId === m.id;
-              const color = isLearned
-                ? "var(--land-learned)"
-                : continentColor(country.continent);
+              const color = isVisitedFilter && isVisited
+                ? "#ea580c"
+                : isLearned
+                  ? "var(--land-learned)"
+                  : continentColor(country.continent);
 
               // ズームに応じた視認性の良い半径（2Dではズーム逆数を乗じて一定の大きさを維持）
               // 小国・島国フィルターON時はピンを1.35倍に拡大して存在感を際立たせる

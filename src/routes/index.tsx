@@ -14,6 +14,7 @@ import { CONTINENTS, continentLabel, type ContinentId, type Country } from "@/da
 import { countries } from "@/data/countries";
 import { MICROSTATES, microstateById } from "@/data/microstates";
 import { getCountryPhoto } from "@/data/countryPhotos";
+import { Plane } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
@@ -70,7 +71,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type FilterType = ContinentId | "all" | "microstates";
+type FilterType = ContinentId | "all" | "microstates" | "visited";
 
 function Index() {
   const [filter, setFilter] = useState<FilterType>("all");
@@ -78,10 +79,19 @@ function Index() {
   const [hoveredMapId, setHoveredMapId] = useState<string | undefined>();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const learned = useProgress((s) => s.learned);
+  const visited = useProgress((s) => s.visited ?? []);
   const markLearned = useProgress((s) => s.markLearned);
   const isMobile = useIsMobile();
 
   const learnedSet = useMemo(() => learnedIds(learned), [learned]);
+  const visitedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const iso3 of visited) {
+      const c = byIso3(iso3);
+      if (c) s.add(c.id);
+    }
+    return s;
+  }, [visited]);
   const selected = selectedMapId ? byMapId(selectedMapId) : undefined;
   const hoveredCountry = hoveredMapId ? byMapId(hoveredMapId) : undefined;
   // ホバーした国を優先してリアルタイムプレビュー表示（マウスが外れたら選択中の国に戻る）
@@ -137,8 +147,11 @@ function Index() {
     if (filter === "microstates") {
       return MICROSTATES.map((m) => byMapId(m.id)).filter(Boolean) as typeof sortedCountries;
     }
+    if (filter === "visited") {
+      return sortedCountries.filter((c) => visited.includes(c.iso3));
+    }
     return filter === "all" ? sortedCountries : sortedCountries.filter((c) => c.continent === filter);
-  }, [filter]);
+  }, [filter, visited]);
 
   return (
     <div className="min-h-screen">
@@ -196,6 +209,22 @@ function Index() {
               <span>🏝️</span>
               <span>小国・島国 (32)</span>
             </button>
+
+            {/* 訪問した国（渡航歴）フィルター */}
+            {visited.length > 0 && (
+              <button
+                onClick={() => setFilter("visited")}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 touch-manipulation cursor-pointer",
+                  filter === "visited"
+                    ? "border-orange-500 bg-orange-500 text-white shadow-xs"
+                    : "bg-card hover:bg-secondary text-foreground",
+                )}
+              >
+                <Plane className={cn("size-3.5", filter === "visited" ? "text-white" : "text-orange-500")} />
+                <span>訪問した国 ({visited.length})</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -203,7 +232,9 @@ function Index() {
           <div className="h-[380px] sm:h-[430px] md:h-auto md:min-h-[560px]">
             <WorldMap
               learnedMapIds={learnedSet}
-              activeContinent={filter}
+              visitedMapIds={visitedSet}
+              activeContinent={filter === "visited" ? "all" : filter}
+              isVisitedFilter={filter === "visited"}
               selectedId={selectedMapId}
               onSelect={select}
               onHover={setHoveredMapId}
@@ -425,7 +456,7 @@ function Index() {
         {/* 高機能 国の一覧ディレクトリ（198か国） */}
         <CountryDirectory
           countries={countries}
-          activeRegionFilter={filter}
+          activeRegionFilter={filter === "visited" ? "all" : filter}
           onRegionFilterChange={(f) => setFilter(f)}
           selectedCountryId={selectedMapId}
           onSelectCountry={(c) => {

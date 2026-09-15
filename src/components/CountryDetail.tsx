@@ -29,6 +29,7 @@ import {
   Maximize2,
   Mountain,
   Pin,
+  Plane,
   Radio,
   Scale,
   Scroll,
@@ -162,13 +163,17 @@ export function CountryDetail({
 
   // 日本との面積比
   const areaRatio =
-    country.basic.area >= JAPAN_AREA
+    country.iso3 === "JPN"
+      ? "日本全国の総面積（47都道府県）"
+      : country.basic.area >= JAPAN_AREA
       ? `日本の約 ${(country.basic.area / JAPAN_AREA).toFixed(1)} 倍の国土`
       : `日本の約 ${(country.basic.area / JAPAN_AREA * 100).toFixed(1)} %（約 1/${Math.max(1, Math.round(JAPAN_AREA / Math.max(1, country.basic.area)))}）`;
 
   // 日本との人口比
   const popRatio =
-    country.society.population >= JAPAN_POP
+    country.iso3 === "JPN"
+      ? "日本の総人口（国内推計）"
+      : country.society.population >= JAPAN_POP
       ? `日本の約 ${(country.society.population / JAPAN_POP).toFixed(1)} 倍`
       : `日本の約 ${(country.society.population / JAPAN_POP * 100).toFixed(1)} %（日本の約 1/${Math.max(1, Math.round(JAPAN_POP / Math.max(1, country.society.population)))}）`;
 

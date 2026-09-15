@@ -61,12 +61,23 @@ function getTodayString(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+export type VisitedRecord = {
+  iso3: string;
+  year?: string;
+  memo?: string;
+  visitedAt: number;
+};
+
 type ProgressState = {
   learned: string[]; // iso3
   learnedAt: Record<string, number>; // iso3 -> timestamp
   favorites: string[]; // iso3
   wrongAnswers: string[]; // iso3 (クイズで間違えた要復習国)
   results: QuizResult[];
+
+  // 渡航歴・訪問した国（リアル世界トラベルログ）
+  visited: string[]; // iso3
+  visitedDetails: Record<string, VisitedRecord>; // iso3 -> VisitedRecord
 
   // 学習時間の追跡
   totalStudySeconds: number;
@@ -82,6 +93,9 @@ type ProgressState = {
   markLearned: (iso3: string) => void;
   toggleLearned: (iso3: string) => void;
   toggleFavorite: (iso3: string) => void;
+  toggleVisited: (iso3: string) => void;
+  setVisitedRecord: (iso3: string, data: { year?: string; memo?: string }) => void;
+  removeVisited: (iso3: string) => void;
   recordWrong: (iso3: string) => void;
   removeWrong: (iso3: string) => void;
   addResult: (r: Omit<QuizResult, "id" | "at">) => void;
@@ -142,6 +156,9 @@ export const useProgress = create<ProgressState>()(
         favorites: [],
         wrongAnswers: [],
         results: [],
+
+        visited: [],
+        visitedDetails: {},
 
         totalStudySeconds: 0,
         todayStudySeconds: 0,
@@ -218,6 +235,50 @@ export const useProgress = create<ProgressState>()(
               : [...s.favorites, iso3],
           })),
 
+        toggleVisited: (iso3) => {
+          const s = get();
+          const currentVisited = s.visited ?? [];
+          const exists = currentVisited.includes(iso3);
+          if (exists) {
+            const nextVisited = currentVisited.filter((c) => c !== iso3);
+            const nextDetails = { ...(s.visitedDetails ?? {}) };
+            delete nextDetails[iso3];
+            set({ visited: nextVisited, visitedDetails: nextDetails });
+          } else {
+            const nextVisited = [...currentVisited, iso3];
+            const nextDetails = {
+              ...(s.visitedDetails ?? {}),
+              [iso3]: { iso3, visitedAt: Date.now() },
+            };
+            set({ visited: nextVisited, visitedDetails: nextDetails });
+          }
+        },
+
+        setVisitedRecord: (iso3, data) => {
+          const s = get();
+          const currentVisited = s.visited ?? [];
+          const nextVisited = currentVisited.includes(iso3) ? currentVisited : [...currentVisited, iso3];
+          const prev = s.visitedDetails?.[iso3] ?? { iso3, visitedAt: Date.now() };
+          set({
+            visited: nextVisited,
+            visitedDetails: {
+              ...(s.visitedDetails ?? {}),
+              [iso3]: {
+                ...prev,
+                ...data,
+              },
+            },
+          });
+        },
+
+        removeVisited: (iso3) => {
+          const s = get();
+          const nextVisited = (s.visited ?? []).filter((c) => c !== iso3);
+          const nextDetails = { ...(s.visitedDetails ?? {}) };
+          delete nextDetails[iso3];
+          set({ visited: nextVisited, visitedDetails: nextDetails });
+        },
+
         recordWrong: (iso3) =>
           set((s) => ({
             wrongAnswers: Array.from(new Set([iso3, ...(s.wrongAnswers ?? [])])).slice(0, 30),
@@ -286,6 +347,8 @@ export const useProgress = create<ProgressState>()(
             favorites: [],
             wrongAnswers: [],
             results: [],
+            visited: [],
+            visitedDetails: {},
             totalStudySeconds: 0,
             todayStudySeconds: 0,
             dailyStudyHistory: {},

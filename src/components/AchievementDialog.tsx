@@ -9,24 +9,8 @@ export function AchievementDialog() {
   const dismissAchievement = useProgress((s) => s.dismissAchievement);
   const [isVisible, setIsVisible] = useState(false);
 
-  const [previewAchievement, setPreviewAchievement] = useState<typeof pendingAchievement>(null);
-
   useEffect(() => {
-    // プレビュー用カスタムイベントリスナー
-    const handler = (e: Event) => {
-      const customEvent = e as CustomEvent<any>;
-      if (customEvent.detail) {
-        setPreviewAchievement(customEvent.detail);
-      }
-    };
-    window.addEventListener("earthscope-achievement-preview", handler);
-    return () => window.removeEventListener("earthscope-achievement-preview", handler);
-  }, []);
-
-  const currentAchievement = pendingAchievement || previewAchievement;
-
-  useEffect(() => {
-    if (!currentAchievement) {
+    if (!pendingAchievement) {
       setIsVisible(false);
       return;
     }
@@ -38,17 +22,16 @@ export function AchievementDialog() {
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(() => {
-        if (pendingAchievement) {
-          dismissAchievement();
-        }
-        setPreviewAchievement(null);
+        dismissAchievement();
       }, 250);
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [currentAchievement, pendingAchievement, dismissAchievement]);
+  }, [pendingAchievement, dismissAchievement]);
 
-  if (!currentAchievement) return null;
+  if (!pendingAchievement) return null;
+
+  const currentAchievement = pendingAchievement;
 
   const gemMeta = BADGE_DESIGNS[currentAchievement.id];
   const GemIcon = gemMeta?.icon;

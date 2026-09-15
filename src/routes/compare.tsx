@@ -29,7 +29,7 @@ export const Route = createFileRoute("/compare")({
 const METRICS = [
   { id: "population", label: "人口", shortUnit: "万人", subLabel: "億人・万人" },
   { id: "gdp", label: "名目GDP", shortUnit: "億ドル", subLabel: "兆$・億$" },
-  { id: "gdpPerCapita", label: "1人あたりGDP", shortUnit: "USドル", subLabel: "ドル (円換算)" },
+  { id: "gdpPerCapita", label: "1人あたりGDP", shortUnit: "USドル/年", subLabel: "ドル・日本円" },
   { id: "area", label: "国土面積", shortUnit: "km²", subLabel: "万km² (日本比)" },
   { id: "spending", label: "軍事費", shortUnit: "億ドル", subLabel: "億$ (兆円換算)" },
   { id: "troops", label: "兵力", shortUnit: "千人", subLabel: "万人・千人" },
@@ -100,12 +100,13 @@ function formatCountryMetric(country: Country, metricId: MetricId): FormattedMet
       const yenApprox = Math.round((usd * 150) / 10_000);
       return {
         main: `$${usd.toLocaleString("ja-JP")}`,
-        sub: `約 ${yenApprox.toLocaleString("ja-JP")} 万円 (1$=150円換算)`,
+        sub: `約 ${yenApprox.toLocaleString("ja-JP")} 万円`,
         rawValue: usd,
       };
     }
     case "area": {
       const area = country.basic.area;
+      const isJapan = country.iso3 === "JPN";
       const japanArea = 377975;
       const ratio = area / japanArea;
       let ratioText = "";
@@ -127,7 +128,9 @@ function formatCountryMetric(country: Country, metricId: MetricId): FormattedMet
       }
       return {
         main,
-        sub: `${area.toLocaleString("ja-JP")} km² (${ratioText})`,
+        sub: isJapan
+          ? `${area.toLocaleString("ja-JP")} km²`
+          : `${area.toLocaleString("ja-JP")} km² (${ratioText})`,
         rawValue: area,
       };
     }
@@ -385,7 +388,7 @@ function ComparePage() {
           ) : (
             <div className="h-60 sm:h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 12, right: 12, left: -14, bottom: 24 }}>
+                <BarChart data={chartData} margin={{ top: 12, right: 12, left: 8, bottom: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis
                     dataKey="name"
@@ -399,22 +402,34 @@ function ComparePage() {
                   <YAxis
                     stroke="#888"
                     fontSize={10}
-                    width={56}
+                    width={64}
                     tickFormatter={(v) => {
                       if (metric === "population") {
-                        if (v >= 10000) return `${(v / 10000).toFixed(1)}億人`;
+                        if (v >= 10000) {
+                          const oku = v / 10000;
+                          return `${Number.isInteger(oku) ? oku : oku.toFixed(1)}億人`;
+                        }
                         return `${v}万人`;
                       }
                       if (metric === "gdp" || metric === "spending") {
-                        if (v >= 10000) return `${(v / 10000).toFixed(1)}兆$`;
+                        if (v >= 10000) {
+                          const cho = v / 10000;
+                          return `${Number.isInteger(cho) ? cho : cho.toFixed(1)}兆$`;
+                        }
                         return `${v}億$`;
                       }
                       if (metric === "area") {
-                        if (v >= 10000) return `${(v / 10000).toFixed(1)}万km²`;
+                        if (v >= 10000) {
+                          const man = v / 10000;
+                          return `${Number.isInteger(man) ? man : man.toFixed(1)}万km²`;
+                        }
                         return `${v}km²`;
                       }
                       if (metric === "troops") {
-                        if (v >= 10) return `${(v / 10).toFixed(1)}万人`;
+                        if (v >= 10) {
+                          const man = v / 10;
+                          return `${Number.isInteger(man) ? man : man.toFixed(1)}万人`;
+                        }
                         return `${v}千人`;
                       }
                       return `$${Number(v).toLocaleString("ja-JP")}`;
@@ -693,7 +708,7 @@ function ComparePage() {
                 placeholder="国名・地域名で検索..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9.5 pl-8 text-base sm:text-xs"
+                className="h-9.5 pl-8 text-base sm:text-xs bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white transition-colors"
               />
               {searchQuery && (
                 <button

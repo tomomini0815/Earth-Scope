@@ -6,12 +6,14 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
   Compass,
   Crown,
+  Edit3,
   ExternalLink,
   Flag,
   Flame,
@@ -21,6 +23,10 @@ import {
   Hourglass,
   Lock,
   Map,
+  MapPin,
+  Plane,
+  Plus,
+  Search,
   ShieldCheck,
   Sparkles,
   Star,
@@ -29,6 +35,7 @@ import {
   Trash2,
   Trophy,
   Users,
+  X,
   Zap,
 } from "lucide-react";
 
@@ -37,6 +44,7 @@ import { WorldMap } from "@/components/WorldMap";
 import { FlagImage } from "@/components/FlagImage";
 import { PassportStamp } from "@/components/PassportStamp";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -132,6 +140,11 @@ function MyPage() {
     learned,
     learnedAt,
     favorites,
+    visited = [],
+    visitedDetails = {},
+    toggleVisited,
+    setVisitedRecord,
+    removeVisited,
     wrongAnswers,
     results,
     totalStudySeconds,
@@ -144,6 +157,16 @@ function MyPage() {
   const [passportFilter, setPassportFilter] = useState<ContinentId | "all">("all");
   const [selectedMapId, setSelectedMapId] = useState<string | undefined>();
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  // 渡航記録クイックピッカー開閉 & 検索 & フィルター
+  const [isTravelPickerOpen, setIsTravelPickerOpen] = useState(false);
+  const [travelSearchQuery, setTravelSearchQuery] = useState("");
+  const [travelContinentFilter, setTravelContinentFilter] = useState<ContinentId | "all">("all");
+
+  // 訪問メモ編集モーダル
+  const [editingMemoCountry, setEditingMemoCountry] = useState<Country | null>(null);
+  const [memoYearInput, setMemoYearInput] = useState("");
+  const [memoTextInput, setMemoTextInput] = useState("");
 
   // 学習データの完全リセット処理
   const handleResetData = () => {
@@ -240,6 +263,115 @@ function MyPage() {
     const areaPct = Math.min(100, Math.round((coveredArea / totalLandArea) * 100));
     return { coveredPop, coveredArea, popPct, areaPct };
   }, [learned]);
+
+  // 渡航国（実際に訪れた国）のオブジェクト一覧
+  const visitedCountries = useMemo(() => {
+    return (visited || [])
+      .map((iso3) => byIso3(iso3))
+      .filter((c): c is Country => !!c);
+  }, [visited]);
+
+  // 渡航記録の統計サマリー
+  const travelStats = useMemo<{
+    totalCount: number;
+    rate: number;
+    totalPopulation: number;
+    popRate: string;
+    totalArea: number;
+    areaRate: string;
+    japanAreaRatio: string;
+    furthestCountry: Country | null;
+    maxDiffHours: number;
+  }>(() => {
+    const totalCount = visitedCountries.length;
+    const rate = Math.round((totalCount / countries.length) * 1000) / 10;
+
+    let totalPopulation = 0;
+    let totalArea = 0;
+    let furthestCountry: Country | null = null;
+    let maxDiffHours = 0;
+
+    const WORLD_POP = 8000000000;
+    const JAPAN_AREA = 377975;
+
+    for (const c of visitedCountries) {
+      totalPopulation += c.society.population;
+      totalArea += c.basic.area;
+
+      const diffStr = c.basic.timeDiffFromJapan.replace(/[^0-9-]/g, "");
+      const diffNum = Math.abs(parseInt(diffStr, 10) || 0);
+      if (diffNum > maxDiffHours || !furthestCountry) {
+        maxDiffHours = diffNum;
+        furthestCountry = c;
+      }
+    }
+
+    const popRate = ((totalPopulation / WORLD_POP) * 100).toFixed(1);
+    const areaRate = ((totalArea / 148940000) * 100).toFixed(1);
+    const japanAreaRatio = (totalArea / JAPAN_AREA).toFixed(1);
+
+    return {
+      totalCount,
+      rate,
+      totalPopulation,
+      popRate,
+      totalArea,
+      areaRate,
+      japanAreaRatio,
+      furthestCountry,
+      maxDiffHours,
+    };
+  }, [visitedCountries]);
+
+  // 大州別の渡航達成率
+  const continentTravelStats = useMemo(() => {
+    return CONTINENTS.map((cont) => {
+      const allInCont = countries.filter((c) => c.continent === cont.id);
+      const visitedInCont = visitedCountries.filter((c) => c.continent === cont.id);
+      const pct = allInCont.length > 0 ? Math.round((visitedInCont.length / allInCont.length) * 100) : 0;
+      return {
+        continent: cont,
+        allCount: allInCont.length,
+        visitedCount: visitedInCont.length,
+        pct,
+      };
+    });
+  }, [visitedCountries]);
+
+  // ピッカー用の国一覧（大州 & 検索）
+  const filteredPickerCountries = useMemo(() => {
+    return countries.filter((c) => {
+      const matchContinent = travelContinentFilter === "all" || c.continent === travelContinentFilter;
+      if (!matchContinent) return false;
+      if (!travelSearchQuery.trim()) return true;
+      const q = travelSearchQuery.toLowerCase().trim();
+      return (
+        c.nameJa.toLowerCase().includes(q) ||
+        c.nameEn.toLowerCase().includes(q) ||
+        c.basic.capital.toLowerCase().includes(q) ||
+        c.iso3.toLowerCase().includes(q)
+      );
+    });
+  }, [travelContinentFilter, travelSearchQuery]);
+
+  const handleOpenMemoModal = (c: Country) => {
+    const record = visitedDetails?.[c.iso3];
+    setEditingMemoCountry(c);
+    setMemoYearInput(record?.year || "");
+    setMemoTextInput(record?.memo || "");
+  };
+
+  const handleSaveMemo = () => {
+    if (editingMemoCountry) {
+      const record: { year?: string; memo?: string } = {};
+      const trimmedYear = memoYearInput.trim();
+      const trimmedMemo = memoTextInput.trim();
+      if (trimmedYear) record.year = trimmedYear;
+      if (trimmedMemo) record.memo = trimmedMemo;
+      setVisitedRecord(editingMemoCountry.iso3, record);
+      setEditingMemoCountry(null);
+    }
+  };
 
   // パスポートスタンプ用の国一覧
   const passportCountries = useMemo(() => {
@@ -655,22 +787,22 @@ function MyPage() {
 
         {/* 3. 学習ハブ: 弱点克服 & 未開拓レコメンド（④ 復習・学習効率） */}
         <section className="surface-card p-5 sm:p-6 overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold flex items-center gap-2">
+          <div className="mb-4">
+            <div className="flex items-center justify-between gap-2.5 mb-1">
+              <h2 className="font-display text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
                 <BookOpen className="size-5 text-amber-500 shrink-0" />
                 <span className="truncate">スマート学習ハブ & 弱点克服</span>
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                クイズで間違えた国や、進捗の遅い大陸からのおすすめをピックアップ。
-              </p>
+              <Link to="/quiz" className="shrink-0">
+                <Button size="sm" variant="default" className="gap-1.5 text-xs shadow-sm h-8 px-2.5 sm:px-3">
+                  <Trophy className="size-3.5" />
+                  <span>クイズに挑戦</span>
+                </Button>
+              </Link>
             </div>
-            <Link to="/quiz" className="shrink-0 self-start sm:self-auto">
-              <Button size="sm" variant="default" className="gap-1.5 text-xs shadow-sm">
-                <Trophy className="size-3.5" />
-                <span>クイズに挑戦</span>
-              </Button>
-            </Link>
+            <p className="text-xs text-muted-foreground">
+              クイズで間違えた国や、進捗の遅い大陸からのおすすめをピックアップ。
+            </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 min-w-0">
@@ -823,7 +955,343 @@ function MyPage() {
           </div>
         </section>
 
-        {/* 4. デジタル・パスポート帳（① 消印スタンプコレクション） */}
+        {/* 4. 渡航記録・トラベルログ */}
+        <section className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-card via-card to-teal-500/5 p-4 sm:p-6 shadow-sm w-full min-w-0">
+          <div className="mb-5 border-b border-border/60 pb-4">
+            <div className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+              <Plane className="size-3.5" />
+              <span>MY TRAVEL LOG</span>
+            </div>
+            <div className="flex items-center justify-between gap-2.5">
+              <h2 className="font-display text-base sm:text-xl font-bold tracking-tight text-foreground min-w-0 truncate">
+                渡航記録・トラベルログ
+              </h2>
+
+              <Button
+                onClick={() => setIsTravelPickerOpen((prev) => !prev)}
+                variant={isTravelPickerOpen ? "secondary" : "default"}
+                size="sm"
+                className="gap-1.5 text-xs font-semibold shrink-0 cursor-pointer shadow-xs h-8 px-2.5 sm:px-3"
+              >
+                {isTravelPickerOpen ? (
+                  <>
+                    <X className="size-3.5" />
+                    <span><span className="hidden sm:inline">登録ピッカーを</span>閉じる</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="size-3.5" />
+                    <span><span className="hidden sm:inline">訪問した</span>国を登録する</span>
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              実際に行ったことのある国を登録して、世界踏破率や旅の思い出をコレクション。
+            </p>
+          </div>
+
+          {/* クイック登録ピッカー（開閉式） */}
+          {isTravelPickerOpen && (
+            <div className="mb-6 rounded-2xl border border-teal-500/30 bg-background/95 p-3.5 sm:p-4 shadow-sm animate-fadeIn space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>訪問した国を選択（タップで追加・解除）</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  現在 {visitedCountries.length} ヵ国 登録中
+                </span>
+              </div>
+
+              {/* 検索バー */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Input
+                  value={travelSearchQuery}
+                  onChange={(e) => setTravelSearchQuery(e.target.value)}
+                  placeholder="国名・首都で検索（例: フランス、タイ、オーストラリア）..."
+                  className="pl-8.5 h-9 text-xs bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white transition-colors"
+                />
+                {travelSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setTravelSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* 大陸タブ */}
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-0.5">
+                <button
+                  type="button"
+                  onClick={() => setTravelContinentFilter("all")}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer shrink-0",
+                    travelContinentFilter === "all"
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "border border-border bg-card text-foreground hover:bg-secondary"
+                  )}
+                >
+                  すべて (198)
+                </button>
+                {CONTINENTS.map((cont) => {
+                  const count = countries.filter((c) => c.continent === cont.id).length;
+                  return (
+                    <button
+                      key={cont.id}
+                      type="button"
+                      onClick={() => setTravelContinentFilter(cont.id)}
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer shrink-0",
+                        travelContinentFilter === cont.id
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "border border-border bg-card text-foreground hover:bg-secondary"
+                      )}
+                    >
+                      {cont.label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 全国のピルボタングリッド */}
+              <div className="max-h-56 overflow-y-auto pr-1 flex flex-wrap gap-1.5 pt-1">
+                {filteredPickerCountries.map((c) => {
+                  const isVis = visited.includes(c.iso3);
+                  return (
+                    <button
+                      key={c.iso3}
+                      type="button"
+                      onClick={() => toggleVisited(c.iso3)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all cursor-pointer touch-manipulation",
+                        isVis
+                          ? "border-primary bg-primary text-primary-foreground font-bold shadow-2xs"
+                          : "border-border/80 bg-card hover:bg-secondary hover:border-primary/40 text-foreground"
+                      )}
+                    >
+                      <FlagImage flag={c.flag} size="xs" />
+                      <span>{c.nameJa}</span>
+                      {isVis && <Check className="size-3 stroke-[3]" />}
+                    </button>
+                  );
+                })}
+                {filteredPickerCountries.length === 0 && (
+                  <p className="py-6 text-center text-xs text-muted-foreground w-full">
+                    該当する国が見つかりません。
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 世界渡航率メーター */}
+          <div className="rounded-2xl border border-border/80 bg-background/80 p-4 mb-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-foreground flex items-center gap-1.5">
+                <Globe className="size-4 text-teal-600 dark:text-teal-400" />
+                <span>世界渡航率（地球踏破）</span>
+              </span>
+              <span className="font-bold text-teal-600 dark:text-teal-400">
+                198ヵ国中 <strong className="text-base font-black">{travelStats.totalCount}</strong> ヵ国 （{travelStats.rate}%）
+              </span>
+            </div>
+            <Progress value={travelStats.rate} className="h-2.5 bg-secondary" />
+
+            {/* 大州別の渡航達成率バー */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-border/50">
+              {continentTravelStats.map((cs) => (
+                <div key={cs.continent.id} className="rounded-xl border border-border/60 bg-card/60 p-2 text-center">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold mb-1">
+                    <span className="truncate">{cs.continent.label}</span>
+                    <span className="font-mono">{cs.visitedCount}/{cs.allCount}</span>
+                  </div>
+                  <Progress value={cs.pct} className="h-1.5 bg-muted" />
+                  <span className="text-[10px] font-bold text-foreground mt-1 block">
+                    {cs.pct}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 旅の壮大統計サマリー（3分割カード） */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mb-5">
+            {/* 訪問国の合計人口 */}
+            <div className="rounded-2xl border border-border/80 bg-background/80 p-3.5 shadow-2xs flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <Users className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] text-muted-foreground font-medium block truncate">訪れた国の合計人口</span>
+                <p className="font-display text-base sm:text-lg font-black text-foreground leading-tight mt-0.5 truncate">
+                  {travelStats.totalPopulation >= 100_000_000
+                    ? `${(travelStats.totalPopulation / 100_000_000).toFixed(1)} 億人`
+                    : travelStats.totalPopulation >= 10_000
+                    ? `${Math.round(travelStats.totalPopulation / 10_000).toLocaleString()} 万人`
+                    : `${travelStats.totalPopulation.toLocaleString()} 人`}
+                </p>
+                <span className="text-[10px] text-muted-foreground block truncate">
+                  世界人口の約 {travelStats.popRate}%
+                </span>
+              </div>
+            </div>
+
+            {/* 訪問国の総面積 */}
+            <div className="rounded-2xl border border-border/80 bg-background/80 p-3.5 shadow-2xs flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                <Map className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] text-muted-foreground font-medium block truncate">訪れた国の総面積</span>
+                <p className="font-display text-base sm:text-lg font-black text-foreground leading-tight mt-0.5 truncate">
+                  {travelStats.totalArea >= 10_000
+                    ? `${(travelStats.totalArea / 10_000).toFixed(1)} 万 km²`
+                    : `${travelStats.totalArea.toLocaleString()} km²`}
+                </p>
+                <span className="text-[10px] text-muted-foreground block truncate">
+                  日本の約 {travelStats.japanAreaRatio} 倍（陸地の {travelStats.areaRate}%）
+                </span>
+              </div>
+            </div>
+
+            {/* 日本から最遠の国 */}
+            {(() => {
+              const furthest = travelStats.furthestCountry;
+              return (
+                <div className="rounded-2xl border border-border/80 bg-background/80 p-3.5 shadow-2xs flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Compass className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[11px] text-muted-foreground font-medium block truncate">最も遠い訪問国</span>
+                    <p className="font-display text-xs sm:text-sm font-bold text-foreground leading-tight mt-0.5 truncate flex items-center gap-1.5">
+                      {furthest ? (
+                        <>
+                          <FlagImage flag={furthest.flag} size="xs" />
+                          <span className="truncate">{furthest.nameJa}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground font-normal text-xs">未登録</span>
+                      )}
+                    </p>
+                    <span className="text-[10px] text-muted-foreground block truncate">
+                      {furthest
+                        ? `時差 ${furthest.basic.timeDiffFromJapan}`
+                        : "国を登録すると表示されます"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 訪問国コレクション & 思い出メモカード一覧 */}
+          {visitedCountries.length > 0 ? (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-0.5">
+                <span>訪問した国の一覧・思い出ログ ({visitedCountries.length})</span>
+                <span className="text-[11px] font-normal text-muted-foreground">ペンアイコンからメモを編集</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                {visitedCountries.map((c) => {
+                  const record = visitedDetails?.[c.iso3];
+                  return (
+                    <div
+                      key={c.iso3}
+                      className="group relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card p-3 shadow-2xs hover:border-teal-500/50 hover:shadow-sm transition-all"
+                    >
+                      <div>
+                        {/* 国名 & 国旗 & 操作 */}
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            to="/country/$iso3"
+                            params={{ iso3: c.iso3.toLowerCase() }}
+                            className="flex items-center gap-2 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+                          >
+                            <FlagImage flag={c.flag} size="sm" className="rounded shadow-2xs shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-bold text-foreground text-xs sm:text-sm truncate leading-tight">
+                                {c.nameJa}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                首都: {c.basic.capital}
+                              </p>
+                            </div>
+                          </Link>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenMemoModal(c)}
+                              title="思い出メモを記録・編集"
+                              className="size-7 rounded-lg border border-border/80 bg-background/80 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="size-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeVisited(c.iso3)}
+                              title="渡航リストから解除"
+                              className="size-7 rounded-lg border border-border/80 bg-background/80 hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* メモ表示エリア */}
+                        <div className="mt-2.5 pt-2 border-t border-border/50 text-xs">
+                          {record?.year && (
+                            <span className="inline-block rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 px-1.5 py-0.2 text-[10px] font-semibold mb-1">
+                              {record.year}
+                            </span>
+                          )}
+                          {record?.memo ? (
+                            <p className="text-xs text-foreground/90 line-clamp-2 leading-relaxed break-words">
+                              {record.memo}
+                            </p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenMemoModal(c)}
+                              className="text-[11px] text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="size-3" />
+                              <span>旅の思い出・訪問時期を記録する</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-teal-500/40 bg-teal-500/5 p-6 text-center space-y-2">
+              <Plane className="mx-auto size-8 text-teal-600 dark:text-teal-400" />
+              <p className="text-sm font-bold text-foreground">まだ訪問した国が登録されていません</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                上の「訪問した国を登録する」ボタンから、日本や海外旅行・修学旅行・留学などで訪れたことのある国を登録してみましょう！
+              </p>
+              <Button
+                onClick={() => setIsTravelPickerOpen(true)}
+                size="sm"
+                className="mt-2 gap-1.5 text-xs font-semibold cursor-pointer"
+              >
+                <Plus className="size-3.5" />
+                <span>訪問した国を登録してみる</span>
+              </Button>
+            </div>
+          )}
+        </section>
+
+        {/* 5. デジタル・パスポート帳（① 消印スタンプコレクション） */}
         <section className="relative overflow-hidden rounded-3xl border-2 border-amber-900/20 dark:border-amber-500/20 bg-gradient-to-br from-[#FAF7F0] via-[#F4EFE6] to-[#EFE8DC] dark:from-[#171B26] dark:via-[#12151F] dark:to-[#0D1017] p-4 sm:p-5 shadow-md">
           {/* パスポート風装飾ヘッダー */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 border-b border-amber-900/15 dark:border-amber-500/20 pb-3 mb-4">
@@ -1007,25 +1475,12 @@ function MyPage() {
               return (
                 <div
                   key={b.id}
-                  onClick={() => {
-                    window.dispatchEvent(
-                      new CustomEvent("earthscope-achievement-preview", {
-                        detail: {
-                          id: b.id,
-                          title: `バッジ獲得: ${b.label}`,
-                          badge: b.icon,
-                          desc: b.desc,
-                          type: "badge",
-                        },
-                      })
-                    );
-                  }}
-                  title={got ? "クリックして達成演出を表示" : `あと ${b.need - learned.length} カ国でアンロック`}
+                  title={got ? `${b.label}（獲得済み）` : `あと ${b.need - learned.length} カ国でアンロック`}
                   className={cn(
-                    "flex items-center gap-3.5 rounded-2xl border p-3.5 transition-all group cursor-pointer hover:shadow-md",
+                    "flex items-center gap-3.5 rounded-2xl border p-3.5 transition-all group",
                     got
                       ? cn(design.cardBorder, design.cardBg, "shadow-xs")
-                      : "border-border/60 bg-muted/30 opacity-60 hover:opacity-80"
+                      : "border-border/60 bg-muted/30 opacity-60"
                   )}
                 >
                   <div
@@ -1172,6 +1627,66 @@ function MyPage() {
                 >
                   <Trash2 className="size-4" />
                   <span>完全にリセットする</span>
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 訪問メモ編集モーダル */}
+          <Dialog open={!!editingMemoCountry} onOpenChange={(open) => !open && setEditingMemoCountry(null)}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold">
+                  {editingMemoCountry && <FlagImage flag={editingMemoCountry.flag} size="sm" />}
+                  <span>{editingMemoCountry?.nameJa} の旅の思い出記録</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  訪問した時期や、印象に残った出来事・名所・美味しかった料理などを記録できます。
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3.5 py-2">
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    訪問時期（年・季節など）
+                  </label>
+                  <Input
+                    value={memoYearInput}
+                    onChange={(e) => setMemoYearInput(e.target.value)}
+                    placeholder="例: 2024年夏、2019年、高校の修学旅行 など"
+                    className="text-xs h-9 bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    旅の思い出・プチメモ
+                  </label>
+                  <textarea
+                    value={memoTextInput}
+                    onChange={(e) => setMemoTextInput(e.target.value)}
+                    placeholder="例: サグラダファミリアの彫刻に感動した。パエリアとタパスが本当に美味しかった！"
+                    rows={3}
+                    className="w-full rounded-xl border border-border bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary resize-none leading-relaxed transition-colors"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingMemoCountry(null)}
+                  className="text-xs cursor-pointer"
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveMemo}
+                  className="text-xs font-semibold cursor-pointer"
+                >
+                  保存する
                 </Button>
               </DialogFooter>
             </DialogContent>
