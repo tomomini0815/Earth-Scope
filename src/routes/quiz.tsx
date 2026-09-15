@@ -73,12 +73,12 @@ export const Route = createFileRoute("/quiz")({
 });
 
 const GLOBAL_MODES: { id: Mode; label: string; desc: string; badge?: string }[] = [
-  { id: "textbook", label: "教科書・入試特訓", desc: "大州別・頻出テーマ別の指導要領完全連動（全10問）", badge: "新登場" },
-  { id: "exam", label: "入試頻出ポイント", desc: "世界198ヵ国の重要入試ポイント（全10問）" },
   { id: "flag", label: "国旗あて", desc: "表示された国旗から国名を選ぶ" },
   { id: "flag_choice", label: "国旗えらび", desc: "国名から正しい国旗を選ぶ" },
   { id: "capital", label: "首都あて", desc: "国旗と国名から首都を選ぶ" },
   { id: "timeline", label: "年表並べ替え", desc: "出来事を古い順に並べ替える" },
+  { id: "exam", label: "入試頻出ポイント", desc: "世界198ヵ国の重要入試ポイント（全10問）" },
+  { id: "textbook", label: "教科書・入試特訓", desc: "大州別・頻出テーマ別の指導要領完全連動（全10問）" },
 ];
 
 const COUNTRY_MODES: { id: Mode; label: string; desc: string }[] = [
@@ -890,10 +890,10 @@ function QuizPage() {
     return selectedIso3 ? byIso3(selectedIso3) : undefined;
   }, [selectedIso3]);
 
-  // モード：国選択時はデフォルトで "exam"（受験ポイント）、全世界は "textbook"（教科書・入試特訓）
+  // モード：国選択時はデフォルトで "exam"（受験ポイント）、全世界は "flag"（国旗あて）
   const [mode, setMode] = useState<Mode>(() => {
     if (search.mode) return search.mode;
-    return search.country ? "exam" : "textbook";
+    return search.country ? "exam" : "flag";
   });
 
   // 対象・難易度レベル & 単元フィルター
