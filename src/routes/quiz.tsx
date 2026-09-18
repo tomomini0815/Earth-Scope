@@ -661,23 +661,27 @@ function buildQuestions(
 
   // === 教科書・入試特訓モード（大州別・頻出テーマ別） ===
   if (mode === "textbook") {
-    let pool = [...TEXTBOOK_QUESTIONS];
+    // 1. まず単元フィルター（指定された単元の問題のみを厳密に抽出）
+    const unitQuestions = unit === "all"
+      ? TEXTBOOK_QUESTIONS
+      : TEXTBOOK_QUESTIONS.filter((q) => q.unit === unit);
 
-    if (unit !== "all") {
-      pool = pool.filter((q) => q.unit === unit);
-    }
+    let pool = [...unitQuestions];
+
+    // 2. 学年難易度フィルター
     if (grade !== "all") {
       const gradeFiltered = pool.filter((q) => q.grade === grade);
-      if (gradeFiltered.length >= 3) {
+      // 指定学年の問題があれば優先。足りない分は同一単元内の他学年から補充
+      if (gradeFiltered.length >= QUESTION_COUNT) {
         pool = gradeFiltered;
+      } else if (gradeFiltered.length > 0) {
+        const otherGradesInUnit = shuffle(unitQuestions.filter((q) => q.grade !== grade));
+        pool = [...gradeFiltered, ...otherGradesInUnit];
       }
     }
 
-    if (pool.length < QUESTION_COUNT && unit !== "all") {
-      const sameUnitRest = TEXTBOOK_QUESTIONS.filter((q) => q.unit === unit && !pool.some((p) => p.id === q.id));
-      pool = [...pool, ...sameUnitRest];
-    }
-    if (pool.length < QUESTION_COUNT) {
+    // 3. 全単元総合モード（unit === "all"）の時のみ、全体プールから補充
+    if (unit === "all" && pool.length < QUESTION_COUNT) {
       const anyRest = shuffle(TEXTBOOK_QUESTIONS.filter((q) => !pool.some((p) => p.id === q.id)));
       pool = [...pool, ...anyRest];
     }
@@ -703,27 +707,45 @@ function buildQuestions(
       return resultQs;
     }
 
+    // 万が一10問に満たない場合の同一カテゴリー限定フォールバック
     const remaining = QUESTION_COUNT - resultQs.length;
-    const allExams: { country: Country; q: string; a: string }[] = [];
-    for (const c of countries) {
+    const unitContinentMap: Record<string, string> = {
+      asia: "asia",
+      europe: "europe",
+      africa: "africa",
+      north_america: "north-america",
+      south_america: "south-america",
+      oceania: "oceania",
+    };
+
+    const targetContinent = unit !== "all" ? unitContinentMap[unit] : undefined;
+    const candidateCountries = targetContinent
+      ? countries.filter((c) => c.continent === targetContinent)
+      : countries;
+
+    const unitExams: { country: Country; q: string; a: string }[] = [];
+    for (const c of candidateCountries) {
       for (const ep of c.examPoints) {
-        allExams.push({ country: c, q: ep.q, a: ep.a });
+        unitExams.push({ country: c, q: ep.q, a: ep.a });
       }
     }
-    const extra = shuffle(allExams).slice(0, remaining);
+
+    const extra = shuffle(unitExams).slice(0, remaining);
     extra.forEach((ex) => {
-      const wrongPool = shuffle(allExams.filter((o) => o.a !== ex.a)).slice(0, 3).map((o) => ({ id: o.a, label: o.a }));
+      const wrongPool = shuffle(unitExams.filter((o) => o.a !== ex.a)).slice(0, 3).map((o) => ({ id: o.a, label: o.a }));
       const { explanation, mnemonic } = generateExamExplanation(ex.country, ex.q, ex.a);
+      const unitObj = TEXTBOOK_UNITS.find((u) => u.id === unit);
+      const uLabel = unitObj ? unitObj.label : continentLabel(ex.country.continent);
       resultQs.push({
         country: ex.country,
-        prompt: `【${continentLabel(ex.country.continent)}】${ex.country.nameJa}の重要ポイント`,
+        prompt: `【${uLabel}】${ex.country.nameJa}の重要ポイント`,
         textHint: `Q. ${ex.q}`,
         choices: shuffle([{ id: ex.a, label: ex.a }, ...wrongPool]),
         answerId: ex.a,
         explanation,
         mnemonic,
         gradeBadge: "高校入試・標準",
-        unitBadge: continentLabel(ex.country.continent),
+        unitBadge: uLabel,
         examTip: `教科書・定期テストで頻出の【${ex.country.nameJa}】の重要知識です。`,
       });
     });
