@@ -250,6 +250,7 @@ export function WorldMap({
   onHover,
 }: WorldMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   // 初期表示を3D地球儀に設定
   const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
 
@@ -292,6 +293,26 @@ export function WorldMap({
     lastDistance: number;
     lastCenter: { x: number; y: number };
   } | null>(null);
+
+  // 3D地球儀モード時、指定されたスクリーン座標が地球儀の丸（球体）の範囲内にあるか判定
+  const isInsideGlobe = (clientX: number, clientY: number): boolean => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return true;
+    try {
+      const ctm = svgEl.getScreenCTM();
+      if (!ctm) return true;
+      const pt = svgEl.createSVGPoint();
+      pt.x = clientX;
+      pt.y = clientY;
+      const svgPt = pt.matrixTransform(ctm.inverse());
+      const dx = svgPt.x - CX_3D;
+      const dy = svgPt.y - CY_3D;
+      const radius = GLOBE_DEFAULT_RADIUS * zoom3d;
+      return dx * dx + dy * dy <= radius * radius;
+    } catch {
+      return true;
+    }
+  };
 
   // 2D用 projection & paths & microstates
   const { paths2D, microstates2D } = useMemo(() => {
@@ -490,6 +511,11 @@ export function WorldMap({
 
   // ポインタードラッグ & マルチタッチピンチ操作
   const handlePointerDown = (e: React.PointerEvent) => {
+    // 3D地球儀モード時：地球儀の丸の範囲外でのスワイプ・タッチは無視し、画面の通常スクロール等に委ねる
+    if (viewMode === "3d" && !isInsideGlobe(e.clientX, e.clientY)) {
+      return;
+    }
+
     try {
       (e.target as Element).setPointerCapture?.(e.pointerId);
     } catch {
@@ -786,7 +812,10 @@ export function WorldMap({
       {/* メイン地図 / 地球儀キャンバス */}
       <div
         ref={containerRef}
-        className="relative w-full flex-1 min-h-0 flex items-center justify-center cursor-grab touch-none active:cursor-grabbing overflow-hidden select-none bg-[var(--ocean)] rounded-b-[inherit]"
+        className={cn(
+          "relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden select-none bg-[var(--ocean)] rounded-b-[inherit]",
+          viewMode === "2d" ? "cursor-grab touch-none active:cursor-grabbing" : "touch-pan-y"
+        )}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -798,6 +827,7 @@ export function WorldMap({
         }}
       >
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${currentWidth} ${currentHeight}`}
           className="block h-full max-h-full w-full object-contain select-none"
           role="img"
@@ -835,13 +865,19 @@ export function WorldMap({
 
           {/* 3D地球儀の海洋球体ベース */}
           {viewMode === "3d" && (
-            <g pointerEvents="none">
+            <g>
               {/* 海洋の球体（薄めカラーの爽やかベース） */}
               <circle
                 cx={CX_3D}
                 cy={CY_3D}
                 r={globeRadius}
                 fill="url(#oceanGlow)"
+                className="cursor-grab active:cursor-grabbing touch-none"
+                style={{ touchAction: "none" }}
+                onPointerEnter={() => {
+                  setHover(null);
+                  onHover?.(undefined);
+                }}
               />
               {/* 緯線・経線グリッド（Graticule） */}
               {graticulePath3D && (
@@ -851,6 +887,7 @@ export function WorldMap({
                   stroke="#ffffff"
                   strokeWidth="0.8"
                   strokeOpacity="0.25"
+                  pointerEvents="none"
                 />
               )}
               {/* 赤道ライン（金色でハイライト） */}
@@ -862,6 +899,7 @@ export function WorldMap({
                   strokeWidth="1.3"
                   strokeOpacity="0.4"
                   strokeDasharray="4 3"
+                  pointerEvents="none"
                 />
               )}
             </g>
@@ -942,6 +980,7 @@ export function WorldMap({
                   key={p.mapId + p.name + viewMode}
                   d={p.d}
                   fill={fill}
+                  style={{ touchAction: "none" }}
                   fillOpacity={
                     country
                       ? dimmed
@@ -967,7 +1006,8 @@ export function WorldMap({
                   }
                   filter={selected || isHovered ? "url(#selectedGlow)" : undefined}
                   className={cn(
-                    "transition-[fill-opacity,stroke,stroke-width] duration-150",
+                    "transition-[fill-opacity,stroke,stroke-width] duration-150 touch-none",
+                    viewMode === "3d" && "cursor-grab active:cursor-grabbing",
                     isClickable && "cursor-pointer hover:stroke-[#38bdf8]",
                     (selected || isHovered) && "drop-shadow-md"
                   )}
@@ -1038,7 +1078,8 @@ export function WorldMap({
               return (
                 <g
                   key={`microstate-${m.id}-${viewMode}`}
-                  className="cursor-pointer group"
+                  className="cursor-pointer group touch-none"
+                  style={{ touchAction: "none" }}
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelect(m.id);
