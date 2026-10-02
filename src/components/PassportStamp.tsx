@@ -6,7 +6,7 @@ interface PassportStampProps {
   country: Country;
   learnedAt?: number | undefined;
   className?: string | undefined;
-  size?: ("sm" | "md" | "lg") | undefined;
+  size?: ("xs" | "sm" | "md" | "lg" | "responsive") | undefined;
 }
 
 // 添付画像右側のような日付フォーマット（例: 2026 SEP 06）
@@ -76,21 +76,22 @@ export function PassportStamp({
   // 下部円弧テキスト
   const bottomText = `OFFICIAL ENTRY · ${country.iso3}`;
 
-  const sizePx = size === "sm" ? 130 : size === "lg" ? 170 : 150;
+  const isResponsive = size === "responsive";
+  const sizePx = size === "xs" ? 75 : size === "sm" ? 110 : size === "lg" ? 170 : 140;
 
   return (
     <div
-      className={`relative inline-flex flex-col items-center justify-center select-none transition-transform duration-300 hover:scale-105 ${className}`}
+      className={`relative inline-flex flex-col items-center justify-center select-none transition-transform duration-300 hover:scale-105 ${isResponsive ? "w-full max-w-[140px]" : ""} ${className}`}
       style={{
         transform: `rotate(${rotation}deg)`,
       }}
       title={`${country.nameJa} 入国スタンプ (${dateStr})`}
     >
       <svg
-        width={sizePx}
-        height={sizePx}
+        width={isResponsive ? undefined : sizePx}
+        height={isResponsive ? undefined : sizePx}
         viewBox="0 0 200 200"
-        className="overflow-visible drop-shadow-xs"
+        className={isResponsive ? "w-full h-auto aspect-square overflow-visible drop-shadow-xs" : "overflow-visible drop-shadow-xs"}
         style={{ color: color.stroke }}
       >
         <defs>

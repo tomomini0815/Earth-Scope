@@ -322,15 +322,58 @@ export function CountryDetail({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto px-3 sm:px-4 pt-2 pb-1 scrollbar-hide shrink-0">
-          <TabsList className="inline-flex min-w-full w-max justify-start sm:justify-between h-auto p-1 gap-1">
-            <TabsTrigger value="basic" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">基本</TabsTrigger>
-            <TabsTrigger value="history" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">歴史</TabsTrigger>
-            <TabsTrigger value="culture" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">文化</TabsTrigger>
-            <TabsTrigger value="society" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">人口・社会</TabsTrigger>
-            <TabsTrigger value="economy" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">経済</TabsTrigger>
-            <TabsTrigger value="military" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">軍事</TabsTrigger>
-            <TabsTrigger value="geography" className="shrink-0 px-2.5 sm:px-3 py-1.5 text-xs whitespace-nowrap">地理</TabsTrigger>
+        {/* レスポンシブ最適化タブナビゲーション */}
+        <div className="overflow-x-auto px-3 sm:px-4 pt-2 pb-1.5 scrollbar-none no-scrollbar shrink-0">
+          <TabsList
+            className={cn(
+              "p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-2xl bg-muted/80 dark:bg-muted/40 border border-border/50 h-auto",
+              compact
+                ? "flex min-w-max justify-start"
+                : "flex sm:grid sm:grid-cols-7 min-w-max sm:min-w-full w-full"
+            )}
+          >
+            <TabsTrigger
+              value="basic"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              基本
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              歴史
+            </TabsTrigger>
+            <TabsTrigger
+              value="culture"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              文化
+            </TabsTrigger>
+            <TabsTrigger
+              value="society"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              人口・社会
+            </TabsTrigger>
+            <TabsTrigger
+              value="economy"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              経済
+            </TabsTrigger>
+            <TabsTrigger
+              value="military"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              軍事
+            </TabsTrigger>
+            <TabsTrigger
+              value="geography"
+              className="flex-1 sm:flex-none flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+            >
+              地理
+            </TabsTrigger>
           </TabsList>
         </div>
 

@@ -37,6 +37,7 @@ import {
   Users,
   X,
   Zap,
+  LayoutGrid,
 } from "lucide-react";
 
 import { SiteHeader } from "@/components/SiteHeader";
@@ -157,6 +158,9 @@ function MyPage() {
   const [passportFilter, setPassportFilter] = useState<ContinentId | "all">("all");
   const [selectedMapId, setSelectedMapId] = useState<string | undefined>();
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  // タブ表示切り替え（進捗・渡航・実績）
+  const [viewTab, setViewTab] = useState<"all" | "progress" | "travel" | "achievement">("all");
 
   // 渡航記録クイックピッカー開閉 & 検索 & フィルター
   const [isTravelPickerOpen, setIsTravelPickerOpen] = useState(false);
@@ -391,8 +395,9 @@ function MyPage() {
   useEffect(() => {
     const checkOverflow = () => {
       if (stampGridRef.current) {
-        // 2行の高さは約430px。それを超える場合は3行目以降が存在する
-        setHasStampThirdRow(stampGridRef.current.scrollHeight > 450);
+        const isMobile = window.innerWidth < 640;
+        const threshold = isMobile ? 260 : 360;
+        setHasStampThirdRow(stampGridRef.current.scrollHeight > threshold);
       }
     };
     const t = setTimeout(checkOverflow, 50);
@@ -418,6 +423,65 @@ function MyPage() {
   return (
     <div className="min-h-screen pb-12 overflow-x-hidden">
       <SiteHeader />
+
+      {/* タブナビゲーションバー（セクション切り替え） */}
+      <div className="sticky top-14 z-20 bg-background/90 backdrop-blur-md border-b border-border/60 py-2.5 px-3 sm:px-4 shadow-2xs">
+        <div className="mx-auto max-w-5xl flex items-center justify-start overflow-x-auto gap-1.5 py-0.5">
+          <button
+            type="button"
+            onClick={() => setViewTab("all")}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              viewTab === "all"
+                ? "bg-foreground text-background shadow-2xs"
+                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <LayoutGrid className="size-3.5" />
+            <span>すべて表示</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewTab("progress")}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              viewTab === "progress"
+                ? "bg-sky-500 text-white shadow-2xs"
+                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <BarChart3 className="size-3.5" />
+            <span>進捗・マップ</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewTab("travel")}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              viewTab === "travel"
+                ? "bg-emerald-600 text-white shadow-2xs"
+                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <Plane className="size-3.5" />
+            <span>パスポート・渡航録</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewTab("achievement")}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              viewTab === "achievement"
+                ? "bg-amber-500 text-white shadow-2xs"
+                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <Trophy className="size-3.5" />
+            <span>復習・実績</span>
+          </button>
+        </div>
+      </div>
+
       <main className="mx-auto max-w-5xl px-3 sm:px-4 py-6 space-y-6 w-full min-w-0">
 
         {/* 1. 冒険者プロファイル & ランク（③ 称号システム） */}
@@ -494,8 +558,11 @@ function MyPage() {
           </div>
         </section>
 
-        {/* 2. 学習タイムマスター ＆ 努力の軌跡（達成感向上セクション） */}
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-gradient-to-br from-card via-card to-sky-500/5 p-4 sm:p-6 shadow-sm w-full min-w-0">
+        {/* 2 & 3. 学習進捗・マップ（進捗タブまたはすべて） */}
+        {(viewTab === "all" || viewTab === "progress") && (
+          <>
+            {/* 2. 学習タイムマスター ＆ 努力の軌跡（達成感向上セクション） */}
+            <section className="relative overflow-hidden rounded-3xl border border-sky-500/25 bg-gradient-to-br from-card via-card to-sky-500/5 p-4 sm:p-6 shadow-sm w-full min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 text-[11px] font-bold uppercase tracking-wider">
@@ -784,9 +851,12 @@ function MyPage() {
             </div>
           </div>
         </section>
+          </>
+        )}
 
-        {/* 3. 学習ハブ: 弱点克服 & 未開拓レコメンド（④ 復習・学習効率） */}
-        <section className="surface-card p-5 sm:p-6 overflow-hidden">
+        {/* 3. 学習ハブ: 弱点克服 & 未開拓レコメンド（復習・実績タブまたはすべて） */}
+        {(viewTab === "all" || viewTab === "achievement") && (
+          <section className="surface-card p-5 sm:p-6 overflow-hidden">
           <div className="mb-4">
             <div className="flex items-center justify-between gap-2.5 mb-1">
               <h2 className="font-display text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
@@ -954,9 +1024,13 @@ function MyPage() {
             </div>
           </div>
         </section>
+        )}
 
-        {/* 4. 渡航記録・トラベルログ */}
-        <section className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-card via-card to-teal-500/5 p-4 sm:p-6 shadow-sm w-full min-w-0">
+        {/* 4 & 5. 渡航記録＆デジタルパスポート（渡航タブまたはすべて） */}
+        {(viewTab === "all" || viewTab === "travel") && (
+          <>
+            {/* 4. 渡航記録・トラベルログ */}
+            <section className="relative overflow-hidden rounded-3xl border border-teal-500/30 bg-gradient-to-br from-card via-card to-teal-500/5 p-4 sm:p-6 shadow-sm w-full min-w-0">
           <div className="mb-5 border-b border-border/60 pb-4">
             <div className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400 text-[11px] font-bold uppercase tracking-wider mb-1">
               <Plane className="size-3.5" />
@@ -1349,14 +1423,14 @@ function MyPage() {
             <div
               className={cn(
                 "relative transition-[max-height] duration-500 ease-in-out",
-                hasStampThirdRow && !isStampOpen ? "max-h-[440px] overflow-hidden" : "max-h-[8000px]"
+                hasStampThirdRow && !isStampOpen ? "max-h-[260px] sm:max-h-[380px] overflow-hidden" : "max-h-[8000px]"
               )}
               onMouseEnter={() => setIsStampHovered(true)}
               onMouseLeave={() => setIsStampHovered(false)}
             >
               <div
                 ref={stampGridRef}
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+                className="grid grid-cols-4 min-[480px]:grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 gap-1.5 sm:gap-2"
               >
                 {passportCountries.map((c) => {
                   if (!c) return null;
@@ -1366,29 +1440,27 @@ function MyPage() {
                       key={c.iso3}
                       to="/country/$iso3"
                       params={{ iso3: c.iso3.toLowerCase() }}
-                      className="group relative rounded-3xl border border-amber-900/20 dark:border-amber-400/20 bg-amber-50/60 dark:bg-slate-900/70 p-3 text-center transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-amber-900/15 hover:border-amber-600 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-900 block overflow-hidden"
+                      className="group relative rounded-xl sm:rounded-2xl border border-amber-900/20 dark:border-amber-400/20 bg-amber-50/60 dark:bg-slate-900/70 p-1 sm:p-2 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-900/15 hover:border-amber-600 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-900 block overflow-hidden"
                     >
                       {/* パスポート査証ページの透かし模様装飾 */}
-                      <div className="absolute inset-0 bg-[radial-gradient(#92400e_0.75px,transparent_0.75px)] opacity-[0.08] dark:opacity-[0.12] [background-size:12px_12px] pointer-events-none" />
+                      <div className="absolute inset-0 bg-[radial-gradient(#92400e_0.75px,transparent_0.75px)] opacity-[0.08] dark:opacity-[0.12] [background-size:10px_10px] pointer-events-none" />
 
-                      {/* 円形出入国スタンプ（参考画像右側を再現：二重円・円弧テキスト・飛行機✈・入国区分・入国日付・空港コード） */}
-                      <div className="my-1.5 flex justify-center">
+                      {/* 円形出入国スタンプ */}
+                      <div className="my-0.5 sm:my-1 flex justify-center items-center">
                         <PassportStamp
                           country={c}
                           learnedAt={stampDate}
-                          size="md"
+                          size="responsive"
                         />
                       </div>
 
                       {/* 国情報フッター */}
-                      <div className="mt-2.5 pt-2 border-t border-amber-900/15 dark:border-white/10 flex items-center justify-between gap-1.5 text-left">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <FlagImage flag={c.flag} size="xs" className="rounded-xs shrink-0 shadow-2xs" />
-                          <span className="text-[11px] font-bold text-amber-950 dark:text-slate-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-                            {c.nameJa}
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono text-amber-900/70 dark:text-slate-400 uppercase shrink-0">
+                      <div className="mt-1 sm:mt-1.5 pt-1 border-t border-amber-900/15 dark:border-white/10 flex items-center justify-center gap-1 text-center">
+                        <FlagImage flag={c.flag} size="xs" className="w-3.5 h-2.5 sm:w-4 sm:h-3 rounded-2xs shrink-0 shadow-2xs" />
+                        <span className="text-[9.5px] sm:text-xs font-bold text-amber-950 dark:text-slate-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                          {c.nameJa}
+                        </span>
+                        <span className="text-[9px] font-mono text-amber-900/70 dark:text-slate-400 uppercase shrink-0 hidden md:inline">
                           {c.iso3}
                         </span>
                       </div>
@@ -1443,9 +1515,14 @@ function MyPage() {
             </div>
           )}
         </section>
+          </>
+        )}
 
-        {/* 5. 獲得アチーブメントバッジ一覧 */}
-        <section className="surface-card p-5 sm:p-6">
+        {/* 6 & 7. 実績・復習・クイズ履歴（復習・実績タブまたはすべて） */}
+        {(viewTab === "all" || viewTab === "achievement") && (
+          <>
+            {/* 5. 獲得アチーブメントバッジ一覧 */}
+            <section className="surface-card p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="font-display text-lg font-bold flex items-center gap-2">
@@ -1631,67 +1708,69 @@ function MyPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </section>
+          </>
+        )}
 
-          {/* 訪問メモ編集モーダル */}
-          <Dialog open={!!editingMemoCountry} onOpenChange={(open) => !open && setEditingMemoCountry(null)}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold">
-                  {editingMemoCountry && <FlagImage flag={editingMemoCountry.flag} size="sm" />}
-                  <span>{editingMemoCountry?.nameJa} の旅の思い出記録</span>
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  訪問した時期や、印象に残った出来事・名所・美味しかった料理などを記録できます。
-                </DialogDescription>
-              </DialogHeader>
+        {/* 訪問メモ編集モーダル（タブ切替時も共通で使用） */}
+        <Dialog open={!!editingMemoCountry} onOpenChange={(open) => !open && setEditingMemoCountry(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold">
+                {editingMemoCountry && <FlagImage flag={editingMemoCountry.flag} size="sm" />}
+                <span>{editingMemoCountry?.nameJa} の旅の思い出記録</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                訪問した時期や、印象に残った出来事・名所・美味しかった料理などを記録できます。
+              </DialogDescription>
+            </DialogHeader>
 
-              <div className="space-y-3.5 py-2">
-                <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    訪問時期（年・季節など）
-                  </label>
-                  <Input
-                    value={memoYearInput}
-                    onChange={(e) => setMemoYearInput(e.target.value)}
-                    placeholder="例: 2024年夏、2019年、高校の修学旅行 など"
-                    className="text-xs h-9 bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    旅の思い出・プチメモ
-                  </label>
-                  <textarea
-                    value={memoTextInput}
-                    onChange={(e) => setMemoTextInput(e.target.value)}
-                    placeholder="例: サグラダファミリアの彫刻に感動した。パエリアとタパスが本当に美味しかった！"
-                    rows={3}
-                    className="w-full rounded-xl border border-border bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary resize-none leading-relaxed transition-colors"
-                  />
-                </div>
+            <div className="space-y-3.5 py-2">
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">
+                  訪問時期（年・季節など）
+                </label>
+                <Input
+                  value={memoYearInput}
+                  onChange={(e) => setMemoYearInput(e.target.value)}
+                  placeholder="例: 2024年夏、2019年、高校の修学旅行 など"
+                  className="text-xs h-9 bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white transition-colors"
+                />
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditingMemoCountry(null)}
-                  className="text-xs cursor-pointer"
-                >
-                  キャンセル
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveMemo}
-                  className="text-xs font-semibold cursor-pointer"
-                >
-                  保存する
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </section>
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">
+                  旅の思い出・プチメモ
+                </label>
+                <textarea
+                  value={memoTextInput}
+                  onChange={(e) => setMemoTextInput(e.target.value)}
+                  placeholder="例: サグラダファミリアの彫刻に感動した。パエリアとタパスが本当に美味しかった！"
+                  rows={3}
+                  className="w-full rounded-xl border border-border bg-muted/40 focus:bg-white dark:focus:bg-zinc-900 focus:text-slate-950 dark:focus:text-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary resize-none leading-relaxed transition-colors"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingMemoCountry(null)}
+                className="text-xs cursor-pointer"
+              >
+                キャンセル
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveMemo}
+                className="text-xs font-semibold cursor-pointer"
+              >
+                保存する
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
