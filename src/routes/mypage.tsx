@@ -425,8 +425,8 @@ function MyPage() {
       <SiteHeader />
 
       {/* タブナビゲーションバー（セクション切り替え） */}
-      <div className="sticky top-14 z-20 bg-background/90 backdrop-blur-md border-b border-border/60 py-2.5 px-3 sm:px-4 shadow-2xs">
-        <div className="mx-auto max-w-5xl flex items-center justify-start overflow-x-auto gap-1.5 py-0.5">
+      <div className="sticky top-14 z-20 bg-background/90 backdrop-blur-md border-b border-border/60 py-2.5 shadow-2xs">
+        <div className="mx-auto max-w-5xl px-3 sm:px-4 flex items-center justify-start overflow-x-auto gap-1.5 py-0.5">
           <button
             type="button"
             onClick={() => setViewTab("all")}
