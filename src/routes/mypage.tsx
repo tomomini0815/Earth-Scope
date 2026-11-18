@@ -26,6 +26,7 @@ import {
   MapPin,
   Plane,
   Plus,
+  Puzzle,
   Search,
   ShieldCheck,
   Sparkles,
@@ -148,6 +149,7 @@ function MyPage() {
     removeVisited,
     wrongAnswers,
     results,
+    puzzleRecords = {},
     totalStudySeconds,
     todayStudySeconds,
     dailyStudyHistory,
@@ -1594,6 +1596,68 @@ function MyPage() {
               );
             })}
           </div>
+        </section>
+
+        {/* 5.5. 世界地図パズル ベストタイム記録 */}
+        <section className="surface-card p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500">
+                <Puzzle className="size-4" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-bold leading-tight">世界地図パズル ベストタイム</h2>
+                <p className="text-[11px] text-muted-foreground">大陸別ジグソーパズルの最速クリア記録</p>
+              </div>
+            </div>
+            <Link to="/puzzle" className="text-xs font-semibold text-sky-500 hover:underline">
+              パズルに挑戦 ➜
+            </Link>
+          </div>
+
+          {Object.keys(puzzleRecords).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                まだ世界地図パズルのクリア記録がありません。国のシルエットをはめるジグソーパズルで最速タイムを目指しましょう！
+              </p>
+              <Link
+                to="/puzzle"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shrink-0"
+              >
+                <Puzzle className="size-3.5" />
+                <span>パズルをプレイする</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {Object.values(puzzleRecords)
+                .sort((a, b) => b.updatedAt - a.updatedAt)
+                .map((rec) => (
+                  <div
+                    key={rec.stageKey}
+                    className="rounded-2xl border border-border/70 bg-secondary/30 p-3 flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-foreground truncate">{rec.stageLabel}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        全{rec.pieceCount}ピース ・ クリア {rec.clearCount}回
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-mono text-sm font-black text-sky-400 tabular-nums">
+                        {rec.bestTimeSec < 60
+                          ? `${rec.bestTimeSec.toFixed(1)}秒`
+                          : `${Math.floor(rec.bestTimeSec / 60)}分${(rec.bestTimeSec % 60).toFixed(1)}秒`}
+                      </p>
+                      <p className="text-[11px] font-black text-amber-400">
+                        {"★".repeat(rec.bestStars)}
+                        {"☆".repeat(Math.max(0, 3 - rec.bestStars))}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
         </section>
 
         {/* 6. クイズ履歴 & 設定 */}

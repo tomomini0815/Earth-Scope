@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 const nav = [
   { to: "/", label: "地図" },
+  { to: "/puzzle", label: "パズル" },
   { to: "/quiz", label: "クイズ" },
   { to: "/compare", label: "比較" },
   { to: "/mypage", label: "マイページ" },

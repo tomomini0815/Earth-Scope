@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Globe2, HelpCircle, BarChart3, UserCircle2 } from "lucide-react";
+import { Globe2, HelpCircle, BarChart3, Puzzle, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/", label: "地図", icon: Globe2 },
+  { to: "/puzzle", label: "パズル", icon: Puzzle },
   { to: "/quiz", label: "クイズ", icon: HelpCircle },
   { to: "/compare", label: "比較", icon: BarChart3 },
   { to: "/mypage", label: "マイページ", icon: UserCircle2 },
@@ -15,7 +16,7 @@ export function MobileBottomNav() {
       className="fixed bottom-0 left-0 right-0 z-40 sm:hidden border-t border-border/60 bg-background/95 backdrop-blur-xl"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="grid grid-cols-4 h-14">
+      <div className="grid grid-cols-5 h-14">
         {nav.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}

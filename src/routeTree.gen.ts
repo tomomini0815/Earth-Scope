@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as MypageRouteImport } from './routes/mypage'
+import { Route as PuzzleRouteImport } from './routes/puzzle'
 import { Route as QuizRouteImport } from './routes/quiz'
 import { Route as CountryIso3RouteImport } from './routes/country.$iso3'
 
@@ -30,6 +31,11 @@ const MypageRoute = MypageRouteImport.update({
   path: '/mypage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PuzzleRoute = PuzzleRouteImport.update({
+  id: '/puzzle',
+  path: '/puzzle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuizRoute = QuizRouteImport.update({
   id: '/quiz',
   path: '/quiz',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
   '/mypage': typeof MypageRoute
+  '/puzzle': typeof PuzzleRoute
   '/quiz': typeof QuizRoute
   '/country/$iso3': typeof CountryIso3Route
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
   '/mypage': typeof MypageRoute
+  '/puzzle': typeof PuzzleRoute
   '/quiz': typeof QuizRoute
   '/country/$iso3': typeof CountryIso3Route
 }
@@ -60,21 +68,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
   '/mypage': typeof MypageRoute
+  '/puzzle': typeof PuzzleRoute
   '/quiz': typeof QuizRoute
   '/country/$iso3': typeof CountryIso3Route
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/compare' | '/mypage' | '/quiz' | '/country/$iso3'
+  fullPaths:
+    '/' | '/compare' | '/mypage' | '/puzzle' | '/quiz' | '/country/$iso3'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compare' | '/mypage' | '/quiz' | '/country/$iso3'
-  id: '__root__' | '/' | '/compare' | '/mypage' | '/quiz' | '/country/$iso3'
+  to: '/' | '/compare' | '/mypage' | '/puzzle' | '/quiz' | '/country/$iso3'
+  id:
+    | '__root__'
+    | '/'
+    | '/compare'
+    | '/mypage'
+    | '/puzzle'
+    | '/quiz'
+    | '/country/$iso3'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CompareRoute: typeof CompareRoute
   MypageRoute: typeof MypageRoute
+  PuzzleRoute: typeof PuzzleRoute
   QuizRoute: typeof QuizRoute
   CountryIso3Route: typeof CountryIso3Route
 }
@@ -102,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MypageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/puzzle': {
+      id: '/puzzle'
+      path: '/puzzle'
+      fullPath: '/puzzle'
+      preLoaderRoute: typeof PuzzleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quiz': {
       id: '/quiz'
       path: '/quiz'
@@ -123,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CompareRoute: CompareRoute,
   MypageRoute: MypageRoute,
+  PuzzleRoute: PuzzleRoute,
   QuizRoute: QuizRoute,
   CountryIso3Route: CountryIso3Route,
 }

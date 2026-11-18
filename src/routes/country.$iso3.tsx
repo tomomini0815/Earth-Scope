@@ -5,7 +5,14 @@ import { CountryDetail } from "@/components/CountryDetail";
 import { SiteHeader } from "@/components/SiteHeader";
 import { byIso3 } from "@/data/lookup";
 
+type CountrySearch = {
+  from?: "puzzle" | undefined;
+};
+
 export const Route = createFileRoute("/country/$iso3")({
+  validateSearch: (search: Record<string, unknown>): CountrySearch => ({
+    from: search["from"] === "puzzle" ? "puzzle" : undefined,
+  }),
   loader: ({ params }) => {
     const country = byIso3(params.iso3);
     if (!country) throw notFound();
@@ -33,17 +40,29 @@ export const Route = createFileRoute("/country/$iso3")({
 
 function CountryPage() {
   const { country } = Route.useLoaderData();
+  const { from } = Route.useSearch();
+  const isFromPuzzle = from === "puzzle";
+
   return (
     <div className="min-h-screen pb-16">
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6 space-y-4">
         <div className="flex items-center justify-between">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="size-4" /> 地図に戻る
-          </Link>
+          {isFromPuzzle ? (
+            <Link
+              to="/puzzle"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="size-4" /> パズルに戻る
+            </Link>
+          ) : (
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="size-4" /> 地図に戻る
+            </Link>
+          )}
           <div className="flex items-center gap-3 text-xs">
             <Link
               to="/quiz"

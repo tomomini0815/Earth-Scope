@@ -68,12 +68,25 @@ export type VisitedRecord = {
   visitedAt: number;
 };
 
+export type PuzzleStageRecord = {
+  stageKey: string;
+  stageLabel: string;
+  bestTimeSec: number;
+  clearCount: number;
+  bestStars: number;
+  pieceCount: number;
+  updatedAt: number;
+};
+
 type ProgressState = {
   learned: string[]; // iso3
   learnedAt: Record<string, number>; // iso3 -> timestamp
   favorites: string[]; // iso3
   wrongAnswers: string[]; // iso3 (クイズで間違えた要復習国)
   results: QuizResult[];
+
+  // パズル制覇・ベストタイム記録
+  puzzleRecords: Record<string, PuzzleStageRecord>;
 
   // 渡航歴・訪問した国（リアル世界トラベルログ）
   visited: string[]; // iso3
@@ -99,6 +112,13 @@ type ProgressState = {
   recordWrong: (iso3: string) => void;
   removeWrong: (iso3: string) => void;
   addResult: (r: Omit<QuizResult, "id" | "at">) => void;
+  recordPuzzleClear: (data: {
+    stageKey: string;
+    stageLabel: string;
+    timeSec: number;
+    stars: number;
+    pieceCount: number;
+  }) => boolean; // returns true if new best time
   addStudySeconds: (seconds: number) => void;
   dismissAchievement: () => void;
   reset: () => void;
@@ -156,6 +176,7 @@ export const useProgress = create<ProgressState>()(
         favorites: [],
         wrongAnswers: [],
         results: [],
+        puzzleRecords: {},
 
         visited: [],
         visitedDetails: {},
@@ -301,6 +322,31 @@ export const useProgress = create<ProgressState>()(
           get().addStudySeconds(quizBonusSec);
         },
 
+        recordPuzzleClear: ({ stageKey, stageLabel, timeSec, stars, pieceCount }) => {
+          const s = get();
+          const currentRecords = s.puzzleRecords ?? {};
+          const prev = currentRecords[stageKey];
+          const isNewBest = !prev || timeSec < prev.bestTimeSec;
+          const nextRecord: PuzzleStageRecord = {
+            stageKey,
+            stageLabel,
+            bestTimeSec: prev ? Math.min(prev.bestTimeSec, timeSec) : timeSec,
+            clearCount: (prev?.clearCount ?? 0) + 1,
+            bestStars: prev ? Math.max(prev.bestStars, stars) : stars,
+            pieceCount,
+            updatedAt: Date.now(),
+          };
+          set({
+            puzzleRecords: {
+              ...currentRecords,
+              [stageKey]: nextRecord,
+            },
+          });
+          // パズルクリアボーナス: 1ピース10秒（最低45秒）
+          get().addStudySeconds(Math.max(45, pieceCount * 10));
+          return isNewBest;
+        },
+
         addStudySeconds: (sec) => {
           if (sec <= 0) return;
           const s = get();
@@ -347,6 +393,7 @@ export const useProgress = create<ProgressState>()(
             favorites: [],
             wrongAnswers: [],
             results: [],
+            puzzleRecords: {},
             visited: [],
             visitedDetails: {},
             totalStudySeconds: 0,
