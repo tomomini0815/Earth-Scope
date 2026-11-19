@@ -163,7 +163,7 @@ function Index() {
             <span className="hidden md:inline">世界をクリックして、学ぼう。</span>
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            地図から国を選ぶと、歴史・文化・人口・経済・地理のデータが読めます。学習済みの国は緑色になります。
+            地図から国を選ぶと、歴史・文化・人口・経済・地理のデータが読めます。地図右下の「学習済」切替で進捗を確認できます。
           </p>
           <div className="mt-3 flex max-w-md items-center gap-3">
             <Progress value={rate} className="h-2" />

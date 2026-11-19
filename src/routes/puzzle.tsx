@@ -83,8 +83,7 @@ const SNAP_TOUCH_RADIUS = 64;
 /** タッチ操作時、指でピースと地図が隠れないよう指の上方64pxに照準をオフセット */
 const TOUCH_DRAG_OFFSET_Y = -64;
 
-type StageId = ContinentId | "world";
-type Difficulty = "standard" | "master";
+type StageId = ContinentId | "world" | "world-all";
 
 type StageConfig = {
   id: StageId;
@@ -96,135 +95,8 @@ type StageConfig = {
   pieceStroke: string;
   /** [minLon, minLat, maxLon, maxLat] for projection fitExtent */
   bbox: [number, number, number, number];
-  standardIso3s: string[];
-  masterIso3s: string[];
+  iso3s: string[];
 };
-
-const STAGE_CONFIGS: StageConfig[] = [
-  {
-    id: "world",
-    label: "世界主要国",
-    sublabel: "世界6大陸の代表的国家オールスター",
-    icon: Globe,
-    accentColor: "text-indigo-500",
-    pieceFill: "#6366f1",
-    pieceStroke: "#a5b4fc",
-    bbox: [-120, -43, 162, 59],
-    standardIso3s: [
-      "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
-      "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
-    ],
-    masterIso3s: [
-      "JPN", "CHN", "KOR", "IND", "IDN", "THA", "SAU", "TUR", "IRN", "KAZ",
-      "GBR", "FRA", "DEU", "ITA", "ESP", "POL", "UKR", "SWE", "NOR",
-      "EGY", "DZA", "NGA", "ETH", "KEN", "COD", "ZAF", "MDG",
-      "CAN", "USA", "MEX", "BRA", "ARG", "CHL", "PER", "COL", "AUS", "NZL",
-    ],
-  },
-  {
-    id: "asia",
-    label: "アジア州",
-    sublabel: "東アジア・東南アジア・南アジア・西アジア",
-    icon: Sunrise,
-    accentColor: "text-rose-500",
-    pieceFill: "#f43f5e",
-    pieceStroke: "#fda4af",
-    bbox: [26, -11, 148, 54],
-    standardIso3s: [
-      "JPN", "CHN", "KOR", "IND", "IDN", "THA", "VNM", "PHL", "MYS", "SAU", "TUR", "IRN",
-    ],
-    masterIso3s: [
-      "JPN", "CHN", "KOR", "PRK", "MNG", "IND", "PAK", "BGD", "LKA", "NPL",
-      "IDN", "THA", "VNM", "PHL", "MYS", "MMR", "KHM", "LAO",
-      "SAU", "TUR", "IRN", "IRQ", "SYR", "UZB", "KAZ", "AFG",
-    ],
-  },
-  {
-    id: "europe",
-    label: "ヨーロッパ州",
-    sublabel: "西欧・東欧・北欧・地中海諸国",
-    icon: Landmark,
-    accentColor: "text-sky-500",
-    pieceFill: "#0ea5e9",
-    pieceStroke: "#7dd3fc",
-    bbox: [-24, 35, 42, 70],
-    standardIso3s: [
-      "GBR", "FRA", "DEU", "ITA", "ESP", "PRT", "POL", "UKR", "SWE", "NOR", "FIN", "GRC",
-    ],
-    masterIso3s: [
-      "GBR", "IRL", "FRA", "DEU", "ITA", "ESP", "PRT", "NLD", "BEL", "CHE", "AUT",
-      "POL", "CZE", "HUN", "ROU", "BGR", "GRC", "UKR", "BLR",
-      "SWE", "NOR", "FIN", "DNK", "ISL",
-    ],
-  },
-  {
-    id: "africa",
-    label: "アフリカ州",
-    sublabel: "北アフリカ・サハラ以南・南部アフリカ",
-    icon: Sun,
-    accentColor: "text-amber-500",
-    pieceFill: "#f59e0b",
-    pieceStroke: "#fcd34d",
-    bbox: [-18, -35, 52, 37],
-    standardIso3s: [
-      "EGY", "MAR", "DZA", "NGA", "ETH", "KEN", "TZA", "COD", "ZAF", "MDG", "GHA", "AGO",
-    ],
-    masterIso3s: [
-      "EGY", "LBY", "TUN", "DZA", "MAR", "SDN", "ETH", "SOM", "KEN", "TZA", "UGA",
-      "NGA", "GHA", "CIV", "SEN", "MLI", "NER", "TCD", "CMR",
-      "COD", "AGO", "ZMB", "ZWE", "NAM", "BWA", "MOZ", "ZAF", "MDG",
-    ],
-  },
-  {
-    id: "north-america",
-    label: "北アメリカ州",
-    sublabel: "北米大陸・中央アメリカ・カリブ海",
-    icon: Building2,
-    accentColor: "text-emerald-500",
-    pieceFill: "#10b981",
-    pieceStroke: "#6ee7b7",
-    bbox: [-136, 7, -54, 66],
-    standardIso3s: [
-      "CAN", "USA", "MEX", "CUB", "GTM", "HND", "NIC", "CRI", "PAN", "DOM",
-    ],
-    masterIso3s: [
-      "CAN", "USA", "MEX", "GTM", "BLZ", "HND", "SLV", "NIC", "CRI", "PAN",
-      "CUB", "JAM", "HTI", "DOM", "BHS", "TTO",
-    ],
-  },
-  {
-    id: "south-america",
-    label: "南アメリカ州",
-    sublabel: "アンデス諸国・アマゾン・ラプラタ地域",
-    icon: Mountain,
-    accentColor: "text-purple-500",
-    pieceFill: "#a855f7",
-    pieceStroke: "#d8b4fe",
-    bbox: [-82, -56, -34, 13],
-    standardIso3s: [
-      "BRA", "ARG", "CHL", "PER", "COL", "VEN", "BOL", "ECU",
-    ],
-    masterIso3s: [
-      "BRA", "ARG", "CHL", "PER", "COL", "VEN", "BOL", "ECU", "PRY", "URY", "GUY", "SUR",
-    ],
-  },
-  {
-    id: "oceania",
-    label: "オセアニア＆海洋",
-    sublabel: "オセアニア諸国と環太平洋の島国",
-    icon: Waves,
-    accentColor: "text-teal-500",
-    pieceFill: "#14b8a6",
-    pieceStroke: "#5eead4",
-    bbox: [95, -47, 180, 20],
-    standardIso3s: [
-      "AUS", "NZL", "PNG", "FJI", "SLB", "VUT",
-    ],
-    masterIso3s: [
-      "AUS", "NZL", "PNG", "FJI", "SLB", "VUT", "IDN", "PHL", "MYS", "TLS",
-    ],
-  },
-];
 
 type RawFeature = {
   id?: string | number;
@@ -284,6 +156,135 @@ function getNormalizedFeatures(): RawFeature[] {
 }
 
 const ALL_FEATURES = getNormalizedFeatures();
+
+// GeoJSON白地図上にポリゴンが存在する全世界の国（南極を除く全166ヵ国）
+const ALL_MAP_POLYGON_ISO3S: string[] = (() => {
+  const list: string[] = [];
+  const seen = new Set<string>();
+  for (const f of ALL_FEATURES) {
+    const mapId = getFeatureMapId(f);
+    if (!mapId || mapId === "010") continue;
+    const country = byMapId(mapId);
+    if (country && !seen.has(country.iso3)) {
+      seen.add(country.iso3);
+      list.push(country.iso3);
+    }
+  }
+  return list;
+})();
+
+const STAGE_CONFIGS: StageConfig[] = [
+  {
+    id: "world",
+    label: "世界主要国",
+    sublabel: "世界6大陸の代表的国家オールスター",
+    icon: Globe,
+    accentColor: "text-indigo-500",
+    pieceFill: "#6366f1",
+    pieceStroke: "#a5b4fc",
+    bbox: [-120, -43, 162, 59],
+    iso3s: [
+      "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
+      "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
+    ],
+  },
+  {
+    id: "world-all",
+    label: "全世界",
+    sublabel: "世界地図の全ピースを制覇する完全チャレンジ",
+    icon: Compass,
+    accentColor: "text-sky-500",
+    pieceFill: "#0284c7",
+    pieceStroke: "#7dd3fc",
+    bbox: [-120, -43, 162, 59],
+    iso3s: ALL_MAP_POLYGON_ISO3S,
+  },
+  {
+    id: "asia",
+    label: "アジア州",
+    sublabel: "東アジア・東南アジア・南アジア・西アジア",
+    icon: Sunrise,
+    accentColor: "text-rose-500",
+    pieceFill: "#f43f5e",
+    pieceStroke: "#fda4af",
+    bbox: [26, -11, 148, 54],
+    iso3s: [
+      "JPN", "CHN", "KOR", "PRK", "MNG", "IND", "PAK", "BGD", "LKA", "NPL",
+      "IDN", "THA", "VNM", "PHL", "MYS", "MMR", "KHM", "LAO",
+      "SAU", "TUR", "IRN", "IRQ", "SYR", "UZB", "KAZ", "AFG",
+    ],
+  },
+  {
+    id: "europe",
+    label: "ヨーロッパ州",
+    sublabel: "西欧・東欧・北欧・地中海諸国",
+    icon: Landmark,
+    accentColor: "text-sky-500",
+    pieceFill: "#0ea5e9",
+    pieceStroke: "#7dd3fc",
+    bbox: [-24, 35, 42, 70],
+    iso3s: [
+      "GBR", "IRL", "FRA", "DEU", "ITA", "ESP", "PRT", "NLD", "BEL", "CHE", "AUT",
+      "POL", "CZE", "HUN", "ROU", "BGR", "GRC", "UKR", "BLR",
+      "SWE", "NOR", "FIN", "DNK", "ISL",
+    ],
+  },
+  {
+    id: "africa",
+    label: "アフリカ州",
+    sublabel: "北アフリカ・サハラ以南・南部アフリカ",
+    icon: Sun,
+    accentColor: "text-amber-500",
+    pieceFill: "#f59e0b",
+    pieceStroke: "#fcd34d",
+    bbox: [-18, -35, 52, 37],
+    iso3s: [
+      "EGY", "LBY", "TUN", "DZA", "MAR", "SDN", "ETH", "SOM", "KEN", "TZA", "UGA",
+      "NGA", "GHA", "CIV", "SEN", "MLI", "NER", "TCD", "CMR",
+      "COD", "AGO", "ZMB", "ZWE", "NAM", "BWA", "MOZ", "ZAF", "MDG",
+    ],
+  },
+  {
+    id: "north-america",
+    label: "北アメリカ州",
+    sublabel: "北米大陸・中央アメリカ・カリブ海",
+    icon: Building2,
+    accentColor: "text-emerald-500",
+    pieceFill: "#10b981",
+    pieceStroke: "#6ee7b7",
+    bbox: [-136, 7, -54, 66],
+    iso3s: [
+      "CAN", "USA", "MEX", "GTM", "BLZ", "HND", "SLV", "NIC", "CRI", "PAN",
+      "CUB", "JAM", "HTI", "DOM", "BHS", "TTO",
+    ],
+  },
+  {
+    id: "south-america",
+    label: "南アメリカ州",
+    sublabel: "アンデス諸国・アマゾン・ラプラタ地域",
+    icon: Mountain,
+    accentColor: "text-purple-500",
+    pieceFill: "#a855f7",
+    pieceStroke: "#d8b4fe",
+    bbox: [-82, -56, -34, 13],
+    iso3s: [
+      "BRA", "ARG", "CHL", "PER", "COL", "VEN", "BOL", "ECU", "PRY", "URY", "GUY", "SUR",
+    ],
+  },
+  {
+    id: "oceania",
+    label: "オセアニア＆海洋",
+    sublabel: "オセアニア諸国と環太平洋の島国",
+    icon: Waves,
+    accentColor: "text-teal-500",
+    pieceFill: "#14b8a6",
+    pieceStroke: "#5eead4",
+    bbox: [95, -47, 180, 20],
+    iso3s: [
+      "AUS", "NZL", "PNG", "FJI", "SLB", "VUT", "IDN", "PHL", "MYS", "TLS",
+    ],
+  },
+];
 
 /**
  * MultiPolygonの国（アメリカ・ロシア・ノルウェーなど）で、遠く離れた小島によって
@@ -471,7 +472,6 @@ function clipFeatureToMidLon(f: RawFeature, midLon: number): RawFeature | null {
 
 type SavedPuzzleSession = {
   stageId: StageId;
-  difficulty: Difficulty;
   blindMode: boolean;
   shuffledIso3s: string[];
   placedIso3s: string[];
@@ -487,9 +487,9 @@ type SavedPuzzleSession = {
 const PUZZLE_SESSION_STORAGE_KEY = "earthscope-puzzle-session";
 let memoryPuzzleSession: SavedPuzzleSession | null = null;
 
-function createShuffledList(stageId: StageId, difficulty: Difficulty): string[] {
+function createShuffledList(stageId: StageId): string[] {
   const cfg = STAGE_CONFIGS.find((s) => s.id === stageId) ?? STAGE_CONFIGS[0]!;
-  const list = [...(difficulty === "standard" ? cfg.standardIso3s : cfg.masterIso3s)];
+  const list = [...cfg.iso3s];
   for (let i = list.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [list[i], list[j]] = [list[j]!, list[i]!];
@@ -515,10 +515,9 @@ function getInitialPuzzleSession(): SavedPuzzleSession {
       // ignore storage errors
     }
   }
-  const initialList = createShuffledList("world", "standard");
+  const initialList = createShuffledList("world");
   const fresh: SavedPuzzleSession = {
     stageId: "world",
-    difficulty: "standard",
     blindMode: false,
     shuffledIso3s: initialList,
     placedIso3s: [],
@@ -549,7 +548,6 @@ function PuzzlePage() {
   const initialSession = useMemo(() => getInitialPuzzleSession(), []);
 
   const [stageId, setStageId] = useState<StageId>(initialSession.stageId);
-  const [difficulty, setDifficulty] = useState<Difficulty>(initialSession.difficulty);
   const [blindMode, setBlindMode] = useState(initialSession.blindMode); // 達人モード（ピースの国名・国旗を隠す）
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -566,9 +564,12 @@ function PuzzlePage() {
   );
   const [wrongFeedbackIso3, setWrongFeedbackIso3] = useState<string | null>(null);
 
-  // タイマー計測
+  // タイマー計測（初期状態では停止し、ピースを移動または地図に配置した瞬間にスタート）
   const [elapsedMs, setElapsedMs] = useState(initialSession.elapsedMs);
-  const [isRunning, setIsRunning] = useState(!initialSession.isCleared);
+  const [isRunning, setIsRunning] = useState(
+    !initialSession.isCleared &&
+      (initialSession.elapsedMs > 0 || initialSession.placedIso3s.length > 0),
+  );
   const [isCleared, setIsCleared] = useState(initialSession.isCleared);
   const [isNewRecord, setIsNewRecord] = useState(false);
 
@@ -589,6 +590,18 @@ function PuzzlePage() {
 
   const boardSvgRef = useRef<SVGSVGElement | null>(null);
   const startTimeRef = useRef<number>(Date.now() - initialSession.elapsedMs);
+  const isRunningRef = useRef<boolean>(
+    !initialSession.isCleared &&
+      (initialSession.elapsedMs > 0 || initialSession.placedIso3s.length > 0),
+  );
+
+  const ensureTimerStarted = () => {
+    if (!isRunningRef.current) {
+      isRunningRef.current = true;
+      startTimeRef.current = Date.now() - elapsedMs;
+      setIsRunning(true);
+    }
+  };
 
   // タップ選択・横スクロールとドラッグ開始を区別するための待機参照
   const pendingDragRef = useRef<{
@@ -607,6 +620,14 @@ function PuzzlePage() {
     startPanY: number;
     isPanning: boolean;
   } | null>(null);
+  // モバイル・タブレットでの2本指ピンチイン／ピンチアウト用の参照
+  const boardPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const boardPinchRef = useRef<{
+    initialDistance: number;
+    initialZoom: number;
+    initialPan: { x: number; y: number };
+    initialCenter: { x: number; y: number };
+  } | null>(null);
   const suppressNextSocketClickRef = useRef<boolean>(false);
 
   const { puzzleRecords = {}, recordPuzzleClear } = useProgress();
@@ -616,15 +637,12 @@ function PuzzlePage() {
     [stageId],
   );
 
-  const stageKey = `${stageId}-${difficulty}`;
-  const currentBestRecord = puzzleRecords[stageKey];
-
   // D3 Projection & 地図パス・パズルピース生成
   const { backgroundPaths, graticuleD, pieces, pieceByIso3 } = useMemo(() => {
     const [minLon, minLat, maxLon, maxLat] = stageConfig.bbox;
     const midLon = (minLon + maxLon) / 2;
     const midLat = (minLat + maxLat) / 2;
-    const isContinentStage = stageConfig.id !== "world";
+    const isContinentStage = stageConfig.id !== "world" && stageConfig.id !== "world-all";
 
     // 境界周囲8点のMultiPointを作成してfitExtentで大陸に綺麗にズーム
     const bboxGeoJson = {
@@ -641,7 +659,7 @@ function PuzzlePage() {
       ],
     };
 
-    // 大陸別ステージでは中心経度(midLon)を正面に回転、世界主要国ステージでは余白を最小化して程よく大きく表示
+    // 大陸別ステージでは中心経度(midLon)を正面に回転、世界ステージでは余白を最小化して程よく大きく表示
     const padX = isContinentStage ? 20 : 6;
     const padY = isContinentStage ? 18 : 8;
     const projection = geoNaturalEarth1()
@@ -657,9 +675,7 @@ function PuzzlePage() {
     const graticule = geoGraticule10();
     const gratD = pathGen(graticule as never) ?? "";
 
-    const targetIso3List =
-      difficulty === "standard" ? stageConfig.standardIso3s : stageConfig.masterIso3s;
-    const targetIso3Set = new Set(targetIso3List);
+    const targetIso3Set = new Set(stageConfig.iso3s);
 
     const bgPaths: {
       mapId: string;
@@ -765,12 +781,11 @@ function PuzzlePage() {
       pieces: generatedPieces,
       pieceByIso3: mapByIso3,
     };
-  }, [stageConfig, difficulty]);
+  }, [stageConfig]);
 
-  const startNewGame = (nextStageId = stageId, nextDiff = difficulty) => {
-    const list = createShuffledList(nextStageId, nextDiff);
+  const startNewGame = (nextStageId = stageId) => {
+    const list = createShuffledList(nextStageId);
     setStageId(nextStageId);
-    setDifficulty(nextDiff);
     setShuffledIso3s(list);
     setPlacedIso3s(new Set());
     setSelectedIso3(list[0] ?? null);
@@ -783,13 +798,13 @@ function PuzzlePage() {
     setElapsedMs(0);
     setIsCleared(false);
     setIsNewRecord(false);
-    setIsRunning(true);
+    setIsRunning(false);
+    isRunningRef.current = false;
     setMapZoom(1);
     setMapPan({ x: 0, y: 0 });
     startTimeRef.current = Date.now();
     persistPuzzleSession({
       stageId: nextStageId,
-      difficulty: nextDiff,
       blindMode,
       shuffledIso3s: list,
       placedIso3s: [],
@@ -807,7 +822,6 @@ function PuzzlePage() {
   useEffect(() => {
     persistPuzzleSession({
       stageId,
-      difficulty,
       blindMode,
       shuffledIso3s,
       placedIso3s: Array.from(placedIso3s),
@@ -821,7 +835,6 @@ function PuzzlePage() {
     });
   }, [
     stageId,
-    difficulty,
     blindMode,
     shuffledIso3s,
     placedIso3s,
@@ -949,6 +962,8 @@ function PuzzlePage() {
     const iso3 = piece.country.iso3;
     if (placedIso3s.has(iso3)) return;
 
+    ensureTimerStarted();
+
     const nextPlaced = new Set(placedIso3s);
     nextPlaced.add(iso3);
     setPlacedIso3s(nextPlaced);
@@ -964,6 +979,7 @@ function PuzzlePage() {
       setElapsedMs(finalMs);
       setIsCleared(true);
       setIsRunning(false);
+      isRunningRef.current = false;
       setMapZoom(1);
       setMapPan({ x: 0, y: 0 });
       playPuzzleSound("clear", soundEnabled);
@@ -975,10 +991,9 @@ function PuzzlePage() {
             ? 2
             : 1;
 
-      const diffLabel = difficulty === "standard" ? "標準" : "上級";
       const isNew = recordPuzzleClear({
-        stageKey,
-        stageLabel: `${stageConfig.label}（${diffLabel}）`,
+        stageKey: stageId,
+        stageLabel: stageConfig.label,
         timeSec: finalSec,
         stars,
         pieceCount: pieces.length,
@@ -1016,6 +1031,9 @@ function PuzzlePage() {
         }
 
         if (dist >= 7) {
+          // パズルピースを移動し始めた瞬間にタイマーをスタート
+          ensureTimerStarted();
+
           const piece = pieceByIso3.get(pending.iso3);
           const aimY = e.clientY + (pending.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
           let isNear = false;
@@ -1100,6 +1118,8 @@ function PuzzlePage() {
     if (!activePiece || isCleared) return;
     e.stopPropagation();
 
+    ensureTimerStarted();
+
     if (targetIso3 === activePiece.country.iso3) {
       confirmPiecePlacement(activePiece);
       return;
@@ -1155,7 +1175,8 @@ function PuzzlePage() {
                 const active = s.id === stageId;
                 const recStd = puzzleRecords[`${s.id}-standard`];
                 const recMst = puzzleRecords[`${s.id}-master`];
-                const hasClear = !!recStd || !!recMst;
+                const recAll = puzzleRecords[s.id];
+                const hasClear = !!recStd || !!recMst || !!recAll;
                 const StageIcon = s.icon;
                 return (
                   <button
@@ -1163,7 +1184,7 @@ function PuzzlePage() {
                     type="button"
                     onClick={() => {
                       if (s.id !== stageId) {
-                        startNewGame(s.id, difficulty);
+                        startNewGame(s.id);
                       }
                     }}
                     className={cn(
@@ -1188,88 +1209,33 @@ function PuzzlePage() {
               })}
             </div>
 
-            {/* 難易度・達人モード・進捗・タイマー・リセット（改行せず1行にスリム集約） */}
-            <div className="flex items-center justify-between gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex items-center gap-1 shrink-0">
-                <div className="inline-flex rounded-lg bg-secondary/70 p-0.5 border border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (difficulty !== "standard") {
-                        startNewGame(stageId, "standard");
-                      }
-                    }}
-                    className={cn(
-                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold transition-all cursor-pointer active:scale-95",
-                      difficulty === "standard"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    標準({stageConfig.standardIso3s.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (difficulty !== "master") {
-                        startNewGame(stageId, "master");
-                      }
-                    }}
-                    className={cn(
-                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold transition-all cursor-pointer active:scale-95",
-                      difficulty === "master"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    上級({stageConfig.masterIso3s.length})
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setBlindMode((b) => !b)}
-                  title="シルエットのみ表示（国名と国旗を隠す達人モード）"
-                  className={cn(
-                    "flex items-center gap-1 px-2 h-7 sm:h-8 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 shrink-0",
-                    blindMode
-                      ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40"
-                      : "bg-secondary/50 text-muted-foreground border-border/60 hover:text-foreground",
-                  )}
-                >
-                  {blindMode ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
-                  <span>{blindMode ? "達人" : "国名あり"}</span>
-                </button>
+            {/* 進捗＆タイマー＆効果音（1行スリム集約） */}
+            <div className="flex items-center justify-end gap-1 sm:gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2 h-7 sm:h-8">
+                <span className="text-[11px] font-black text-sky-600 dark:text-sky-400 tabular-nums">
+                  {placedIso3s.size}/{pieces.length}
+                </span>
+                <span className="text-border">|</span>
+                <Clock className="size-3 text-sky-500" />
+                <span className="font-mono text-[11px] sm:text-xs font-black tabular-nums text-foreground">
+                  {formatStopwatch(elapsedMs)}
+                </span>
+                {combo >= 2 && (
+                  <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
+                    <Flame className="size-2.5" />
+                    {combo}
+                  </span>
+                )}
               </div>
 
-              {/* 進捗＆タイマー＆操作ボタン */}
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2 h-7 sm:h-8">
-                  <span className="text-[11px] font-black text-sky-600 dark:text-sky-400 tabular-nums">
-                    {placedIso3s.size}/{pieces.length}
-                  </span>
-                  <span className="text-border">|</span>
-                  <Clock className="size-3 text-sky-500" />
-                  <span className="font-mono text-[11px] sm:text-xs font-black tabular-nums text-foreground">
-                    {formatStopwatch(elapsedMs)}
-                  </span>
-                  {combo >= 2 && (
-                    <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
-                      <Flame className="size-2.5" />
-                      {combo}
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSoundEnabled((s) => !s)}
-                  title="効果音のON/OFF"
-                  className="size-7 sm:size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
-                >
-                  {soundEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSoundEnabled((s) => !s)}
+                title="効果音のON/OFF"
+                className="size-7 sm:size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+              >
+                {soundEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+              </button>
             </div>
           </div>
         </section>
@@ -1286,7 +1252,7 @@ function PuzzlePage() {
                 <div className="pointer-events-auto flex items-center bg-background/92 backdrop-blur-md border border-border/80 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl shadow-md shrink-0">
                   <button
                     type="button"
-                    onClick={() => startNewGame(stageId, difficulty)}
+                    onClick={() => startNewGame(stageId)}
                     title="パズルを最初からやり直す"
                     className="flex items-center justify-center gap-1 px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95 transition-all"
                   >
@@ -1357,7 +1323,29 @@ function PuzzlePage() {
                   mapZoom > 1 ? "cursor-grab active:cursor-grabbing" : "",
                 )}
                 onPointerDown={(e) => {
-                  if (mapZoom <= 1 || dragging) return;
+                  if (dragging) return;
+                  // タッチ・ペン・マウス共通でアクティブポインターを登録（2本指ピンチズーム対応）
+                  boardPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                  if (boardPointersRef.current.size === 2) {
+                    const pts = Array.from(boardPointersRef.current.values());
+                    const dist = Math.hypot(pts[1]!.x - pts[0]!.x, pts[1]!.y - pts[0]!.y);
+                    const center = {
+                      x: (pts[0]!.x + pts[1]!.x) / 2,
+                      y: (pts[0]!.y + pts[1]!.y) / 2,
+                    };
+                    boardPinchRef.current = {
+                      initialDistance: Math.max(1, dist),
+                      initialZoom: mapZoom,
+                      initialPan: { ...mapPan },
+                      initialCenter: center,
+                    };
+                    boardPanRef.current = null;
+                    suppressNextSocketClickRef.current = true;
+                    return;
+                  }
+
+                  if (mapZoom <= 1) return;
                   boardPanRef.current = {
                     startX: e.clientX,
                     startY: e.clientY,
@@ -1367,7 +1355,43 @@ function PuzzlePage() {
                   };
                 }}
                 onPointerMove={(e) => {
-                  if (!boardPanRef.current || dragging) return;
+                  if (dragging) return;
+                  if (boardPointersRef.current.has(e.pointerId)) {
+                    boardPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                  }
+
+                  // 2本指ピンチイン／ピンチアウトによる拡大縮小＆パン移動
+                  if (boardPointersRef.current.size === 2 && boardPinchRef.current && boardSvgRef.current) {
+                    const pts = Array.from(boardPointersRef.current.values());
+                    const dist = Math.hypot(pts[1]!.x - pts[0]!.x, pts[1]!.y - pts[0]!.y);
+                    const center = {
+                      x: (pts[0]!.x + pts[1]!.x) / 2,
+                      y: (pts[0]!.y + pts[1]!.y) / 2,
+                    };
+                    const pinch = boardPinchRef.current;
+                    const ratio = dist / pinch.initialDistance;
+                    const nextZoom = Math.max(1, Math.min(3.5, Math.round(pinch.initialZoom * ratio * 100) / 100));
+
+                    const rect = boardSvgRef.current.getBoundingClientRect();
+                    const dx = center.x - pinch.initialCenter.x;
+                    const dy = center.y - pinch.initialCenter.y;
+                    const scaleX = (BOARD_WIDTH / nextZoom) / Math.max(1, rect.width);
+                    const scaleY = (BOARD_HEIGHT / nextZoom) / Math.max(1, rect.height);
+
+                    setMapZoom(nextZoom);
+                    if (nextZoom <= 1.02) {
+                      setMapPan({ x: 0, y: 0 });
+                    } else {
+                      setMapPan({
+                        x: pinch.initialPan.x + dx * scaleX,
+                        y: pinch.initialPan.y + dy * scaleY,
+                      });
+                    }
+                    suppressNextSocketClickRef.current = true;
+                    return;
+                  }
+
+                  if (!boardPanRef.current) return;
                   const dx = e.clientX - boardPanRef.current.startX;
                   const dy = e.clientY - boardPanRef.current.startY;
                   if (!boardPanRef.current.isPanning && Math.hypot(dx, dy) > 6) {
@@ -1384,11 +1408,23 @@ function PuzzlePage() {
                     });
                   }
                 }}
-                onPointerUp={() => {
-                  boardPanRef.current = null;
+                onPointerUp={(e) => {
+                  boardPointersRef.current.delete(e.pointerId);
+                  if (boardPointersRef.current.size < 2) {
+                    boardPinchRef.current = null;
+                  }
+                  if (boardPointersRef.current.size === 0) {
+                    boardPanRef.current = null;
+                  }
                 }}
-                onPointerCancel={() => {
-                  boardPanRef.current = null;
+                onPointerCancel={(e) => {
+                  boardPointersRef.current.delete(e.pointerId);
+                  if (boardPointersRef.current.size < 2) {
+                    boardPinchRef.current = null;
+                  }
+                  if (boardPointersRef.current.size === 0) {
+                    boardPanRef.current = null;
+                  }
                 }}
               >
                 <defs>
@@ -1575,6 +1611,20 @@ function PuzzlePage() {
                 </g>
               </svg>
 
+              {/* 初期画面時（パズル移動開始前）の簡潔な遊び方ガイド */}
+              {!isRunning && placedIso3s.size === 0 && !isCleared && (
+                <div className="pointer-events-none absolute bottom-1.5 inset-x-1.5 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-10 flex items-center justify-center">
+                  <div className="rounded-xl bg-background/95 backdrop-blur-md border border-sky-500/35 px-3 py-1.5 text-foreground shadow-md flex items-center gap-2 text-[11px] sm:text-xs font-medium">
+                    <span className="inline-flex items-center rounded-md bg-sky-500/15 text-sky-700 dark:text-sky-300 px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold shrink-0">
+                      遊び方
+                    </span>
+                    <span className="leading-snug">
+                      国のピースを白枠へ<strong>ドラッグ</strong>（または選んで白枠を<strong>タップ</strong>）で配置！動かすとタイマースタート
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* 直近に配置した国のスリム通知ピル（地図を隠さないよう1行コンパクト表示） */}
               {lastPlacedCountry && !isCleared && (
                 <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:right-auto sm:max-w-md rounded-xl bg-background/95 backdrop-blur-md border border-border px-2.5 py-1.5 text-foreground shadow-md flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
@@ -1593,12 +1643,11 @@ function PuzzlePage() {
                     onClick={() => {
                       persistPuzzleSession({
                         stageId,
-                        difficulty,
                         blindMode,
                         shuffledIso3s,
                         placedIso3s: Array.from(placedIso3s),
                         selectedIso3,
-                        elapsedMs: Date.now() - startTimeRef.current,
+                        elapsedMs: isRunning ? Date.now() - startTimeRef.current : elapsedMs,
                         mistakesCount,
                         hintsUsedCount,
                         combo,
@@ -1663,30 +1712,18 @@ function PuzzlePage() {
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <Button
                         type="button"
-                        onClick={() => startNewGame(stageId, difficulty)}
+                        onClick={() => startNewGame(stageId)}
                         className="flex-1 rounded-xl font-bold gap-1.5 cursor-pointer"
                       >
                         <RotateCcw className="size-4" />
                         <span>もう一度挑戦</span>
                       </Button>
-                      {difficulty === "standard" ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => startNewGame(stageId, "master")}
-                          className="flex-1 rounded-xl font-bold gap-1.5 cursor-pointer"
-                        >
-                          <Zap className="size-4 text-amber-500" />
-                          <span>上級 ({stageConfig.masterIso3s.length}ヵ国) へ</span>
-                        </Button>
-                      ) : (
-                        <Link
-                          to="/mypage"
-                          className="flex-1 inline-flex items-center justify-center rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-foreground hover:bg-secondary/80"
-                        >
-                          マイページで記録を見る ➜
-                        </Link>
-                      )}
+                      <Link
+                        to="/mypage"
+                        className="flex-1 inline-flex items-center justify-center rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-foreground hover:bg-secondary/80"
+                      >
+                        マイページで記録を見る ➜
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -1696,57 +1733,82 @@ function PuzzlePage() {
 
           {/* 右／下：パズルピース一覧（単独ドックを廃止し、地図と一覧が1画面に収まるスリム設計） */}
           <div className="lg:col-span-4 surface-card p-2.5 sm:p-3.5 flex flex-col gap-2">
-            {/* トレイヘッダー（選択中の国情報・ヒントボタン・表示切替を1行に集約） */}
-            <div className="flex items-center justify-between gap-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Target className="size-4 text-sky-500 shrink-0" />
-                <h2 className="font-display text-xs sm:text-sm font-bold text-foreground shrink-0">
-                  ピース一覧
-                </h2>
-                <span className="text-[11px] font-bold text-muted-foreground shrink-0">
-                  (残り{unplacedPieces.length})
-                </span>
+            {/* トレイヘッダー（1段目: タイトル＆選択中の国、2段目: 操作ボタンを左右均等に整列） */}
+            <div className="space-y-1.5">
+              {/* 1段目：左にタイトル・残り数・注記、右に選択中の国 */}
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Target className="size-4 text-sky-500 shrink-0" />
+                  <h2 className="font-display text-xs sm:text-sm font-bold text-foreground shrink-0">
+                    ピース一覧
+                  </h2>
+                  <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+                    (残り{unplacedPieces.length})
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/80 shrink-0">
+                    ※小国含まず
+                  </span>
+                </div>
+
                 {activePiece && (!blindMode || hintLevel >= 1) && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/12 border border-sky-500/30 text-xs font-bold text-foreground truncate">
-                    <FlagImage flag={activePiece.country.flag} size="sm" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-500/12 border border-sky-500/30 text-xs font-bold text-foreground min-w-0 shrink">
+                    <FlagImage flag={activePiece.country.flag} size="sm" className="shrink-0" />
                     <span className="truncate">{activePiece.country.nameJa}</span>
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                {activePiece && (
+              {/* 2段目：左にヒント＆国名切替（達人時はプライマリーカラー）、右に表示切替 */}
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {activePiece && (
+                    <button
+                      type="button"
+                      onClick={handleTriggerHint}
+                      disabled={hintLevel >= 2}
+                      className={cn(
+                        "h-7 sm:h-8 px-2.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                        hintLevel === 0
+                          ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
+                          : hintLevel === 1
+                            ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
+                            : "opacity-50 border-border bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      <Lightbulb className="size-3.5 shrink-0" />
+                      <span>
+                        {hintLevel === 0
+                          ? "ヒント①(首都)"
+                          : hintLevel === 1
+                            ? "ヒント②(場所)"
+                            : "点滅中"}
+                      </span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={handleTriggerHint}
-                    disabled={hintLevel >= 2}
+                    onClick={() => setBlindMode((b) => !b)}
+                    title="シルエットのみ表示（国名と国旗を隠す達人モード）"
                     className={cn(
-                      "h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all",
-                      hintLevel === 0
-                        ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
-                        : hintLevel === 1
-                          ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
-                          : "opacity-50 border-border bg-secondary text-muted-foreground",
+                      "h-7 sm:h-8 px-2.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                      blindMode
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                        : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
                     )}
                   >
-                    <Lightbulb className="size-3" />
-                    <span>
-                      {hintLevel === 0
-                        ? "ヒント①(首都)"
-                        : hintLevel === 1
-                          ? "ヒント②(場所)"
-                          : "点滅中"}
-                    </span>
+                    {blindMode ? <EyeOff className="size-3.5 shrink-0" /> : <Eye className="size-3.5 shrink-0" />}
+                    <span>{blindMode ? "達人" : "国名あり"}</span>
                   </button>
-                )}
+                </div>
 
                 {/* モバイル・タブレット縦での表示切替ボタン */}
-                <div className="flex lg:hidden items-center bg-secondary/60 p-0.5 rounded-lg border border-border/60">
+                <div className="flex lg:hidden items-center bg-secondary/60 p-0.5 rounded-lg border border-border/60 shrink-0">
                   <button
                     type="button"
                     onClick={() => setMobileTrayView("dock")}
                     className={cn(
-                      "px-2 py-0.5 rounded-md text-[11px] font-bold cursor-pointer transition-all",
+                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold cursor-pointer transition-all",
                       mobileTrayView === "dock"
                         ? "bg-background text-foreground shadow-2xs"
                         : "text-muted-foreground",
@@ -1758,7 +1820,7 @@ function PuzzlePage() {
                     type="button"
                     onClick={() => setMobileTrayView("grid")}
                     className={cn(
-                      "px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-0.5 cursor-pointer transition-all",
+                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold flex items-center gap-0.5 cursor-pointer transition-all",
                       mobileTrayView === "grid"
                         ? "bg-background text-foreground shadow-2xs"
                         : "text-muted-foreground",

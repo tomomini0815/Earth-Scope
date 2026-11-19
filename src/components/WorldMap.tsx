@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoCentroid, geoDistance, geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
-import { Globe, Map as MapIcon, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
+import { CheckCircle2, Globe, Map as MapIcon, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 
 import world from "@/data/world.geo.json";
 import { byMapId } from "@/data/lookup";
@@ -253,6 +253,8 @@ export function WorldMap({
   const svgRef = useRef<SVGSVGElement>(null);
   // 初期表示を3D地球儀に設定
   const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
+  // 塗り分けモード（デフォルトは純粋な6大陸色、切替時のみ学習済みの国をハイライト）
+  const [colorMode, setColorMode] = useState<"continent" | "learned">("continent");
 
   // --- 2D 平面地図ステート ---
   const [zoom2d, setZoom2d] = useState(1);
@@ -426,13 +428,13 @@ export function WorldMap({
       { lon: number; lat: number; zoom3d: number; zoom2d: number }
     > = {
       all: { lon: 138, lat: 36, zoom3d: 1.0, zoom2d: 1.0 },
-      asia: { lon: 95, lat: 28, zoom3d: 1.35, zoom2d: 2.0 },
-      europe: { lon: 15, lat: 50, zoom3d: 1.85, zoom2d: 3.0 },
-      africa: { lon: 20, lat: 3, zoom3d: 1.35, zoom2d: 2.0 },
-      "north-america": { lon: -98, lat: 38, zoom3d: 1.35, zoom2d: 2.0 },
-      "south-america": { lon: -60, lat: -18, zoom3d: 1.4, zoom2d: 2.1 },
-      oceania: { lon: 145, lat: -22, zoom3d: 1.45, zoom2d: 2.2 },
-      microstates: { lon: 15, lat: 20, zoom3d: 1.15, zoom2d: 1.4 },
+      asia: { lon: 95, lat: 28, zoom3d: 1.25, zoom2d: 1.9 },
+      europe: { lon: 74, lat: 54, zoom3d: 1.4, zoom2d: 1.7 },
+      africa: { lon: 20, lat: 3, zoom3d: 1.25, zoom2d: 1.9 },
+      "north-america": { lon: -98, lat: 38, zoom3d: 1.25, zoom2d: 1.9 },
+      "south-america": { lon: -60, lat: -18, zoom3d: 1.3, zoom2d: 2.0 },
+      oceania: { lon: 145, lat: -22, zoom3d: 1.35, zoom2d: 2.1 },
+      microstates: { lon: 15, lat: 20, zoom3d: 1.1, zoom2d: 1.4 },
     };
 
     let target = CONTINENT_TARGETS[activeContinent] ?? CONTINENT_TARGETS.all;
@@ -830,7 +832,7 @@ export function WorldMap({
         </div>
       </div>
 
-      {/* 操作ガイド（モバイル・タブレットのピンチ操作対応を明示） */}
+      {/* 操作ガイド（左下） */}
       <div className="pointer-events-none absolute left-3 bottom-2.5 z-20 flex items-center gap-1.5 sm:gap-2 text-[11px] font-normal text-muted-foreground/80 select-none drop-shadow-xs">
         {viewMode === "3d" ? (
           <span className="flex items-center gap-1">
@@ -847,15 +849,31 @@ export function WorldMap({
         )}
         <span className="text-border/80">•</span>
         <span>
-          <span className="md:hidden">タップで国データ</span>
+          <span className="md:hidden">タップで詳細</span>
           <span className="hidden md:inline">クリックで国データ</span>
         </span>
-        <span className="text-border/80">•</span>
-        <span className="text-sky-600 dark:text-sky-400 font-medium">
+        <span className="hidden sm:inline text-border/80">•</span>
+        <span className="hidden sm:inline text-sky-600 dark:text-sky-400 font-medium">
           <span className="md:hidden">2本指ピンチで拡大縮小</span>
           <span className="hidden md:inline">ピンチ / ホイールで拡大縮小</span>
         </span>
       </div>
+
+      {/* 学習済ハイライト ON/OFF トグル（右下・控えめデザイン） */}
+      <button
+        type="button"
+        onClick={() => setColorMode((m) => (m === "learned" ? "continent" : "learned"))}
+        title={colorMode === "learned" ? "大陸の色分け表示に戻す" : "学習済みの国をハイライト表示"}
+        className={cn(
+          "absolute right-2.5 bottom-2.5 z-20 flex items-center gap-1 rounded-full border px-2.5 h-7 text-[11px] font-medium backdrop-blur-md transition-all cursor-pointer select-none touch-manipulation active:scale-95",
+          colorMode === "learned"
+            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 shadow-2xs"
+            : "bg-background/75 border-border/70 text-muted-foreground hover:bg-background/95 hover:text-foreground"
+        )}
+      >
+        <CheckCircle2 className="size-3 shrink-0" />
+        <span>学習済 {colorMode === "learned" ? "ON" : "OFF"}</span>
+      </button>
 
       {/* メイン地図 / 地球儀キャンバス */}
       <div
@@ -996,8 +1014,10 @@ export function WorldMap({
                 ? "var(--land)"
                 : isVisitedFilter && isVisited
                   ? "#ea580c"
-                  : isLearned
-                    ? "var(--land-learned)"
+                  : colorMode === "learned"
+                    ? isLearned
+                      ? "var(--land-learned)"
+                      : "var(--land)"
                     : continentColor(geographicContinent);
 
               const isClickable = !!country || !!special?.parentMapId;
@@ -1096,8 +1116,10 @@ export function WorldMap({
               const selected = selectedId === m.id;
               const color = isVisitedFilter && isVisited
                 ? "#ea580c"
-                : isLearned
-                  ? "var(--land-learned)"
+                : colorMode === "learned"
+                  ? isLearned
+                    ? "var(--land-learned)"
+                    : "var(--land)"
                   : continentColor(country.continent);
 
               // ズームに応じた視認性の良い半径（2Dではズーム逆数を乗じて一定の大きさを維持）
