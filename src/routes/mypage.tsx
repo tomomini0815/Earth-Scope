@@ -427,58 +427,58 @@ function MyPage() {
       <SiteHeader />
 
       {/* タブナビゲーションバー（セクション切り替え） */}
-      <div className="sticky top-14 z-20 bg-background/90 backdrop-blur-md border-b border-border/60 py-2.5 shadow-2xs">
-        <div className="mx-auto max-w-5xl px-3 sm:px-4 flex items-center justify-start overflow-x-auto gap-1.5 py-0.5">
+      <div className="sticky top-14 z-20 bg-background/90 backdrop-blur-md py-1.5 sm:py-2">
+        <div className="mx-auto max-w-5xl px-3 sm:px-4 flex items-center justify-start overflow-x-auto gap-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             onClick={() => setViewTab("all")}
             className={cn(
-              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              "flex items-center gap-1.5 px-2.5 py-1 h-7 sm:h-8 rounded-lg text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer border active:scale-95",
               viewTab === "all"
-                ? "bg-foreground text-background shadow-2xs"
-                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground"
             )}
           >
-            <LayoutGrid className="size-3.5" />
+            <LayoutGrid className="size-3.5 shrink-0" />
             <span>すべて表示</span>
           </button>
           <button
             type="button"
             onClick={() => setViewTab("progress")}
             className={cn(
-              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              "flex items-center gap-1.5 px-2.5 py-1 h-7 sm:h-8 rounded-lg text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer border active:scale-95",
               viewTab === "progress"
-                ? "bg-sky-500 text-white shadow-2xs"
-                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground"
             )}
           >
-            <BarChart3 className="size-3.5" />
+            <BarChart3 className="size-3.5 shrink-0" />
             <span>進捗・マップ</span>
           </button>
           <button
             type="button"
             onClick={() => setViewTab("travel")}
             className={cn(
-              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              "flex items-center gap-1.5 px-2.5 py-1 h-7 sm:h-8 rounded-lg text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer border active:scale-95",
               viewTab === "travel"
-                ? "bg-emerald-600 text-white shadow-2xs"
-                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground"
             )}
           >
-            <Plane className="size-3.5" />
+            <Plane className="size-3.5 shrink-0" />
             <span>パスポート・渡航録</span>
           </button>
           <button
             type="button"
             onClick={() => setViewTab("achievement")}
             className={cn(
-              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+              "flex items-center gap-1.5 px-2.5 py-1 h-7 sm:h-8 rounded-lg text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer border active:scale-95",
               viewTab === "achievement"
-                ? "bg-amber-500 text-white shadow-2xs"
-                : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground"
             )}
           >
-            <Trophy className="size-3.5" />
+            <Trophy className="size-3.5 shrink-0" />
             <span>復習・実績</span>
           </button>
         </div>

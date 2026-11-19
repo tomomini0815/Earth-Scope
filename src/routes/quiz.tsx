@@ -932,6 +932,8 @@ function QuizPage() {
   // 詳細・解説アコーディオンの開閉状態
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isExplanationExpanded, setIsExplanationExpanded] = useState(false);
+  // 設定パネルの開閉状態（初期表示は閉じた1行サマリーバー、「条件変更」タップで展開）
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // 自動スクロール用Ref（全デバイス対応）
   const nextButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1059,6 +1061,7 @@ function QuizPage() {
   };
 
   const handleSwitchToCountryMode = () => {
+    setIsSettingsOpen(true);
     if (selectedCountry) {
       setIsCountryPickerOpen(true);
     } else {
@@ -1081,6 +1084,9 @@ function QuizPage() {
   const answer = (choiceId: string) => {
     if (pickedId) return;
     setPickedId(choiceId);
+    // 問題を解き始めたら設定パネルを自動で1行サマリーバーに折りたたむ
+    setIsSettingsOpen(false);
+    setIsCountryPickerOpen(false);
     if (choiceId === q?.answerId) {
       setCorrect((c) => c + 1);
     } else if (q?.country?.iso3) {
@@ -1097,6 +1103,7 @@ function QuizPage() {
         : modeObj?.label ?? "総合";
       addResult({ mode: title, correct: finalScore, total: questions.length });
       setDone(true);
+      setIsSettingsOpen(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -1104,6 +1111,7 @@ function QuizPage() {
     setPickedId(null);
     setIsDetailsOpen(false);
     setIsExplanationExpanded(false);
+    setIsSettingsOpen(false);
     setTimeout(() => {
       questionCardRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -1139,8 +1147,81 @@ function QuizPage() {
           </p>
         </div>
 
-        {/* クイズ設定パネル（出題対象 ＆ クイズ種別） */}
-        <div className="mt-4 rounded-2xl border border-border/80 bg-card p-3 sm:p-4 shadow-xs space-y-3.5">
+        {/* クイズ設定パネル（初期は全展開、問題を解き始めたら1行のステータスバーに自動折りたたみ） */}
+        <div className="mt-4 rounded-xl border border-border/80 bg-card shadow-xs overflow-hidden transition-all">
+          {/* 現在の設定サマリーバー（常時1行でスッキリ表示・タップで開閉） */}
+          <div
+            onClick={() => setIsSettingsOpen((prev) => !prev)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsSettingsOpen((prev) => !prev);
+              }
+            }}
+            className="flex items-center justify-between gap-2 px-2.5 py-2 sm:px-3.5 sm:py-2.5 bg-muted/25 hover:bg-muted/40 transition-colors cursor-pointer touch-manipulation select-none"
+          >
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {/* ① 出題対象バッジ */}
+              <span className="inline-flex items-center gap-1 rounded-lg bg-secondary/80 border border-border/70 px-2.5 py-1.5 text-[11px] sm:text-xs font-bold text-foreground shrink-0 leading-none">
+                {selectedCountry ? (
+                  <>
+                    <FlagImage flag={selectedCountry.flag} size="xs" className="shrink-0" />
+                    <span className="truncate max-w-[90px] sm:max-w-none">{selectedCountry.nameJa}</span>
+                  </>
+                ) : (
+                  <>
+                    <Globe className="size-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span>全世界</span>
+                  </>
+                )}
+              </span>
+
+              {/* ② 難易度バッジ（全世界モード時） */}
+              {!selectedCountry && (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-secondary/80 border border-border/70 px-2.5 py-1.5 text-[11px] sm:text-xs font-bold text-foreground shrink-0 leading-none">
+                  <GraduationCap className="size-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                  <span>{GRADE_LEVELS.find((g) => g.id === grade)?.label ?? "全難易度"}</span>
+                </span>
+              )}
+
+              {/* ③ クイズ種別バッジ */}
+              <span className="inline-flex items-center gap-1 rounded-lg bg-secondary/80 border border-border/70 px-2.5 py-1.5 text-[11px] sm:text-xs font-bold text-foreground shrink-0 leading-none">
+                <Layers className="size-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                <span>
+                  {(selectedCountry ? COUNTRY_MODES : GLOBAL_MODES).find((m) => m.id === mode)?.label}
+                </span>
+              </span>
+
+              {/* ④ 教科書単元バッジ（教科書モードで単元指定時） */}
+              {!selectedCountry && mode === "textbook" && unit !== "all" && (
+                <span className="inline-flex items-center rounded-lg bg-sky-500/15 border border-sky-500/30 px-2.5 py-1.5 text-[11px] sm:text-xs font-bold text-sky-700 dark:text-sky-300 shrink-0 leading-none">
+                  {TEXTBOOK_UNITS.find((u) => u.id === unit)?.label}
+                </span>
+              )}
+            </div>
+
+            <span
+              className={cn(
+                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 min-h-[36px] sm:min-h-[38px] text-xs font-bold transition-all shrink-0 leading-none active:scale-95",
+                isSettingsOpen
+                  ? "border-border bg-secondary text-foreground hover:bg-secondary/80"
+                  : "bg-primary text-primary-foreground border-primary shadow-2xs hover:bg-primary/90"
+              )}
+            >
+              <span>{isSettingsOpen ? "閉じる" : "条件変更"}</span>
+              <ChevronDown
+                className={cn(
+                  "size-4 transition-transform duration-200",
+                  isSettingsOpen && "rotate-180"
+                )}
+              />
+            </span>
+          </div>
+
+          {isSettingsOpen && (
+            <div className="p-3 sm:p-4 border-t border-border/60 space-y-3.5 animate-fadeIn">
           {/* 1. 出題対象 */}
           <div>
             <div className="flex items-center justify-between gap-2 mb-2">
@@ -1456,6 +1537,8 @@ function QuizPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
             </div>
           )}
         </div>

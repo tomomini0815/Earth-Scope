@@ -419,6 +419,54 @@ export function WorldMap({
     }
   }, [selectedId, viewMode]);
 
+  // トップの大陸・地域タブ（activeContinent）を選択した際、3D地球儀（および2D地図）でその場所へ移動
+  useEffect(() => {
+    const CONTINENT_TARGETS: Record<
+      ContinentId | "all" | "microstates",
+      { lon: number; lat: number; zoom3d: number; zoom2d: number }
+    > = {
+      all: { lon: 138, lat: 36, zoom3d: 1.0, zoom2d: 1.0 },
+      asia: { lon: 95, lat: 28, zoom3d: 1.35, zoom2d: 2.0 },
+      europe: { lon: 15, lat: 50, zoom3d: 1.85, zoom2d: 3.0 },
+      africa: { lon: 20, lat: 3, zoom3d: 1.35, zoom2d: 2.0 },
+      "north-america": { lon: -98, lat: 38, zoom3d: 1.35, zoom2d: 2.0 },
+      "south-america": { lon: -60, lat: -18, zoom3d: 1.4, zoom2d: 2.1 },
+      oceania: { lon: 145, lat: -22, zoom3d: 1.45, zoom2d: 2.2 },
+      microstates: { lon: 15, lat: 20, zoom3d: 1.15, zoom2d: 1.4 },
+    };
+
+    let target = CONTINENT_TARGETS[activeContinent] ?? CONTINENT_TARGETS.all;
+
+    // 「訪問した国」タブ選択時は最初に訪問した国の座標へフォーカス
+    if (isVisitedFilter && visitedMapIds && visitedMapIds.size > 0) {
+      const firstMapId = Array.from(visitedMapIds)[0];
+      const coords = firstMapId ? COUNTRY_CENTERS.get(firstMapId) : undefined;
+      if (coords) {
+        target = { lon: coords[0], lat: coords[1], zoom3d: 1.35, zoom2d: 2.0 };
+      }
+    }
+
+    setAutoRotate(false);
+    setRotation([-target.lon, -target.lat, 0]);
+    setZoom3d(target.zoom3d);
+
+    if (activeContinent === "all" && !isVisitedFilter) {
+      setZoom2d(1);
+      setOffset2d({ x: 0, y: 0 });
+    } else {
+      const projection = geoNaturalEarth1().fitSize([WIDTH_2D, HEIGHT_2D], collection);
+      const pt = projection([target.lon, target.lat]);
+      if (pt) {
+        const [px, py] = pt;
+        setZoom2d(target.zoom2d);
+        setOffset2d({
+          x: WIDTH_2D / 2 - px * target.zoom2d,
+          y: HEIGHT_2D / 2 - py * target.zoom2d,
+        });
+      }
+    }
+  }, [activeContinent, isVisitedFilter]);
+
   // 3D自転（Auto-rotation）アニメーションループ
   useEffect(() => {
     if (viewMode !== "3d" || !autoRotate) return;

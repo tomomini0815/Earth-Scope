@@ -11,24 +11,39 @@ import {
 import type { FeatureCollection, Geometry } from "geojson";
 import {
   Award,
+  Building2,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Compass,
+  Crosshair,
   Eye,
   EyeOff,
   Flame,
+  Globe,
+  Hand,
   HelpCircle,
+  Landmark,
+  LayoutGrid,
   Lightbulb,
   MapPin,
+  Maximize2,
+  Mountain,
   Puzzle,
   RotateCcw,
   Sparkles,
   Star,
+  Sun,
+  Sunrise,
   Target,
   Trophy,
   Volume2,
   VolumeX,
+  Waves,
   Zap,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 import world from "@/data/world.geo.json";
@@ -63,7 +78,10 @@ export const Route = createFileRoute("/puzzle")({
 
 const BOARD_WIDTH = 900;
 const BOARD_HEIGHT = 520;
-const SNAP_BASE_RADIUS = 44;
+const SNAP_BASE_RADIUS = 48;
+const SNAP_TOUCH_RADIUS = 64;
+/** タッチ操作時、指でピースと地図が隠れないよう指の上方64pxに照準をオフセット */
+const TOUCH_DRAG_OFFSET_Y = -64;
 
 type StageId = ContinentId | "world";
 type Difficulty = "standard" | "master";
@@ -72,7 +90,7 @@ type StageConfig = {
   id: StageId;
   label: string;
   sublabel: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   accentColor: string;
   pieceFill: string;
   pieceStroke: string;
@@ -84,10 +102,30 @@ type StageConfig = {
 
 const STAGE_CONFIGS: StageConfig[] = [
   {
+    id: "world",
+    label: "世界主要国",
+    sublabel: "世界6大陸の代表的国家オールスター",
+    icon: Globe,
+    accentColor: "text-indigo-500",
+    pieceFill: "#6366f1",
+    pieceStroke: "#a5b4fc",
+    bbox: [-120, -43, 162, 59],
+    standardIso3s: [
+      "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
+      "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
+    ],
+    masterIso3s: [
+      "JPN", "CHN", "KOR", "IND", "IDN", "THA", "SAU", "TUR", "IRN", "KAZ",
+      "GBR", "FRA", "DEU", "ITA", "ESP", "POL", "UKR", "SWE", "NOR",
+      "EGY", "DZA", "NGA", "ETH", "KEN", "COD", "ZAF", "MDG",
+      "CAN", "USA", "MEX", "BRA", "ARG", "CHL", "PER", "COL", "AUS", "NZL",
+    ],
+  },
+  {
     id: "asia",
     label: "アジア州",
     sublabel: "東アジア・東南アジア・南アジア・西アジア",
-    icon: "🏯",
+    icon: Sunrise,
     accentColor: "text-rose-500",
     pieceFill: "#f43f5e",
     pieceStroke: "#fda4af",
@@ -105,7 +143,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     id: "europe",
     label: "ヨーロッパ州",
     sublabel: "西欧・東欧・北欧・地中海諸国",
-    icon: "🏰",
+    icon: Landmark,
     accentColor: "text-sky-500",
     pieceFill: "#0ea5e9",
     pieceStroke: "#7dd3fc",
@@ -123,7 +161,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     id: "africa",
     label: "アフリカ州",
     sublabel: "北アフリカ・サハラ以南・南部アフリカ",
-    icon: "🦁",
+    icon: Sun,
     accentColor: "text-amber-500",
     pieceFill: "#f59e0b",
     pieceStroke: "#fcd34d",
@@ -141,11 +179,11 @@ const STAGE_CONFIGS: StageConfig[] = [
     id: "north-america",
     label: "北アメリカ州",
     sublabel: "北米大陸・中央アメリカ・カリブ海",
-    icon: "🗽",
+    icon: Building2,
     accentColor: "text-emerald-500",
     pieceFill: "#10b981",
     pieceStroke: "#6ee7b7",
-    bbox: [-162, 7, -54, 70],
+    bbox: [-136, 7, -54, 66],
     standardIso3s: [
       "CAN", "USA", "MEX", "CUB", "GTM", "HND", "NIC", "CRI", "PAN", "DOM",
     ],
@@ -158,7 +196,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     id: "south-america",
     label: "南アメリカ州",
     sublabel: "アンデス諸国・アマゾン・ラプラタ地域",
-    icon: "⛰️",
+    icon: Mountain,
     accentColor: "text-purple-500",
     pieceFill: "#a855f7",
     pieceStroke: "#d8b4fe",
@@ -174,7 +212,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     id: "oceania",
     label: "オセアニア＆海洋",
     sublabel: "オセアニア諸国と環太平洋の島国",
-    icon: "🦘",
+    icon: Waves,
     accentColor: "text-teal-500",
     pieceFill: "#14b8a6",
     pieceStroke: "#5eead4",
@@ -184,26 +222,6 @@ const STAGE_CONFIGS: StageConfig[] = [
     ],
     masterIso3s: [
       "AUS", "NZL", "PNG", "FJI", "SLB", "VUT", "IDN", "PHL", "MYS", "TLS",
-    ],
-  },
-  {
-    id: "world",
-    label: "世界主要国",
-    sublabel: "世界6大陸の代表的国家オールスター",
-    icon: "🌍",
-    accentColor: "text-indigo-500",
-    pieceFill: "#6366f1",
-    pieceStroke: "#a5b4fc",
-    bbox: [-165, -54, 175, 72],
-    standardIso3s: [
-      "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
-      "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
-    ],
-    masterIso3s: [
-      "JPN", "CHN", "KOR", "IND", "IDN", "THA", "SAU", "TUR", "IRN", "KAZ",
-      "GBR", "FRA", "DEU", "ITA", "ESP", "POL", "UKR", "SWE", "NOR",
-      "EGY", "DZA", "NGA", "ETH", "KEN", "COD", "ZAF", "MDG",
-      "CAN", "USA", "MEX", "BRA", "ARG", "CHL", "PER", "COL", "AUS", "NZL",
     ],
   },
 ];
@@ -407,6 +425,9 @@ type PuzzlePieceData = {
   mapId: string;
   boardPathD: string;
   piecePathD: string;
+  /** トレイ表示用：その国の中心経度を正面にして歪みゼロで投影したパスとviewBox */
+  trayPathD: string;
+  trayViewBox: string;
   targetX: number;
   targetY: number;
   bounds: [[number, number], [number, number]];
@@ -414,6 +435,39 @@ type PuzzlePieceData = {
   height: number;
   viewBox: string;
 };
+
+/**
+ * 大陸ごとに中心経度へ投影を回転した際、地球の裏側（反対半球）のポリゴンが
+ * 日付変更線を跨いで画面を横切るのを防ぐためのクリッピングヘルパー
+ */
+function clipFeatureToMidLon(f: RawFeature, midLon: number): RawFeature | null {
+  const isNearLon = (lon: number) => {
+    let d = Math.abs(lon - midLon);
+    if (d > 180) d = 360 - d;
+    return d <= 105;
+  };
+  if (f.geometry.type === "Polygon") {
+    const c = geoCentroid(f as never);
+    return isNearLon(c[0]) ? f : null;
+  }
+  if (f.geometry.type === "MultiPolygon") {
+    const coords = (f.geometry as unknown as { coordinates: number[][][][] }).coordinates;
+    const kept = coords.filter((c) => {
+      const pf = { type: "Feature", geometry: { type: "Polygon", coordinates: c } };
+      const center = geoCentroid(pf as never);
+      return isNearLon(center[0]);
+    });
+    if (kept.length === 0) return null;
+    return {
+      ...f,
+      geometry: {
+        type: "MultiPolygon",
+        coordinates: kept,
+      } as unknown as Geometry,
+    };
+  }
+  return f;
+}
 
 type SavedPuzzleSession = {
   stageId: StageId;
@@ -461,9 +515,9 @@ function getInitialPuzzleSession(): SavedPuzzleSession {
       // ignore storage errors
     }
   }
-  const initialList = createShuffledList("europe", "standard");
+  const initialList = createShuffledList("world", "standard");
   const fresh: SavedPuzzleSession = {
-    stageId: "europe",
+    stageId: "world",
     difficulty: "standard",
     blindMode: false,
     shuffledIso3s: initialList,
@@ -518,18 +572,44 @@ function PuzzlePage() {
   const [isCleared, setIsCleared] = useState(initialSession.isCleared);
   const [isNewRecord, setIsNewRecord] = useState(false);
 
-  // ドラッグ中の状態
+  // ドラッグ中の状態（isTouch時は指の上方にオフセット表示）
   const [dragging, setDragging] = useState<{
     iso3: string;
     clientX: number;
     clientY: number;
+    isTouch: boolean;
     isNearTarget: boolean;
   } | null>(null);
+
+  // 地図ズーム＆パン状態（モバイル・タブレットで小さい国を拡大して配置しやすくする）
+  const [mapZoom, setMapZoom] = useState<number>(1);
+  const [mapPan, setMapPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // モバイル・タブレット用のトレイ表示モード（横スワイプドック or 一覧グリッド）
+  const [mobileTrayView, setMobileTrayView] = useState<"dock" | "grid">("dock");
 
   const boardSvgRef = useRef<SVGSVGElement | null>(null);
   const startTimeRef = useRef<number>(Date.now() - initialSession.elapsedMs);
 
-  const { markLearned, puzzleRecords = {}, recordPuzzleClear } = useProgress();
+  // タップ選択・横スクロールとドラッグ開始を区別するための待機参照
+  const pendingDragRef = useRef<{
+    iso3: string;
+    startX: number;
+    startY: number;
+    isTouch: boolean;
+    fromDockHandle?: boolean;
+  } | null>(null);
+
+  // 地図拡大時のドラッグパン操作用の参照
+  const boardPanRef = useRef<{
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+    isPanning: boolean;
+  } | null>(null);
+  const suppressNextSocketClickRef = useRef<boolean>(false);
+
+  const { puzzleRecords = {}, recordPuzzleClear } = useProgress();
 
   const stageConfig = useMemo(
     () => STAGE_CONFIGS.find((s) => s.id === stageId) ?? STAGE_CONFIGS[0]!,
@@ -544,6 +624,7 @@ function PuzzlePage() {
     const [minLon, minLat, maxLon, maxLat] = stageConfig.bbox;
     const midLon = (minLon + maxLon) / 2;
     const midLat = (minLat + maxLat) / 2;
+    const isContinentStage = stageConfig.id !== "world";
 
     // 境界周囲8点のMultiPointを作成してfitExtentで大陸に綺麗にズーム
     const bboxGeoJson = {
@@ -560,13 +641,18 @@ function PuzzlePage() {
       ],
     };
 
-    const projection = geoNaturalEarth1().fitExtent(
-      [
-        [32, 28],
-        [BOARD_WIDTH - 32, BOARD_HEIGHT - 28],
-      ],
-      bboxGeoJson as never,
-    );
+    // 大陸別ステージでは中心経度(midLon)を正面に回転、世界主要国ステージでは余白を最小化して程よく大きく表示
+    const padX = isContinentStage ? 20 : 6;
+    const padY = isContinentStage ? 18 : 8;
+    const projection = geoNaturalEarth1()
+      .rotate([isContinentStage ? -midLon : 0, 0])
+      .fitExtent(
+        [
+          [padX, padY],
+          [BOARD_WIDTH - padX, BOARD_HEIGHT - padY],
+        ],
+        bboxGeoJson as never,
+      );
     const pathGen = geoPath(projection);
     const graticule = geoGraticule10();
     const gratD = pathGen(graticule as never) ?? "";
@@ -580,34 +666,53 @@ function PuzzlePage() {
       iso3?: string | undefined;
       nameJa?: string | undefined;
       d: string;
+      socketD: string;
       isTarget: boolean;
     }[] = [];
 
     const generatedPieces: PuzzlePieceData[] = [];
     const mapByIso3 = new Map<string, PuzzlePieceData>();
 
-    for (const f of ALL_FEATURES) {
-      const mapId = getFeatureMapId(f);
+    for (const rawF of ALL_FEATURES) {
+      const mapId = getFeatureMapId(rawF);
       if (!mapId || mapId === "010") continue; // 南極は除外
+
+      const f = isContinentStage ? clipFeatureToMidLon(rawF, midLon) : rawF;
+      if (!f) continue;
+
       const d = pathGen(f as never) ?? "";
       if (!d) continue;
 
       const country = byMapId(mapId);
       const isTarget = !!country && targetIso3Set.has(country.iso3);
 
-      bgPaths.push({
-        mapId,
-        iso3: country?.iso3,
-        nameJa: country?.nameJa,
-        d,
-        isTarget,
-      });
-
       if (country && isTarget) {
         const { pieceFeature, mainCenterLonLat } = getPieceFeatureAndCenter(f);
         const piecePathD = pathGen(pieceFeature as never) ?? d;
         const rawBounds = pathGen.bounds(pieceFeature as never);
         const projectedCenter = projection(mainCenterLonLat);
+
+        bgPaths.push({
+          mapId,
+          iso3: country.iso3,
+          nameJa: country.nameJa,
+          d,
+          socketD: piecePathD,
+          isTarget: true,
+        });
+
+        // トレイ内のピースカード用：その国の中心経度を真正面に向けた投影で歪みのない正確なシルエットを生成
+        const localProj = geoNaturalEarth1()
+          .rotate([-mainCenterLonLat[0], 0])
+          .fitExtent(
+            [
+              [6, 6],
+              [94, 94],
+            ],
+            pieceFeature as never,
+          );
+        const localPathGen = geoPath(localProj);
+        const trayPathD = localPathGen(pieceFeature as never) ?? piecePathD;
 
         if (
           rawBounds &&
@@ -630,6 +735,8 @@ function PuzzlePage() {
             mapId,
             boardPathD: d,
             piecePathD,
+            trayPathD,
+            trayViewBox: "0 0 100 100",
             targetX,
             targetY,
             bounds: rawBounds,
@@ -640,6 +747,15 @@ function PuzzlePage() {
           generatedPieces.push(pieceData);
           mapByIso3.set(country.iso3, pieceData);
         }
+      } else {
+        bgPaths.push({
+          mapId,
+          iso3: country?.iso3,
+          nameJa: country?.nameJa,
+          d,
+          socketD: d,
+          isTarget: false,
+        });
       }
     }
 
@@ -668,6 +784,8 @@ function PuzzlePage() {
     setIsCleared(false);
     setIsNewRecord(false);
     setIsRunning(true);
+    setMapZoom(1);
+    setMapPan({ x: 0, y: 0 });
     startTimeRef.current = Date.now();
     persistPuzzleSession({
       stageId: nextStageId,
@@ -751,6 +869,46 @@ function PuzzlePage() {
     return unplacedPieces[0] ?? null;
   }, [selectedIso3, placedIso3s, pieceByIso3, unplacedPieces]);
 
+  // 前後のピースへ切り替え（モバイル・タブレットの親指操作用）
+  const handleCyclePiece = (dir: -1 | 1) => {
+    if (unplacedPieces.length <= 1) return;
+    const currentIdx = activePiece
+      ? unplacedPieces.findIndex((p) => p.country.iso3 === activePiece.country.iso3)
+      : 0;
+    const nextIdx = (currentIdx + dir + unplacedPieces.length) % unplacedPieces.length;
+    const nextPiece = unplacedPieces[nextIdx];
+    if (nextPiece) {
+      setSelectedIso3(nextPiece.country.iso3);
+      setHintLevel(0);
+    }
+  };
+
+  // ズーム＆パンに応じた動的SVG viewBox計算
+  const boardViewBox = useMemo(() => {
+    const vbW = BOARD_WIDTH / mapZoom;
+    const vbH = BOARD_HEIGHT / mapZoom;
+    const maxPanX = Math.max(0, (BOARD_WIDTH - vbW) / 2);
+    const maxPanY = Math.max(0, (BOARD_HEIGHT - vbH) / 2);
+    const clampedPanX = Math.max(-maxPanX, Math.min(maxPanX, mapPan.x));
+    const clampedPanY = Math.max(-maxPanY, Math.min(maxPanY, mapPan.y));
+    const vbX = (BOARD_WIDTH - vbW) / 2 - clampedPanX;
+    const vbY = (BOARD_HEIGHT - vbH) / 2 - clampedPanY;
+    return `${vbX.toFixed(1)} ${vbY.toFixed(1)} ${vbW.toFixed(1)} ${vbH.toFixed(1)}`;
+  }, [mapZoom, mapPan]);
+
+  // 選択中のピースの周辺エリアへ地図を拡大フォーカス（モバイル・タブレットで小さい国を配置しやすくする）
+  const handleZoomToActiveRegion = (exactCenter = false) => {
+    if (!activePiece) return;
+    const targetZoom = Math.max(2.2, mapZoom < 2 ? 2.2 : Math.min(3.5, mapZoom + 0.6));
+    // ヒント2（場所点滅）時やexact指定時は正確な中心へ、それ以外は周辺エリア（少しオフセット）へフォーカス
+    const offsetX = exactCenter || hintLevel >= 2 ? 0 : ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 28;
+    const offsetY = exactCenter || hintLevel >= 2 ? 0 : ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 20;
+    const panX = BOARD_WIDTH / 2 - (activePiece.targetX + offsetX);
+    const panY = BOARD_HEIGHT / 2 - (activePiece.targetY + offsetY);
+    setMapZoom(targetZoom);
+    setMapPan({ x: panX, y: panY });
+  };
+
   // スクリーン座標 (clientX, clientY) を SVG 座標 (svgX, svgY) に変換
   const clientToSvgPoint = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const svgEl = boardSvgRef.current;
@@ -769,15 +927,18 @@ function PuzzlePage() {
   };
 
   // 指定したSVG座標が対象ピースの正解位置にスナップするか判定
-  const checkIsSnapMatch = (piece: PuzzlePieceData, svgX: number, svgY: number): boolean => {
+  const checkIsSnapMatch = (piece: PuzzlePieceData, svgX: number, svgY: number, isTouch = false): boolean => {
+    const baseRadius = isTouch ? SNAP_TOUCH_RADIUS : SNAP_BASE_RADIUS;
+    // ズーム中は画面上の見た目に合わせつつ十分な吸着半径を維持
+    const effectiveRadius = baseRadius / Math.pow(mapZoom, 0.35);
     const dist = Math.hypot(svgX - piece.targetX, svgY - piece.targetY);
-    if (dist <= SNAP_BASE_RADIUS) return true;
+    if (dist <= effectiveRadius) return true;
 
     // 面積が大きい国（ロシア・中国・カナダ・アメリカ・ブラジル・オーストラリアなど）はバウンディングボックス内でも許容
     const [[x0, y0], [x1, y1]] = piece.bounds;
-    const pad = 14;
+    const pad = isTouch ? 22 : 14;
     if (svgX >= x0 - pad && svgX <= x1 + pad && svgY >= y0 - pad && svgY <= y1 + pad) {
-      const maxAllowedDist = Math.max(SNAP_BASE_RADIUS, Math.max(piece.width, piece.height) * 0.52);
+      const maxAllowedDist = Math.max(effectiveRadius, Math.max(piece.width, piece.height) * 0.55);
       if (dist <= maxAllowedDist) return true;
     }
     return false;
@@ -796,9 +957,6 @@ function PuzzlePage() {
     setHintLevel(0);
     setWrongFeedbackIso3(null);
 
-    // 学習済みに自動登録
-    markLearned(iso3);
-
     // 全ピース完了チェック
     if (nextPlaced.size >= pieces.length && pieces.length > 0) {
       const finalMs = Date.now() - startTimeRef.current;
@@ -806,6 +964,8 @@ function PuzzlePage() {
       setElapsedMs(finalMs);
       setIsCleared(true);
       setIsRunning(false);
+      setMapZoom(1);
+      setMapPan({ x: 0, y: 0 });
       playPuzzleSound("clear", soundEnabled);
 
       const stars =
@@ -832,32 +992,81 @@ function PuzzlePage() {
     }
   };
 
-  // ドラッグ操作イベント（windowレベルで追跡）
+  // ドラッグ操作イベント（タップ・横スワイプとの判別 ＆ windowレベルでの追跡）
   useEffect(() => {
-    if (!dragging) return;
-
     const handlePointerMove = (e: PointerEvent) => {
-      const piece = pieceByIso3.get(dragging.iso3);
-      let isNear = false;
-      if (piece) {
-        const svgPt = clientToSvgPoint(e.clientX, e.clientY);
-        if (svgPt) {
-          isNear = checkIsSnapMatch(piece, svgPt.x, svgPt.y);
+      // 1. ドラッグ待機状態から本ドラッグへの移行判定
+      if (pendingDragRef.current && !dragging) {
+        const pending = pendingDragRef.current;
+        const dx = e.clientX - pending.startX;
+        const dy = e.clientY - pending.startY;
+        const dist = Math.hypot(dx, dy);
+
+        // モバイル横スクロールドック上で横にスワイプした場合はドラッグをキャンセルしてスクロールを優先
+        if (
+          pending.isTouch &&
+          !pending.fromDockHandle &&
+          mobileTrayView === "dock" &&
+          Math.abs(dx) > 10 &&
+          Math.abs(dx) > Math.abs(dy) * 1.25 &&
+          dy > -12
+        ) {
+          pendingDragRef.current = null;
+          return;
         }
+
+        if (dist >= 7) {
+          const piece = pieceByIso3.get(pending.iso3);
+          const aimY = e.clientY + (pending.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
+          let isNear = false;
+          if (piece) {
+            const svgPt = clientToSvgPoint(e.clientX, aimY);
+            if (svgPt) {
+              isNear = checkIsSnapMatch(piece, svgPt.x, svgPt.y, pending.isTouch);
+            }
+          }
+          setDragging({
+            iso3: pending.iso3,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            isTouch: pending.isTouch,
+            isNearTarget: isNear,
+          });
+          pendingDragRef.current = null;
+        }
+        return;
       }
-      setDragging({
-        iso3: dragging.iso3,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        isNearTarget: isNear,
-      });
+
+      // 2. 本ドラッグ中の追従とターゲット吸着判定
+      if (dragging) {
+        const piece = pieceByIso3.get(dragging.iso3);
+        const aimY = e.clientY + (dragging.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
+        let isNear = false;
+        if (piece) {
+          const svgPt = clientToSvgPoint(e.clientX, aimY);
+          if (svgPt) {
+            isNear = checkIsSnapMatch(piece, svgPt.x, svgPt.y, dragging.isTouch);
+          }
+        }
+        setDragging({
+          iso3: dragging.iso3,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          isTouch: dragging.isTouch,
+          isNearTarget: isNear,
+        });
+      }
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      pendingDragRef.current = null;
+      if (!dragging) return;
+
       const piece = pieceByIso3.get(dragging.iso3);
       if (piece) {
-        const svgPt = clientToSvgPoint(e.clientX, e.clientY);
-        if (svgPt && checkIsSnapMatch(piece, svgPt.x, svgPt.y)) {
+        const aimY = e.clientY + (dragging.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
+        const svgPt = clientToSvgPoint(e.clientX, aimY);
+        if (svgPt && checkIsSnapMatch(piece, svgPt.x, svgPt.y, dragging.isTouch)) {
           confirmPiecePlacement(piece);
         } else if (svgPt && svgPt.x >= 0 && svgPt.x <= BOARD_WIDTH && svgPt.y >= 0 && svgPt.y <= BOARD_HEIGHT) {
           // ボード上の誤った場所にドロップした場合
@@ -873,15 +1082,21 @@ function PuzzlePage() {
 
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragging, pieceByIso3, placedIso3s, soundEnabled]);
+  }, [dragging, pieceByIso3, placedIso3s, soundEnabled, mapZoom, mobileTrayView]);
 
   // 地図上のソケットをクリック／タップして配置（スマホ・タブレット・クリック操作サポート）
-  const handleSocketClick = (targetIso3: string | undefined, e: React.MouseEvent<SVGPathElement>) => {
+  const handleSocketClick = (targetIso3: string | undefined, e: React.MouseEvent<SVGElement>) => {
+    if (suppressNextSocketClickRef.current) {
+      suppressNextSocketClickRef.current = false;
+      return;
+    }
     if (!activePiece || isCleared) return;
     e.stopPropagation();
 
@@ -890,9 +1105,9 @@ function PuzzlePage() {
       return;
     }
 
-    // クリックした座標がactivePieceの許容範囲内かもチェック
+    // クリック／タップした座標がactivePieceの許容範囲内かもチェック
     const svgPt = clientToSvgPoint(e.clientX, e.clientY);
-    if (svgPt && checkIsSnapMatch(activePiece, svgPt.x, svgPt.y)) {
+    if (svgPt && checkIsSnapMatch(activePiece, svgPt.x, svgPt.y, true)) {
       confirmPiecePlacement(activePiece);
       return;
     }
@@ -905,33 +1120,43 @@ function PuzzlePage() {
     setTimeout(() => setWrongFeedbackIso3(null), 700);
   };
 
-  // ヒントボタン押下
+  // ヒントボタン押下（ヒント2では自動的にターゲット位置へズーム＆フォーカス）
   const handleTriggerHint = () => {
     if (!activePiece || isCleared) return;
     const nextLevel = hintLevel === 0 ? 1 : 2;
     setHintLevel(nextLevel);
     setHintsUsedCount((h) => h + 1);
     playPuzzleSound("hint", soundEnabled);
+    if (nextLevel === 2) {
+      // 小さい国でもすぐ見つけられるようターゲットを中心にフォーカス
+      const nextZoom = Math.max(mapZoom, activePiece.width < 36 || activePiece.height < 36 ? 2.2 : 1.5);
+      setMapZoom(nextZoom);
+      setMapPan({
+        x: BOARD_WIDTH / 2 - activePiece.targetX,
+        y: BOARD_HEIGHT / 2 - activePiece.targetY,
+      });
+    }
   };
 
   const progressPct = pieces.length > 0 ? Math.round((placedIso3s.size / pieces.length) * 100) : 0;
   const draggingPieceData = dragging ? pieceByIso3.get(dragging.iso3) : null;
 
   return (
-    <div className="min-h-screen pb-20 sm:pb-12 select-none overflow-x-hidden">
+    <div className="min-h-dvh pb-16 sm:pb-6 select-none overflow-x-hidden">
       <SiteHeader />
 
-      <main className="mx-auto max-w-[1600px] px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 space-y-4">
-        {/* 1. ステージ＆難易度セレクターバー */}
-        <section className="surface-card p-3 sm:p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            {/* 大陸ステージタブ */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
+      <main className="mx-auto max-w-[1600px] px-2 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 space-y-1.5 sm:space-y-2.5">
+        {/* 1. 超スリム統合ヘッダー（余白・改行の無駄を排除し、ステージタブ＋1行コントロールに凝縮） */}
+        <section className="surface-card px-2.5 py-1.5 sm:px-3.5 sm:py-2 space-y-1.5">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-1.5">
+            {/* 大陸ステージタブ（スクロールバー非表示で端までスッキリ横フリック） */}
+            <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {STAGE_CONFIGS.map((s) => {
                 const active = s.id === stageId;
                 const recStd = puzzleRecords[`${s.id}-standard`];
                 const recMst = puzzleRecords[`${s.id}-master`];
                 const hasClear = !!recStd || !!recMst;
+                const StageIcon = s.icon;
                 return (
                   <button
                     key={s.id}
@@ -942,273 +1167,242 @@ function PuzzlePage() {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer border",
+                      "flex items-center gap-1.5 px-2.5 py-1 h-7 sm:h-8 rounded-lg text-[11px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer border active:scale-95",
                       active
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02]"
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
                         : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
                     )}
                   >
-                    <span className="text-sm">{s.icon}</span>
+                    <StageIcon className="size-3.5 shrink-0" />
                     <span>{s.label}</span>
                     {hasClear && (
-                      <span
+                      <Star
                         className={cn(
-                          "ml-0.5 text-[10px] px-1 rounded-full font-black",
-                          active ? "bg-white/20 text-white" : "bg-amber-500/15 text-amber-500",
+                          "size-3 shrink-0 fill-current",
+                          active ? "text-white" : "text-amber-500",
                         )}
-                      >
-                        ★
-                      </span>
+                      />
                     )}
                   </button>
                 );
               })}
             </div>
 
-            {/* 難易度・達人モード・サウンド・リセット */}
-            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
-              <div className="inline-flex rounded-xl bg-secondary/70 p-0.5 border border-border/60">
+            {/* 難易度・達人モード・進捗・タイマー・リセット（改行せず1行にスリム集約） */}
+            <div className="flex items-center justify-between gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="inline-flex rounded-lg bg-secondary/70 p-0.5 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (difficulty !== "standard") {
+                        startNewGame(stageId, "standard");
+                      }
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold transition-all cursor-pointer active:scale-95",
+                      difficulty === "standard"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    標準({stageConfig.standardIso3s.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (difficulty !== "master") {
+                        startNewGame(stageId, "master");
+                      }
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold transition-all cursor-pointer active:scale-95",
+                      difficulty === "master"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    上級({stageConfig.masterIso3s.length})
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => {
-                    if (difficulty !== "standard") {
-                      startNewGame(stageId, "standard");
-                    }
-                  }}
+                  onClick={() => setBlindMode((b) => !b)}
+                  title="シルエットのみ表示（国名と国旗を隠す達人モード）"
                   className={cn(
-                    "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                    difficulty === "standard"
-                      ? "bg-background text-foreground shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground",
+                    "flex items-center gap-1 px-2 h-7 sm:h-8 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 shrink-0",
+                    blindMode
+                      ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40"
+                      : "bg-secondary/50 text-muted-foreground border-border/60 hover:text-foreground",
                   )}
                 >
-                  標準 ({stageConfig.standardIso3s.length}ヵ国)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (difficulty !== "master") {
-                      startNewGame(stageId, "master");
-                    }
-                  }}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                    difficulty === "master"
-                      ? "bg-background text-foreground shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  上級 ({stageConfig.masterIso3s.length}ヵ国)
+                  {blindMode ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                  <span>{blindMode ? "達人" : "国名あり"}</span>
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setBlindMode((b) => !b)}
-                title="シルエットのみ表示（国名と国旗を隠す達人モード）"
-                className={cn(
-                  "flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer",
-                  blindMode
-                    ? "bg-purple-500/15 text-purple-400 border-purple-500/40"
-                    : "bg-secondary/50 text-muted-foreground border-border/60 hover:text-foreground",
-                )}
-              >
-                {blindMode ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                <span>{blindMode ? "シルエット達人" : "国名・国旗あり"}</span>
-              </button>
+              {/* 進捗＆タイマー＆操作ボタン */}
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2 h-7 sm:h-8">
+                  <span className="text-[11px] font-black text-sky-600 dark:text-sky-400 tabular-nums">
+                    {placedIso3s.size}/{pieces.length}
+                  </span>
+                  <span className="text-border">|</span>
+                  <Clock className="size-3 text-sky-500" />
+                  <span className="font-mono text-[11px] sm:text-xs font-black tabular-nums text-foreground">
+                    {formatStopwatch(elapsedMs)}
+                  </span>
+                  {combo >= 2 && (
+                    <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
+                      <Flame className="size-2.5" />
+                      {combo}
+                    </span>
+                  )}
+                </div>
 
-              <button
-                type="button"
-                onClick={() => setSoundEnabled((s) => !s)}
-                title="効果音のON/OFF"
-                className="p-1.5 rounded-xl border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-              </button>
-
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => startNewGame(stageId, difficulty)}
-                className="h-8 rounded-xl text-xs gap-1 cursor-pointer"
-              >
-                <RotateCcw className="size-3.5" />
-                <span>やり直す</span>
-              </Button>
+                <button
+                  type="button"
+                  onClick={() => setSoundEnabled((s) => !s)}
+                  title="効果音のON/OFF"
+                  className="size-7 sm:size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                >
+                  {soundEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* 2. ステータス＆ヒントバー */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
-          {/* 左：進行度・タイマー・ベストタイム */}
-          <div className="lg:col-span-5 surface-card px-4 py-3 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="size-10 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500 shrink-0">
-                <Puzzle className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-foreground truncate">
-                    {stageConfig.label} パズル進捗
-                  </span>
-                  <span className="font-black tabular-nums text-sky-500">
-                    {placedIso3s.size} / {pieces.length} ピース ({progressPct}%)
-                  </span>
-                </div>
-                <Progress value={progressPct} className="h-2" />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0 border-l border-border/60 pl-3">
-              <div className="text-right">
-                <div className="flex items-center justify-end gap-1 text-[10px] font-bold text-muted-foreground">
-                  <Clock className="size-3 text-sky-400" />
-                  <span>タイム</span>
-                </div>
-                <p className="font-mono text-base sm:text-lg font-black tabular-nums text-foreground leading-tight">
-                  {formatStopwatch(elapsedMs)}
-                </p>
-                {currentBestRecord && (
-                  <p className="text-[10px] font-bold text-amber-500 tabular-nums">
-                    自己ベスト: {formatBestTime(currentBestRecord.bestTimeSec)}
-                  </p>
-                )}
-              </div>
-
-              {combo >= 2 && (
-                <div className="px-2 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex flex-col items-center animate-bounce">
-                  <Flame className="size-3.5" />
-                  <span className="text-[10px] font-black">{combo}連続!</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 右：現在選択中のピース＆2段階ヒントパネル */}
-          <div className="lg:col-span-7 surface-card px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            {activePiece ? (
-              <>
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="size-11 rounded-2xl bg-secondary/80 border border-border/60 flex items-center justify-center p-1.5 shrink-0">
-                    <svg viewBox={activePiece.viewBox} className="size-full overflow-visible">
-                      <path
-                        d={activePiece.piecePathD}
-                        fill={stageConfig.pieceFill}
-                        stroke={stageConfig.pieceStroke}
-                        strokeWidth={1.5}
-                         vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
-                        選択中のピース
-                      </span>
-                      {(!blindMode || hintLevel >= 1) ? (
-                        <div className="flex items-center gap-1.5">
-                          <FlagImage flag={activePiece.country.flag} size="sm" />
-                          <span className="text-sm font-black text-foreground">
-                            {activePiece.country.nameJa}
-                          </span>
-                          <span className="text-xs text-muted-foreground hidden md:inline">
-                            ({activePiece.country.nameEn})
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm font-bold text-purple-400">
-                          ？？？国（シルエット達人モード）
-                        </span>
-                      )}
-                    </div>
-
-                    {/* ヒント表示エリア */}
-                    {hintLevel >= 1 ? (
-                      <div className="mt-1 text-xs text-amber-400 font-medium flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                        <span>🏛️ 首都: <strong>{activePiece.country.basic.capital}</strong></span>
-                        <span className="text-muted-foreground truncate max-w-md">
-                          📍 {activePiece.country.geography.borders}
-                        </span>
-                        {hintLevel >= 2 && (
-                          <span className="text-sky-400 font-bold">
-                            ✨ 地図上のターゲット位置が点滅しています！
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        下のトレイからピースを地図へドラッグするか、地図上の正しい位置をタップして配置しましょう
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <Button
+        {/* 2. メイン領域：地図を大きく表示し、そのすぐ下にピース一覧を配置して1画面に完全収容 */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 items-start">
+          {/* 左／上：大型白地図パズルボード */}
+          <div className="lg:col-span-8 surface-card p-1 sm:p-2 relative overflow-hidden">
+            {/* モバイルで画面高の約50%（最低340px〜）、タブレット・PCでも大画面で地図を表示 */}
+            <div className="relative w-full h-[50dvh] min-h-[340px] max-h-[520px] sm:h-[55dvh] sm:min-h-[420px] lg:h-[620px] lg:max-h-none rounded-xl overflow-hidden bg-[var(--ocean)] border border-border shadow-inner">
+              {/* 地図上部コントロールバー（左にやり直す、右にズーム操作を配置し、モバイル画面でも絶対に重ならないよう最適化） */}
+              <div className="pointer-events-none absolute inset-x-1.5 sm:inset-x-2.5 top-1.5 sm:top-2.5 z-10 flex items-center justify-between gap-1.5">
+                {/* 左上：やり直す（モバイルでは拡大中コンパクト化・通常時も見やすく配置） */}
+                <div className="pointer-events-auto flex items-center bg-background/92 backdrop-blur-md border border-border/80 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl shadow-md shrink-0">
+                  <button
                     type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleTriggerHint}
-                    disabled={hintLevel >= 2}
-                    className={cn(
-                      "h-8 rounded-xl text-xs font-bold gap-1.5 cursor-pointer border",
-                      hintLevel === 0
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                        : hintLevel === 1
-                          ? "border-sky-500/40 bg-sky-500/15 text-sky-400 hover:bg-sky-500/25"
-                          : "opacity-50",
-                    )}
+                    onClick={() => startNewGame(stageId, difficulty)}
+                    title="パズルを最初からやり直す"
+                    className="flex items-center justify-center gap-1 px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95 transition-all"
                   >
-                    <Lightbulb className="size-3.5" />
-                    <span>
-                      {hintLevel === 0
-                        ? "ヒント① (首都・特徴)"
-                        : hintLevel === 1
-                          ? "ヒント② (場所を点滅)"
-                          : "場所ハイライト中"}
-                    </span>
-                  </Button>
+                    <RotateCcw className="size-4 shrink-0" />
+                    <span className={cn(mapZoom > 1 ? "hidden sm:inline" : "inline")}>やり直す</span>
+                  </button>
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                  <Trophy className="size-5" />
-                  <span>ステージ完全制覇！すべてのピースが美しい世界地図に収まりました！</span>
+
+                {/* 右上：周辺を拡大 → 解除 → 縮小 → 拡大（一番右） */}
+                <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-background/92 backdrop-blur-md border border-border/80 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl shadow-md shrink-0">
+                  {activePiece && (
+                    <button
+                      type="button"
+                      onClick={() => handleZoomToActiveRegion(false)}
+                      title="選択中の国の周辺エリアを拡大"
+                      className="flex items-center gap-1 px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-600 dark:text-sky-300 text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <Crosshair className="size-3.5 shrink-0" />
+                      <span>周辺を拡大</span>
+                    </button>
+                  )}
+                  {mapZoom > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMapZoom(1);
+                        setMapPan({ x: 0, y: 0 });
+                      }}
+                      title="全体表示に戻す"
+                      className="px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-primary text-primary-foreground text-[11px] sm:text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <Maximize2 className="size-3.5 shrink-0" />
+                      <span>
+                        <span className="hidden sm:inline">{Math.round(mapZoom * 100)}% </span>解除
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextZ = Math.max(1, Math.round((mapZoom - 0.6) * 10) / 10);
+                      setMapZoom(nextZ);
+                      if (nextZ <= 1) setMapPan({ x: 0, y: 0 });
+                    }}
+                    disabled={mapZoom <= 1}
+                    title="地図を縮小"
+                    className="size-8 sm:size-9.5 rounded-lg sm:rounded-xl bg-secondary/80 hover:bg-secondary disabled:opacity-35 text-foreground flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0"
+                  >
+                    <ZoomOut className="size-5 sm:size-5.5 stroke-[2.2]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMapZoom((z) => Math.min(3.5, Math.round((z + 0.6) * 10) / 10))}
+                    title="地図を拡大"
+                    className="size-8 sm:size-9.5 rounded-lg sm:rounded-xl bg-secondary/80 hover:bg-secondary text-foreground flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0"
+                  >
+                    <ZoomIn className="size-5 sm:size-5.5 stroke-[2.2]" />
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* 3. メイン領域：左/上に白地図パズルボード、右/下にジグソーピース・トレイ */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-          {/* 白地図パズルボード */}
-          <div className="xl:col-span-8 surface-card p-2 sm:p-3 relative overflow-hidden">
-            <div className="relative w-full aspect-[900/520] rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/80 shadow-inner">
               <svg
                 ref={boardSvgRef}
-                viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`}
-                className="w-full h-full block touch-none"
+                viewBox={boardViewBox}
+                preserveAspectRatio="xMidYMid meet"
+                className={cn(
+                  "w-full h-full block touch-none",
+                  mapZoom > 1 ? "cursor-grab active:cursor-grabbing" : "",
+                )}
+                onPointerDown={(e) => {
+                  if (mapZoom <= 1 || dragging) return;
+                  boardPanRef.current = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    startPanX: mapPan.x,
+                    startPanY: mapPan.y,
+                    isPanning: false,
+                  };
+                }}
+                onPointerMove={(e) => {
+                  if (!boardPanRef.current || dragging) return;
+                  const dx = e.clientX - boardPanRef.current.startX;
+                  const dy = e.clientY - boardPanRef.current.startY;
+                  if (!boardPanRef.current.isPanning && Math.hypot(dx, dy) > 6) {
+                    boardPanRef.current.isPanning = true;
+                    suppressNextSocketClickRef.current = true;
+                  }
+                  if (boardPanRef.current.isPanning && boardSvgRef.current) {
+                    const rect = boardSvgRef.current.getBoundingClientRect();
+                    const scaleX = (BOARD_WIDTH / mapZoom) / Math.max(1, rect.width);
+                    const scaleY = (BOARD_HEIGHT / mapZoom) / Math.max(1, rect.height);
+                    setMapPan({
+                      x: boardPanRef.current.startPanX + dx * scaleX,
+                      y: boardPanRef.current.startPanY + dy * scaleY,
+                    });
+                  }
+                }}
+                onPointerUp={() => {
+                  boardPanRef.current = null;
+                }}
+                onPointerCancel={() => {
+                  boardPanRef.current = null;
+                }}
               >
                 <defs>
-                  <radialGradient id="puzzleOceanGrad" cx="50%" cy="45%" r="65%">
-                    <stop offset="0%" stopColor="#0f172a" />
-                    <stop offset="100%" stopColor="#020617" />
-                  </radialGradient>
                   <filter id="snapGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#38bdf8" floodOpacity="0.85" />
+                    <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#0284c7" floodOpacity="0.85" />
                   </filter>
                 </defs>
 
-                {/* 海背景 & 経緯線 */}
-                <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="url(#puzzleOceanGrad)" />
+                {/* 海背景（既存の平面地図と同じ var(--ocean)） & 経緯線 */}
+                <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="var(--ocean)" />
                 <path
                   d={graticuleD}
                   fill="none"
-                  stroke="rgba(148, 163, 184, 0.08)"
+                  stroke="rgba(15, 23, 42, 0.08)"
                   strokeWidth={0.7}
                 />
 
@@ -1225,29 +1419,27 @@ function PuzzlePage() {
                       dragging.isNearTarget;
 
                     if (!item.isTarget) {
-                      // パズル対象外の周辺国（大陸の文脈がわかるよう控えめに描画）
                       return (
                         <path
                           key={item.mapId}
                           d={item.d}
-                          fill="rgba(30, 41, 59, 0.45)"
-                          stroke="rgba(71, 85, 105, 0.35)"
-                          strokeWidth={0.6}
+                          fill="var(--land)"
+                          stroke="rgba(255, 255, 255, 0.85)"
+                          strokeWidth={0.75}
                         />
                       );
                     }
 
                     if (isPlaced) {
-                      // 配置完了したパズルピース
                       return (
                         <path
                           key={item.mapId}
                           d={item.d}
                           fill={stageConfig.pieceFill}
-                          fillOpacity={0.85}
+                          fillOpacity={0.92}
                           stroke="#ffffff"
-                          strokeWidth={1.2}
-                          className="transition-all duration-300 cursor-pointer hover:brightness-110"
+                          strokeWidth={1.3}
+                          className="transition-all duration-300 cursor-pointer hover:brightness-105"
                           onClick={() => {
                             if (item.iso3) {
                               const c = byIso3(item.iso3);
@@ -1258,91 +1450,92 @@ function PuzzlePage() {
                       );
                     }
 
-                    // 未配置のパズルソケット（くぼみ枠）
+                    // 未配置のパズルソケット（飛び地は背景陸地として描き、本土のみ白抜きのくぼみ枠にしてトレイのピース形と完全一致させる）
                     return (
-                      <path
-                        key={item.mapId}
-                        d={item.d}
-                        fill={
-                          isDragNearThis
-                            ? "rgba(56, 189, 248, 0.45)"
-                            : isHintRadar
-                              ? "rgba(251, 191, 36, 0.32)"
-                              : "rgba(15, 23, 42, 0.88)"
-                        }
-                        stroke={
-                          isDragNearThis
-                            ? "#38bdf8"
-                            : isHintRadar
-                              ? "#fbbf24"
-                              : "rgba(148, 163, 184, 0.48)"
-                        }
-                        strokeWidth={isDragNearThis || isHintRadar ? 2.2 : 1.0}
-                        strokeDasharray={isDragNearThis ? undefined : "3 2"}
-                        filter={isDragNearThis ? "url(#snapGlow)" : undefined}
-                        className="cursor-pointer transition-colors duration-150 hover:fill-slate-800/90"
-                        onClick={(e) => handleSocketClick(item.iso3, e)}
-                      />
+                      <g key={item.mapId}>
+                        {item.socketD !== item.d && (
+                          <path
+                            d={item.d}
+                            fill="var(--land)"
+                            stroke="rgba(255, 255, 255, 0.85)"
+                            strokeWidth={0.75}
+                          />
+                        )}
+                        <path
+                          d={item.socketD}
+                          fill={
+                            isDragNearThis
+                              ? "rgba(56, 189, 248, 0.55)"
+                              : isHintRadar
+                                ? "rgba(251, 191, 36, 0.55)"
+                                : "rgba(255, 255, 255, 0.88)"
+                          }
+                          stroke={
+                            isDragNearThis
+                              ? "#0284c7"
+                              : isHintRadar
+                                ? "#d97706"
+                                : "#64748b"
+                          }
+                          strokeWidth={isDragNearThis || isHintRadar ? 2.4 : 1.15}
+                          strokeDasharray={isDragNearThis ? undefined : "3.5 2"}
+                          filter={isDragNearThis ? "url(#snapGlow)" : undefined}
+                          className="cursor-pointer transition-colors duration-150 hover:fill-sky-100"
+                          onClick={(e) => handleSocketClick(item.iso3, e)}
+                        />
+                      </g>
                     );
                   })}
                 </g>
 
-                {/* 小さい国でもタップしやすい補助ターゲットリング（未配置ピース） */}
+                {/* 選択中ピースの透明タップ判定アシスト ＆ ヒント・吸着時のエフェクトリング */}
                 <g>
                   {pieces.map((p) => {
                     if (placedIso3s.has(p.country.iso3)) return null;
-                    const isSmall = p.width < 22 && p.height < 22;
-                    const isHintRadar =
-                      activePiece?.country.iso3 === p.country.iso3 && hintLevel >= 2;
+                    const isCurrentActive = activePiece?.country.iso3 === p.country.iso3;
+                    const isHintRadar = isCurrentActive && hintLevel >= 2;
                     const isDragNearThis =
                       dragging?.iso3 === p.country.iso3 && dragging.isNearTarget;
 
-                    if (!isSmall && !isHintRadar && !isDragNearThis) return null;
+                    if (!isCurrentActive && !isHintRadar && !isDragNearThis) return null;
 
                     return (
                       <g
                         key={`target-ring-${p.country.iso3}`}
                         transform={`translate(${p.targetX}, ${p.targetY})`}
                         className="cursor-pointer"
-                        onClick={(e) =>
-                          handleSocketClick(
-                            p.country.iso3,
-                            e as unknown as React.MouseEvent<SVGPathElement>,
-                          )
-                        }
+                        onClick={(e) => handleSocketClick(p.country.iso3, e)}
                       >
+                        {/* 選択中のピースのみ、小国でも指でタップしやすい透明ヒット領域を付与 */}
+                        <circle
+                          r={Math.max(14, 22 / Math.sqrt(mapZoom))}
+                          fill="transparent"
+                          style={{ pointerEvents: "all" }}
+                        />
+
                         {isHintRadar && (
                           <>
                             <circle
-                              r={26}
-                              fill="rgba(251, 191, 36, 0.2)"
-                              stroke="#fbbf24"
-                              strokeWidth={2}
+                              r={26 / Math.sqrt(mapZoom)}
+                              fill="rgba(245, 158, 11, 0.28)"
+                              stroke="#d97706"
+                              strokeWidth={2.2}
                               className="animate-ping"
                             />
                             <circle
-                              r={16}
-                              fill="rgba(251, 191, 36, 0.35)"
-                              stroke="#fde68a"
+                              r={15 / Math.sqrt(mapZoom)}
+                              fill="rgba(251, 191, 36, 0.48)"
+                              stroke="#b45309"
                               strokeWidth={2}
                             />
                           </>
                         )}
                         {isDragNearThis && (
                           <circle
-                            r={22}
-                            fill="rgba(56, 189, 248, 0.3)"
-                            stroke="#38bdf8"
-                            strokeWidth={2.5}
-                          />
-                        )}
-                        {isSmall && !isHintRadar && (
-                          <circle
-                            r={9}
-                            fill="rgba(30, 41, 59, 0.75)"
-                            stroke="rgba(148, 163, 184, 0.65)"
-                            strokeWidth={1}
-                            strokeDasharray="2 2"
+                            r={22 / Math.sqrt(mapZoom)}
+                            fill="rgba(14, 165, 233, 0.32)"
+                            stroke="#0284c7"
+                            strokeWidth={2.2}
                           />
                         )}
                       </g>
@@ -1350,31 +1543,29 @@ function PuzzlePage() {
                   })}
                 </g>
 
-                {/* 配置完了した国の国名ラベル */}
+                {/* 配置完了した国の国名ラベル（国の形を隠さないよう黒い背景ボックスを廃止し、地図帳方式の白フチ文字で描画） */}
                 <g className="pointer-events-none">
                   {pieces.map((p) => {
                     if (!placedIso3s.has(p.country.iso3)) return null;
+                    const minDim = Math.min(p.width, p.height);
+                    const baseFontSize = minDim < 22 ? 6.2 : minDim < 36 ? 7.2 : 8.5;
+                    const scaledFontSize = baseFontSize / Math.pow(mapZoom, 0.45);
+                    const scaledStroke = 2.4 / Math.pow(mapZoom, 0.45);
                     return (
                       <g
                         key={`label-${p.country.iso3}`}
                         transform={`translate(${p.targetX}, ${p.targetY})`}
                       >
-                        <rect
-                          x={-28}
-                          y={-9}
-                          width={56}
-                          height={18}
-                          rx={6}
-                          fill="rgba(2, 6, 23, 0.82)"
-                          stroke="rgba(255, 255, 255, 0.35)"
-                          strokeWidth={0.7}
-                        />
                         <text
                           textAnchor="middle"
                           dominantBaseline="central"
-                          fill="#f8fafc"
-                          fontSize={8.5}
-                          fontWeight="bold"
+                          fill="#0f172a"
+                          fontSize={scaledFontSize}
+                          fontWeight="900"
+                          stroke="rgba(255, 255, 255, 0.94)"
+                          strokeWidth={scaledStroke}
+                          strokeLinejoin="round"
+                          style={{ paintOrder: "stroke" }}
                         >
                           {p.country.nameJa.slice(0, 6)}
                         </text>
@@ -1384,50 +1575,38 @@ function PuzzlePage() {
                 </g>
               </svg>
 
-              {/* 直近に配置した国のミニ学習バナー（ボード左下に表示） */}
+              {/* 直近に配置した国のスリム通知ピル（地図を隠さないよう1行コンパクト表示） */}
               {lastPlacedCountry && !isCleared && (
-                <div className="absolute bottom-2.5 left-2.5 right-2.5 sm:right-auto sm:max-w-sm rounded-2xl bg-slate-900/92 backdrop-blur-md border border-white/15 px-3.5 py-2.5 text-white shadow-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <div className="flex items-center gap-2.5 min-w-0">
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:right-auto sm:max-w-md rounded-xl bg-background/95 backdrop-blur-md border border-border px-2.5 py-1.5 text-foreground shadow-md flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <FlagImage flag={lastPlacedCountry.flag} size="sm" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-black text-emerald-400">ナイス配置！</span>
-                        <span className="text-xs font-bold truncate">{lastPlacedCountry.nameJa}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-300 truncate">
-                        首都: {lastPlacedCountry.basic.capital} ／{" "}
-                        {lastPlacedCountry.examPoints[0]?.a ?? lastPlacedCountry.geography.climate}
-                      </p>
-                    </div>
+                    <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 shrink-0">✓</span>
+                    <span className="text-xs font-bold truncate">{lastPlacedCountry.nameJa}</span>
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      （首都: {lastPlacedCountry.basic.capital}）
+                    </span>
                   </div>
                   <Link
                     to="/country/$iso3"
                     params={{ iso3: lastPlacedCountry.iso3 }}
                     search={{ from: "puzzle" }}
                     onClick={() => {
-                      try {
-                        sessionStorage.setItem(
-                          "earthscope-puzzle-session",
-                          JSON.stringify({
-                            stageId,
-                            difficulty,
-                            blindMode,
-                            shuffledIso3s,
-                            placedIso3s: Array.from(placedIso3s),
-                            selectedIso3,
-                            elapsedMs: Date.now() - startTimeRef.current,
-                            mistakesCount,
-                            hintsUsedCount,
-                            combo,
-                            lastPlacedIso3: lastPlacedCountry.iso3,
-                            isCleared,
-                          }),
-                        );
-                      } catch {
-                        // ignore
-                      }
+                      persistPuzzleSession({
+                        stageId,
+                        difficulty,
+                        blindMode,
+                        shuffledIso3s,
+                        placedIso3s: Array.from(placedIso3s),
+                        selectedIso3,
+                        elapsedMs: Date.now() - startTimeRef.current,
+                        mistakesCount,
+                        hintsUsedCount,
+                        combo,
+                        lastPlacedIso3: lastPlacedCountry.iso3,
+                        isCleared,
+                      });
                     }}
-                    className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-sky-300 shrink-0"
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-300 shrink-0 active:scale-95"
                   >
                     詳細 ↗
                   </Link>
@@ -1436,10 +1615,10 @@ function PuzzlePage() {
 
               {/* クリア祝福オーバーレイ */}
               {isCleared && (
-                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-20 animate-in fade-in duration-300">
-                  <div className="max-w-md w-full rounded-3xl bg-card border border-border p-6 text-center shadow-2xl space-y-4">
-                    <div className="mx-auto size-16 rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg">
-                      <Trophy className="size-9" />
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-md flex items-center justify-center p-4 z-20 animate-in fade-in duration-300">
+                  <div className="max-w-md w-full rounded-3xl bg-card border border-border p-5 sm:p-6 text-center shadow-2xl space-y-4">
+                    <div className="mx-auto size-14 sm:size-16 rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-lg">
+                      <Trophy className="size-8 sm:size-9" />
                     </div>
 
                     <div>
@@ -1448,7 +1627,7 @@ function PuzzlePage() {
                           <Sparkles className="size-3.5" /> NEW RECORD! 自己ベスト更新
                         </span>
                       )}
-                      <h2 className="font-display text-2xl font-black text-foreground">
+                      <h2 className="font-display text-xl sm:text-2xl font-black text-foreground">
                         {stageConfig.label} パズル制覇！
                       </h2>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -1459,7 +1638,7 @@ function PuzzlePage() {
                     <div className="grid grid-cols-3 gap-2 rounded-2xl bg-secondary/60 p-3 border border-border/60">
                       <div>
                         <p className="text-[10px] font-bold text-muted-foreground">クリアタイム</p>
-                        <p className="font-mono text-base font-black text-sky-400">
+                        <p className="font-mono text-base font-black text-sky-500">
                           {formatStopwatch(elapsedMs)}
                         </p>
                       </div>
@@ -1471,7 +1650,7 @@ function PuzzlePage() {
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-muted-foreground">評価ランク</p>
-                        <p className="text-base font-black text-amber-400">
+                        <p className="text-base font-black text-amber-500">
                           {mistakesCount === 0 && hintsUsedCount === 0
                             ? "★★★"
                             : mistakesCount <= 3 && hintsUsedCount <= 2
@@ -1497,7 +1676,7 @@ function PuzzlePage() {
                           onClick={() => startNewGame(stageId, "master")}
                           className="flex-1 rounded-xl font-bold gap-1.5 cursor-pointer"
                         >
-                          <Zap className="size-4 text-amber-400" />
+                          <Zap className="size-4 text-amber-500" />
                           <span>上級 ({stageConfig.masterIso3s.length}ヵ国) へ</span>
                         </Button>
                       ) : (
@@ -1515,27 +1694,108 @@ function PuzzlePage() {
             </div>
           </div>
 
-          {/* 右／下：ジグソーピース・トレイ */}
-          <div className="xl:col-span-4 surface-card p-3 sm:p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target className="size-4 text-sky-400" />
-                <h2 className="font-display text-sm font-bold text-foreground">
-                  パズルピース・トレイ
+          {/* 右／下：パズルピース一覧（単独ドックを廃止し、地図と一覧が1画面に収まるスリム設計） */}
+          <div className="lg:col-span-4 surface-card p-2.5 sm:p-3.5 flex flex-col gap-2">
+            {/* トレイヘッダー（選択中の国情報・ヒントボタン・表示切替を1行に集約） */}
+            <div className="flex items-center justify-between gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Target className="size-4 text-sky-500 shrink-0" />
+                <h2 className="font-display text-xs sm:text-sm font-bold text-foreground shrink-0">
+                  ピース一覧
                 </h2>
+                <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+                  (残り{unplacedPieces.length})
+                </span>
+                {activePiece && (!blindMode || hintLevel >= 1) && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/12 border border-sky-500/30 text-xs font-bold text-foreground truncate">
+                    <FlagImage flag={activePiece.country.flag} size="sm" />
+                    <span className="truncate">{activePiece.country.nameJa}</span>
+                  </span>
+                )}
               </div>
-              <span className="text-xs font-bold text-muted-foreground">
-                残り {unplacedPieces.length} ピース
-              </span>
+
+              <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                {activePiece && (
+                  <button
+                    type="button"
+                    onClick={handleTriggerHint}
+                    disabled={hintLevel >= 2}
+                    className={cn(
+                      "h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all",
+                      hintLevel === 0
+                        ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
+                        : hintLevel === 1
+                          ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
+                          : "opacity-50 border-border bg-secondary text-muted-foreground",
+                    )}
+                  >
+                    <Lightbulb className="size-3" />
+                    <span>
+                      {hintLevel === 0
+                        ? "ヒント①(首都)"
+                        : hintLevel === 1
+                          ? "ヒント②(場所)"
+                          : "点滅中"}
+                    </span>
+                  </button>
+                )}
+
+                {/* モバイル・タブレット縦での表示切替ボタン */}
+                <div className="flex lg:hidden items-center bg-secondary/60 p-0.5 rounded-lg border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setMobileTrayView("dock")}
+                    className={cn(
+                      "px-2 py-0.5 rounded-md text-[11px] font-bold cursor-pointer transition-all",
+                      mobileTrayView === "dock"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    横並び
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileTrayView("grid")}
+                    className={cn(
+                      "px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-0.5 cursor-pointer transition-all",
+                      mobileTrayView === "grid"
+                        ? "bg-background text-foreground shadow-2xs"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    <LayoutGrid className="size-3" />
+                    <span>一覧</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
+            {/* ヒント発動時の1行コンパクト情報バー */}
+            {activePiece && hintLevel >= 1 && (
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="shrink-0">
+                  🏛️ 首都: <strong>{activePiece.country.basic.capital}</strong>
+                </span>
+                <span className="text-muted-foreground truncate">
+                  📍 {activePiece.country.geography.borders}
+                </span>
+              </div>
+            )}
+
             {unplacedPieces.length === 0 ? (
-              <div className="py-12 text-center space-y-2">
-                <Check className="size-8 text-emerald-400 mx-auto" />
-                <p className="text-sm font-bold text-foreground">すべてのピースを配置しました！</p>
+              <div className="py-6 text-center space-y-1.5">
+                <Check className="size-7 text-emerald-500 mx-auto" />
+                <p className="text-xs font-bold text-foreground">すべてのピースを配置しました！</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-3 gap-2 max-h-[380px] xl:max-h-[460px] overflow-y-auto pr-1">
+              <div
+                className={cn(
+                  mobileTrayView === "dock"
+                    ? "flex lg:grid lg:grid-cols-3 gap-2 overflow-x-auto lg:overflow-x-visible lg:max-h-[540px] lg:overflow-y-auto pb-1 lg:pb-0 lg:pr-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    : "grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-3 gap-1.5 max-h-[220px] lg:max-h-[540px] overflow-y-auto pr-1",
+                )}
+              >
                 {unplacedPieces.map((piece) => {
                   const iso3 = piece.country.iso3;
                   const isSelected = activePiece?.country.iso3 === iso3;
@@ -1549,34 +1809,38 @@ function PuzzlePage() {
                         e.currentTarget.releasePointerCapture(e.pointerId);
                         setSelectedIso3(iso3);
                         setHintLevel(0);
-                        setDragging({
+                        pendingDragRef.current = {
                           iso3,
-                          clientX: e.clientX,
-                          clientY: e.clientY,
-                          isNearTarget: false,
-                        });
+                          startX: e.clientX,
+                          startY: e.clientY,
+                          isTouch: e.pointerType === "touch",
+                          fromDockHandle: false,
+                        };
                       }}
                       onClick={() => {
                         setSelectedIso3(iso3);
                         setHintLevel(0);
                       }}
                       className={cn(
-                        "group relative flex flex-col items-center justify-between rounded-2xl border p-2.5 transition-all cursor-grab active:cursor-grabbing touch-none select-none",
+                        "group relative flex flex-col items-center justify-between rounded-xl border p-1.5 sm:p-2 transition-all cursor-grab active:cursor-grabbing select-none",
+                        mobileTrayView === "dock"
+                          ? "w-[88px] sm:w-[104px] lg:w-auto shrink-0 snap-start touch-pan-x lg:touch-none"
+                          : "touch-none",
                         isBeingDragged && "opacity-35 scale-95",
                         isWrong && "border-destructive bg-destructive/15 animate-bounce",
                         isSelected && !isWrong
-                          ? "border-sky-400 bg-sky-500/12 ring-2 ring-sky-400/30 shadow-md"
+                          ? "border-sky-500 bg-sky-500/15 ring-2 ring-sky-400/35 shadow-xs"
                           : "border-border/70 bg-secondary/40 hover:bg-secondary/80 hover:border-border",
                       )}
                     >
-                      {/* 国のシルエットSVG */}
-                      <div className="w-full h-14 sm:h-16 flex items-center justify-center p-1">
+                      {/* 国のシルエットSVG（各国の中心経度を真正面に向けた歪みゼロ投影） */}
+                      <div className="w-full h-11 sm:h-13 flex items-center justify-center p-0.5">
                         <svg
-                          viewBox={piece.viewBox}
-                          className="w-full h-full overflow-visible drop-shadow-md transition-transform group-hover:scale-105"
+                          viewBox={piece.trayViewBox}
+                          className="w-full h-full overflow-visible drop-shadow-xs transition-transform group-hover:scale-105"
                         >
                           <path
-                            d={piece.piecePathD}
+                            d={piece.trayPathD}
                             fill={stageConfig.pieceFill}
                             stroke={stageConfig.pieceStroke}
                             strokeWidth={1.5}
@@ -1586,17 +1850,17 @@ function PuzzlePage() {
                       </div>
 
                       {/* 国旗＆国名（達人モード時は隠す） */}
-                      <div className="w-full mt-1.5 pt-1.5 border-t border-border/50 flex items-center justify-center gap-1 min-w-0">
+                      <div className="w-full mt-1 pt-1 border-t border-border/50 flex items-center justify-center gap-1 min-w-0">
                         {!blindMode ? (
                           <>
                             <FlagImage flag={piece.country.flag} size="sm" className="shrink-0" />
-                            <span className="text-[11px] font-bold text-foreground truncate">
+                            <span className="text-[10px] sm:text-[11px] font-bold text-foreground truncate">
                               {piece.country.nameJa}
                             </span>
                           </>
                         ) : (
                           <span className="text-[10px] font-bold text-muted-foreground">
-                            ドラッグして配置
+                            {isSelected ? "地図をタップ" : "選択"}
                           </span>
                         )}
                       </div>
@@ -1605,36 +1869,30 @@ function PuzzlePage() {
                 })}
               </div>
             )}
-
-            {/* 操作ガイド */}
-            <div className="rounded-xl bg-secondary/40 border border-border/50 p-2.5 text-[11px] text-muted-foreground space-y-1">
-              <p className="font-bold text-foreground flex items-center gap-1">
-                <Compass className="size-3.5 text-sky-400" />
-                <span>パズルの遊び方（2通り対応）</span>
-              </p>
-              <p>① ピースを直接地図の枠へ<strong>ドラッグ＆ドロップ</strong>してピタッと吸着</p>
-              <p>② トレイのピースをタップして選択後、<strong>地図上の枠をタップ</strong>して配置</p>
-            </div>
           </div>
         </div>
       </main>
 
-      {/* ドラッグ中にポインターに追従するフローティング・シルエットピース */}
+      {/* ドラッグ中にポインターに追従するフローティング・シルエットピース（タッチ時は指の上方に照準表示） */}
       {dragging && draggingPieceData && (
         <div
           className="fixed pointer-events-none z-50 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
           style={{
             left: dragging.clientX,
-            top: dragging.clientY,
+            top: dragging.clientY + (dragging.isTouch ? TOUCH_DRAG_OFFSET_Y : 0),
           }}
         >
-          <div
-            className={cn(
-              "size-24 sm:size-28 flex items-center justify-center transition-transform duration-100",
-              dragging.isNearTarget ? "scale-115 drop-shadow-[0_0_16px_rgba(56,189,248,0.95)]" : "drop-shadow-2xl",
-            )}
-          >
-            <svg viewBox={draggingPieceData.viewBox} className="w-full h-full overflow-visible">
+          {/* 中心のターゲット照準レティクル（＋） */}
+          <div className="relative size-24 sm:size-28 flex items-center justify-center">
+            <svg
+              viewBox={draggingPieceData.viewBox}
+              className={cn(
+                "w-full h-full overflow-visible transition-transform duration-100",
+                dragging.isNearTarget
+                  ? "scale-115 drop-shadow-[0_0_16px_rgba(56,189,248,0.95)]"
+                  : "drop-shadow-2xl",
+              )}
+            >
               <path
                 d={draggingPieceData.piecePathD}
                 fill={dragging.isNearTarget ? "#38bdf8" : stageConfig.pieceFill}
@@ -1644,12 +1902,30 @@ function PuzzlePage() {
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
+
+            {/* 照準マーク */}
+            <div
+              className={cn(
+                "absolute size-6 rounded-full border-2 flex items-center justify-center transition-all",
+                dragging.isNearTarget
+                  ? "border-emerald-300 bg-emerald-400/35 scale-125"
+                  : "border-white/80 bg-slate-950/40",
+              )}
+            >
+              <div className="size-1.5 rounded-full bg-white" />
+            </div>
           </div>
+
           {!blindMode && (
-            <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-white/20 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg">
+            <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-950/92 border border-white/25 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg">
               <FlagImage flag={draggingPieceData.country.flag} size="sm" />
               <span>{draggingPieceData.country.nameJa}</span>
             </div>
+          )}
+
+          {/* タッチ操作時、指の位置からピースへのガイドライン */}
+          {dragging.isTouch && (
+            <div className="w-0.5 h-8 bg-gradient-to-b from-sky-400/80 to-transparent mt-0.5" />
           )}
         </div>
       )}
