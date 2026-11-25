@@ -39,6 +39,7 @@ import {
   TEXTBOOK_QUESTIONS,
   type TextbookQuestion,
 } from "@/data/textbookQuestions";
+import { EXAM_LEVEL_MAP, getExamPointsByLevel } from "@/data/examPointsByLevel";
 
 type Mode = "textbook" | "flag" | "flag_choice" | "capital" | "exam" | "timeline" | "country_master";
 
@@ -60,12 +61,12 @@ export const Route = createFileRoute("/quiz")({
   },
   head: () => ({
     meta: [
-      { title: "世界地理・歴史教科書連動クイズ — 中学・高校入試・共通テスト対策 | EarthScope (ES)" },
+      { title: "世界地理・歴史教科書連動クイズ - 中学・高校入試・共通テスト対策 | EarthScope" },
       {
         name: "description",
         content: "日本の文部科学省学習指導要領・教科書に完全準拠。中学入試・高校入試・大学入学共通テストの3段階難易度と大州別・テーマ別特訓で実力アップ。",
       },
-      { property: "og:title", content: "世界地理・歴史教科書連動クイズ | EarthScope (ES)" },
+      { property: "og:title", content: "世界地理・歴史教科書連動クイズ | EarthScope" },
       { property: "og:description", content: "中学・高校入試・共通テストに直結。大州別・雨温図・農業資源テーマ別特訓。" },
     ],
   }),
@@ -439,13 +440,21 @@ function buildQuestions(
 ): Question[] {
   // === 特定の国が選択されている場合 ===
   if (targetCountry) {
-    // 1. その国の受験ポイント特化（全10問）
+    // 1. その国の受験ポイント特化（中学・高校・大学 各10問）
     if (mode === "exam" || mode === "textbook") {
+      const targetLevel =
+        grade === "elementary"
+          ? "junior"
+          : grade === "high_school"
+            ? "university"
+            : "high";
+      const levelMeta = EXAM_LEVEL_MAP[targetLevel];
+      const levelPoints = getExamPointsByLevel(targetCountry)[targetLevel];
       const allExams = countries
         .filter((c) => c.iso3 !== targetCountry.iso3)
-        .flatMap((c) => c.examPoints.map((ep) => ep.a));
+        .flatMap((c) => getExamPointsByLevel(c)[targetLevel].map((ep) => ep.a));
 
-      return targetCountry.examPoints.slice(0, QUESTION_COUNT).map((item, idx) => {
+      return levelPoints.slice(0, QUESTION_COUNT).map((item, idx) => {
         const wrongPool = shuffle(allExams.filter((a) => a !== item.a)).slice(0, 3);
         const choices = shuffle([
           { id: item.a, label: item.a },
@@ -454,15 +463,15 @@ function buildQuestions(
         const { explanation, mnemonic } = generateExamExplanation(targetCountry, item.q, item.a);
         return {
           country: targetCountry,
-          prompt: `【${targetCountry.nameJa}】重要入試ポイント 第${idx + 1}問`,
+          prompt: `【${targetCountry.nameJa}】${levelMeta.label}ポイント 第${idx + 1}問`,
           textHint: `Q. ${item.q}`,
           choices,
           answerId: item.a,
           explanation,
           mnemonic,
-          gradeBadge: "高校入試・頻出",
+          gradeBadge: `${levelMeta.label}・頻出`,
           unitBadge: continentLabel(targetCountry.continent),
-          examTip: `教科書・入試で差がつく【${targetCountry.nameJa}】の重要論点です。`,
+          examTip: `${levelMeta.label}で差がつく【${targetCountry.nameJa}】の重要論点です。`,
         };
       });
     }
@@ -1300,7 +1309,7 @@ function QuizPage() {
                         </Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">
-                        首都: {selectedCountry.basic.capital} · 受験頻出問題: {selectedCountry.examPoints.length}問完備
+                        首都: {selectedCountry.basic.capital} · 受験ポイント: 中・高・大 各10問（計30問）
                       </p>
                     </div>
                   </div>

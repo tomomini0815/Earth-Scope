@@ -55,13 +55,13 @@ const FEATURED_EXPLORER_ISO3S = [
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "EarthScope (ES) — インタラクティブ世界地図で学ぶ地理・歴史" },
+      { title: "EarthScope - 世界地図で学ぶ地理・歴史" },
       {
         name: "description",
         content:
-          "世界地図をクリックして各国の歴史・文化・人口・経済・地理・入試ポイントを学べる EarthScope (ES)。クイズと比較機能で学習・受験対策に最適。",
+          "世界地図をクリックして各国の歴史・文化・人口・経済・地理・入試ポイントを学べる EarthScope。クイズと比較機能で学習・受験対策に最適。",
       },
-      { property: "og:title", content: "EarthScope (ES) — インタラクティブ世界地図で学ぶ" },
+      { property: "og:title", content: "EarthScope - 世界地図で学ぶ" },
       {
         property: "og:description",
         content: "地図から国を選んで学び、クイズで定着。全世界198ヵ国の世界地図学習プラットフォーム EarthScope。",
@@ -405,8 +405,18 @@ function Index() {
                         {/* 入試・学習頻出Q&Aハイライト */}
                         {featuredCountry.examPoints[0] && (
                           <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 p-2.5 space-y-1">
-                            <div className="text-xs font-bold text-sky-600 dark:text-sky-400">
-                              受験・入試頻出ポイント
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="rounded-md border border-sky-500/30 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:text-sky-300 leading-none">
+                                  高校受験
+                                </span>
+                                <span className="text-xs font-bold text-sky-600 dark:text-sky-400">
+                                  受験・入試頻出ポイント
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground font-medium">
+                                中・高・大 全30問
+                              </span>
                             </div>
                             <p className="text-foreground font-semibold text-xs sm:text-sm leading-snug">
                               Q. {featuredCountry.examPoints[0].q}

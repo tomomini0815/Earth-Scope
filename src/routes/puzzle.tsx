@@ -60,13 +60,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/puzzle")({
   head: () => ({
     meta: [
-      { title: "世界地図ジグソーパズル — 国の形と位置を体感マスター | EarthScope (ES)" },
+      { title: "世界地図ジグソーパズル - 国の形と位置を体感マスター | EarthScope" },
       {
         name: "description",
         content:
-          "大陸別ステージで国のシルエットピースを白地図にはめるインタラクティブ世界地図パズル。ヒント機能・クリアタイム計測・ベストタイム記録対応。",
+          "大陸別ステージで国のシルエットピースを白地図にはめる世界地図パズル。ヒント機能・クリアタイム計測・ベストタイム記録対応。",
       },
-      { property: "og:title", content: "世界地図ジグソーパズル | EarthScope (ES)" },
+      { property: "og:title", content: "世界地図ジグソーパズル | EarthScope" },
       {
         property: "og:description",
         content: "国の形（シルエット）をドラッグ＆ドロップで白地図に配置して世界地理を楽しくマスターしよう。",
@@ -175,10 +175,21 @@ const ALL_MAP_POLYGON_ISO3S: string[] = (() => {
 
 const STAGE_CONFIGS: StageConfig[] = [
   {
+    id: "world-all",
+    label: "全世界",
+    sublabel: "世界地図の全ピースを制覇する完全チャレンジ",
+    icon: Globe,
+    accentColor: "text-sky-500",
+    pieceFill: "#0284c7",
+    pieceStroke: "#7dd3fc",
+    bbox: [-120, -43, 162, 59],
+    iso3s: ALL_MAP_POLYGON_ISO3S,
+  },
+  {
     id: "world",
     label: "世界主要国",
     sublabel: "世界6大陸の代表的国家オールスター",
-    icon: Globe,
+    icon: Compass,
     accentColor: "text-indigo-500",
     pieceFill: "#6366f1",
     pieceStroke: "#a5b4fc",
@@ -187,17 +198,6 @@ const STAGE_CONFIGS: StageConfig[] = [
       "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
       "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
     ],
-  },
-  {
-    id: "world-all",
-    label: "全世界",
-    sublabel: "世界地図の全ピースを制覇する完全チャレンジ",
-    icon: Compass,
-    accentColor: "text-sky-500",
-    pieceFill: "#0284c7",
-    pieceStroke: "#7dd3fc",
-    bbox: [-120, -43, 162, 59],
-    iso3s: ALL_MAP_POLYGON_ISO3S,
   },
   {
     id: "asia",
@@ -506,7 +506,13 @@ function getInitialPuzzleSession(): SavedPuzzleSession {
       const raw = sessionStorage.getItem(PUZZLE_SESSION_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as SavedPuzzleSession;
-        if (parsed && parsed.stageId && Array.isArray(parsed.shuffledIso3s) && parsed.shuffledIso3s.length > 0) {
+        if (
+          parsed &&
+          parsed.stageId &&
+          Array.isArray(parsed.shuffledIso3s) &&
+          parsed.shuffledIso3s.length > 0 &&
+          (parsed.placedIso3s.length > 0 || parsed.elapsedMs > 0)
+        ) {
           memoryPuzzleSession = parsed;
           return parsed;
         }
@@ -515,9 +521,9 @@ function getInitialPuzzleSession(): SavedPuzzleSession {
       // ignore storage errors
     }
   }
-  const initialList = createShuffledList("world");
+  const initialList = createShuffledList("world-all");
   const fresh: SavedPuzzleSession = {
-    stageId: "world",
+    stageId: "world-all",
     blindMode: false,
     shuffledIso3s: initialList,
     placedIso3s: [],

@@ -11,9 +11,12 @@ export type TimelineItem = {
   event: string;
 };
 
+export type ExamLevel = "junior" | "high" | "university";
+
 export type QA = {
   q: string;
   a: string;
+  level?: ExamLevel;
 };
 
 export type Country = {

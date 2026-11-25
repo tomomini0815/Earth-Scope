@@ -280,14 +280,17 @@ export function WorldMap({
     y: number;
   } | null>(null);
 
-  // ドラッグ操作用の参照
+  // ドラッグ操作用の参照（hasMovedでタップとドラッグを明確に区別）
   const dragRef = useRef<{
     startX: number;
     startY: number;
     startOffset: { x: number; y: number };
     startRotation: [number, number, number];
     isDragging: boolean;
+    hasMoved: boolean;
   } | null>(null);
+  const hadPinchRef = useRef<boolean>(false);
+  const suppressClickRef = useRef<boolean>(false);
 
   // マルチタッチ（ピンチイン・ピンチアウト）用のポインター座標追跡
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -566,28 +569,28 @@ export function WorldMap({
       return;
     }
 
-    try {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
-    } catch {
-      // ignore
-    }
     setHover(null);
     activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     const pointers = Array.from(activePointersRef.current.values());
 
     if (pointers.length === 1) {
-      // 1本指での操作開始（パンまたは3D回転）
+      hadPinchRef.current = false;
+      suppressClickRef.current = false;
+      // 1本指での操作開始（6px以上動くまではタップ待機状態）
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
         startOffset: { ...offset2d },
         startRotation: [...rotation],
         isDragging: true,
+        hasMoved: false,
       };
       pinchRef.current = null;
     } else if (pointers.length >= 2) {
       // 2本指によるピンチイン・ピンチアウト操作開始
+      hadPinchRef.current = true;
+      suppressClickRef.current = true;
       dragRef.current = null;
       const p1 = pointers[0];
       const p2 = pointers[1];
@@ -610,6 +613,8 @@ export function WorldMap({
 
     // 2本指以上：ピンチイン・ピンチアウト（拡大・縮小）
     if (pointers.length >= 2) {
+      hadPinchRef.current = true;
+      suppressClickRef.current = true;
       const p1 = pointers[0];
       const p2 = pointers[1];
       if (!p1 || !p2) return;
@@ -662,6 +667,13 @@ export function WorldMap({
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
 
+    // タップ時の指の微動（6px未満）ではドラッグを開始しない（ワンタップ選択を最優先）
+    if (!dragRef.current.hasMoved) {
+      if (Math.hypot(dx, dy) < 6) return;
+      dragRef.current.hasMoved = true;
+      suppressClickRef.current = true;
+    }
+
     if (viewMode === "2d") {
       setOffset2d({
         x: dragRef.current.startOffset.x + dx,
@@ -679,11 +691,6 @@ export function WorldMap({
 
   const handlePointerUp = (e?: React.PointerEvent) => {
     if (e) {
-      try {
-        (e.target as Element).releasePointerCapture?.(e.pointerId);
-      } catch {
-        // ignore
-      }
       activePointersRef.current.delete(e.pointerId);
     } else {
       activePointersRef.current.clear();
@@ -701,6 +708,7 @@ export function WorldMap({
           startOffset: { ...offset2d },
           startRotation: [...rotation],
           isDragging: true,
+          hasMoved: true,
         };
       }
       pinchRef.current = null;
@@ -1080,14 +1088,28 @@ export function WorldMap({
                     (selected || isHovered) && "drop-shadow-md"
                   )}
                   onPointerMove={(e) => {
-                    if (dragRef.current?.isDragging) return;
+                    if (e.pointerType !== "mouse" || dragRef.current?.isDragging) return;
                     handleHover(e.clientX, e.clientY);
                   }}
-                  onMouseMove={(e) => {
-                    if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
+                  onPointerUp={(e) => {
+                    if (
+                      e.pointerType !== "mouse" &&
+                      targetMapId &&
+                      !dragRef.current?.hasMoved &&
+                      !hadPinchRef.current &&
+                      activePointersRef.current.size <= 1
+                    ) {
+                      suppressClickRef.current = true;
+                      onSelect(targetMapId);
+                    }
                   }}
-                  onClick={() => targetMapId && onSelect(targetMapId)}
+                  onClick={() => {
+                    if (suppressClickRef.current) {
+                      suppressClickRef.current = false;
+                      return;
+                    }
+                    if (targetMapId) onSelect(targetMapId);
+                  }}
                 />
               );
             })}
@@ -1150,17 +1172,30 @@ export function WorldMap({
                   key={`microstate-${m.id}-${viewMode}`}
                   className="cursor-pointer group touch-none"
                   style={{ touchAction: "none" }}
+                  onPointerMove={(e) => {
+                    if (e.pointerType !== "mouse" || dragRef.current?.isDragging) return;
+                    handleHover(e.clientX, e.clientY);
+                  }}
+                  onPointerUp={(e) => {
+                    if (
+                      e.pointerType !== "mouse" &&
+                      !dragRef.current?.hasMoved &&
+                      !hadPinchRef.current &&
+                      activePointersRef.current.size <= 1
+                    ) {
+                      e.stopPropagation();
+                      suppressClickRef.current = true;
+                      handlePointerUp(e);
+                      onSelect(m.id);
+                    }
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (suppressClickRef.current) {
+                      suppressClickRef.current = false;
+                      return;
+                    }
                     onSelect(m.id);
-                  }}
-                  onPointerMove={(e) => {
-                    if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
-                  }}
-                  onMouseMove={(e) => {
-                    if (dragRef.current?.isDragging) return;
-                    handleHover(e.clientX, e.clientY);
                   }}
                 >
                   {/* タッチ・クリック判定用の透明ヒットエリア（快適操作） */}

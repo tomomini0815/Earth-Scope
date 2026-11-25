@@ -47,7 +47,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlagImage } from "@/components/FlagImage";
-import { continentLabel, type Country } from "@/data/types";
+import { continentLabel, type Country, type ExamLevel } from "@/data/types";
+import { EXAM_LEVELS, EXAM_LEVEL_MAP, getExamPointsByLevel } from "@/data/examPointsByLevel";
 import { getCountryPhoto } from "@/data/countryPhotos";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
@@ -158,6 +159,15 @@ export function CountryDetail({
   const toggleLearned = useProgress((s) => s.toggleLearned);
   const toggleFavorite = useProgress((s) => s.toggleFavorite);
   const [activeTab, setActiveTab] = useState("basic");
+  const [examLevel, setExamLevel] = useState<ExamLevel | "all">("junior");
+
+  const examByLevel = getExamPointsByLevel(country);
+  const visibleExamPoints =
+    examLevel === "all"
+      ? [...examByLevel.junior, ...examByLevel.high, ...examByLevel.university]
+      : examByLevel[examLevel];
+  const examTotalCount =
+    examByLevel.junior.length + examByLevel.high.length + examByLevel.university.length;
 
   const photo = getCountryPhoto(country.iso3, country.continent);
 
@@ -825,68 +835,107 @@ export function CountryDetail({
             )}
           </TabsContent>
 
-          {/* 8. 受験ポイントタブ */}
-          <TabsContent value="exam" className="mt-0 space-y-4">
+          {/* 8. 受験ポイントタブ（中学・高校・大学 各10問 計30問） */}
+          <TabsContent value="exam" className="mt-0 space-y-3">
+            {/* シンプルな下線タブ（中学 / 高校 / 大学 / 全30問） */}
+            <div className="flex items-center justify-between gap-2 border-b border-border/70">
+              <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {EXAM_LEVELS.map((lvl) => {
+                  const isActive = examLevel === lvl.id;
+                  return (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => setExamLevel(lvl.id)}
+                      className={cn(
+                        "relative pb-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap touch-manipulation border-b-[4px] -mb-px",
+                        isActive
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span>{compact ? lvl.shortLabel : lvl.label}</span>
+                      <span className="ml-0.5 text-xs sm:text-sm font-semibold opacity-80">
+                        ({examByLevel[lvl.id].length})
+                      </span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setExamLevel("all")}
+                  className={cn(
+                    "relative pb-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap touch-manipulation border-b-[4px] -mb-px",
+                    examLevel === "all"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span>全{examTotalCount}問</span>
+                </button>
+              </div>
+
+              <Link
+                to="/quiz"
+                search={{
+                  country: country.iso3.toLowerCase(),
+                  mode: "exam",
+                  grade:
+                    examLevel === "junior"
+                      ? "elementary"
+                      : examLevel === "high"
+                        ? "junior_high"
+                        : examLevel === "university"
+                          ? "high_school"
+                          : undefined,
+                }}
+                className="pb-2 text-xs text-sky-600 dark:text-sky-400 hover:underline font-bold shrink-0"
+              >
+                クイズで特訓 ➜
+              </Link>
+            </div>
+
+            {/* 選択中レベルの簡潔な説明 */}
+            <p className="text-[11px] text-muted-foreground">
+              {examLevel === "all"
+                ? `中学・高校・大学 全${examTotalCount}問（各10問）`
+                : `${EXAM_LEVEL_MAP[examLevel].label}：${EXAM_LEVEL_MAP[examLevel].subtitle}`}
+            </p>
+
             {compact ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">入試頻出 10問</span>
-                  <Link
-                    to="/quiz"
-                    search={{ country: country.iso3.toLowerCase(), mode: "exam" }}
-                    className="text-xs text-sky-500 hover:underline font-bold"
-                  >
-                    クイズで特訓 ➜
-                  </Link>
-                </div>
-                {country.examPoints.map((qa) => (
-                  <div key={qa.q} className="rounded-lg border border-border p-3">
-                    <p className="font-bold text-primary">Q. {qa.q}</p>
-                    <p className="mt-1 text-muted-foreground">A. {qa.a}</p>
+              <div className="space-y-2.5">
+                {visibleExamPoints.map((qa, idx) => (
+                  <div key={`${qa.level}-${idx}-${qa.q}`} className="rounded-lg border border-border p-3">
+                    <p className="font-bold text-primary text-xs sm:text-sm leading-snug">
+                      Q{idx + 1}. {qa.q}
+                    </p>
+                    <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-snug">
+                      A. {qa.a}
+                    </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <BookOpen className="size-4" />
-                    <span>入試頻出・重要マスター10問</span>
-                    <span className="text-[11px] font-normal text-muted-foreground">（中学・高校・大学受験対策）</span>
-                  </span>
-                  <Link
-                    to="/quiz"
-                    search={{ country: country.iso3.toLowerCase(), mode: "exam" }}
-                    className="inline-flex items-center gap-1 font-bold text-amber-700 dark:text-amber-300 hover:underline bg-amber-500/15 hover:bg-amber-500/25 px-3 py-1.5 rounded-lg transition-colors text-xs"
+              <div className="grid gap-3 sm:grid-cols-2">
+                {visibleExamPoints.map((qa, index) => (
+                  <div
+                    key={`${qa.level}-${index}-${qa.q}`}
+                    className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs space-y-2 hover:border-border transition-colors flex flex-col justify-between"
                   >
-                    この10問をクイズで特訓する ➜
-                  </Link>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {country.examPoints.map((qa, index) => (
-                    <div
-                      key={qa.q}
-                      className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs space-y-2 hover:border-amber-500/40 transition-colors flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-display text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                            Q{index + 1}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">地理・歴史の重要論点</span>
-                        </div>
-                        <p className="text-xs sm:text-sm font-bold text-foreground leading-snug">{qa.q}</p>
-                      </div>
-                      <div className="rounded-xl bg-secondary/50 p-2.5 border border-border/60">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                          正解
-                        </span>
-                        <p className="text-xs sm:text-sm font-bold text-sky-600 dark:text-sky-400">{qa.a}</p>
-                      </div>
+                    <div>
+                      <span className="inline-block text-[11px] font-bold text-muted-foreground mb-1">
+                        Q{index + 1}
+                      </span>
+                      <p className="text-xs sm:text-sm font-bold text-foreground leading-snug">{qa.q}</p>
                     </div>
-                  ))}
-                </div>
+                    <div className="rounded-xl bg-secondary/50 p-2.5 border border-border/60">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        正解
+                      </span>
+                      <p className="text-xs sm:text-sm font-bold text-sky-600 dark:text-sky-400">{qa.a}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </TabsContent>

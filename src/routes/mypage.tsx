@@ -125,12 +125,12 @@ function getFlightMetaphor(totalSec: number = 0): { title: string; desc: string;
 export const Route = createFileRoute("/mypage")({
   head: () => ({
     meta: [
-      { title: "マイページ — 冒険者ランク・パスポート・学習進捗 | EarthScope (ES)" },
+      { title: "マイページ - 冒険者ランク・パスポート・学習進捗 | EarthScope" },
       {
         name: "description",
         content: "学習済みの国、デジタルパスポートスタンプ帳、冒険者ランク、弱点克服レコメンドを確認できるマイページ。",
       },
-      { property: "og:title", content: "マイページ | EarthScope (ES)" },
+      { property: "og:title", content: "マイページ | EarthScope" },
       { property: "og:description", content: "デジタルパスポート・冒険者ランク・学習マップで進捗を可視化。" },
     ],
   }),

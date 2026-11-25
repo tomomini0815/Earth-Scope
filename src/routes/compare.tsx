@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/compare")({
   head: () => ({
     meta: [
-      { title: "国データ比較（人口・GDP・面積・軍事費） | EarthScope (ES)" },
+      { title: "国データ比較（人口・GDP・面積・軍事費） | EarthScope" },
       {
         name: "description",
         content: "全世界198ヵ国の人口・GDP・1人あたりGDP・面積・軍事費・兵力をグラフで比較。最大10ヵ国まで並べて視覚的に学べます。",
       },
-      { property: "og:title", content: "国データ比較 | EarthScope (ES)" },
+      { property: "og:title", content: "国データ比較 | EarthScope" },
       { property: "og:description", content: "人口・経済・面積・軍事などを最大10カ国並べてグラフで比較できます。" },
     ],
   }),
