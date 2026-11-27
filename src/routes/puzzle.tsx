@@ -6,6 +6,7 @@ import {
   geoDistance,
   geoGraticule10,
   geoNaturalEarth1,
+  geoOrthographic,
   geoPath,
 } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
@@ -17,7 +18,6 @@ import {
   ChevronRight,
   Clock,
   Compass,
-  Crosshair,
   Eye,
   EyeOff,
   Flame,
@@ -27,11 +27,14 @@ import {
   Landmark,
   LayoutGrid,
   Lightbulb,
+  Map as MapIcon,
   MapPin,
-  Maximize2,
   Mountain,
+  Navigation,
   Puzzle,
   RotateCcw,
+  Search,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Sun,
@@ -41,6 +44,7 @@ import {
   Volume2,
   VolumeX,
   Waves,
+  X,
   Zap,
   ZoomIn,
   ZoomOut,
@@ -49,7 +53,7 @@ import {
 import world from "@/data/world.geo.json";
 import { countries } from "@/data/countries";
 import { byIso3, byMapId } from "@/data/lookup";
-import { type ContinentId, type Country } from "@/data/types";
+import { continentLabel, type ContinentId, type Country } from "@/data/types";
 import { SiteHeader } from "@/components/SiteHeader";
 import { FlagImage } from "@/components/FlagImage";
 import { Button } from "@/components/ui/button";
@@ -78,10 +82,24 @@ export const Route = createFileRoute("/puzzle")({
 
 const BOARD_WIDTH = 900;
 const BOARD_HEIGHT = 520;
+const BOARD_3D_WIDTH = 660;
+const BOARD_3D_HEIGHT = 600;
+const GLOBE_CX = BOARD_3D_WIDTH / 2;
+const GLOBE_CY = BOARD_3D_HEIGHT / 2;
+const GLOBE_BASE_RADIUS = 266;
+const MAX_MAP_ZOOM = 6;
 const SNAP_BASE_RADIUS = 48;
 const SNAP_TOUCH_RADIUS = 64;
 /** タッチ操作時、指でピースと地図が隠れないよう指の上方64pxに照準をオフセット */
 const TOUCH_DRAG_OFFSET_Y = -64;
+
+/** 画面上端付近でのドラッグ時にピースが見切れないようオフセットを動的調整 */
+function getTouchDragOffsetY(clientY: number): number {
+  if (clientY < 140) {
+    return -Math.max(16, Math.round((clientY / 140) * Math.abs(TOUCH_DRAG_OFFSET_Y)));
+  }
+  return TOUCH_DRAG_OFFSET_Y;
+}
 
 type StageId = ContinentId | "world" | "world-all";
 
@@ -424,6 +442,9 @@ function playPuzzleSound(type: "snap" | "wrong" | "clear" | "hint", enabled: boo
 type PuzzlePieceData = {
   country: Country;
   mapId: string;
+  rawFeature: RawFeature;
+  pieceFeature: RawFeature;
+  mainCenterLonLat: [number, number];
   boardPathD: string;
   piecePathD: string;
   /** トレイ表示用：その国の中心経度を正面にして歪みゼロで投影したパスとviewBox */
@@ -588,11 +609,17 @@ function PuzzlePage() {
     isNearTarget: boolean;
   } | null>(null);
 
-  // 地図ズーム＆パン状態（モバイル・タブレットで小さい国を拡大して配置しやすくする）
+  // 地図表示モード（平面2D ⇄ 3D地球儀）＆ ズーム・パン・地球儀回転
+  const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [mapZoom, setMapZoom] = useState<number>(1);
   const [mapPan, setMapPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // モバイル・タブレット用のトレイ表示モード（横スワイプドック or 一覧グリッド）
-  const [mobileTrayView, setMobileTrayView] = useState<"dock" | "grid">("dock");
+  const [globeRotation, setGlobeRotation] = useState<[number, number, number]>([-30, -20, 0]);
+  const [isRegionZoomActive, setIsRegionZoomActive] = useState(false);
+  // モバイル・タブレット用の一覧ボトムシート開閉＆国名検索＆設定メニュー
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pieceSearchQuery, setPieceSearchQuery] = useState("");
+  const dockItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const boardSvgRef = useRef<SVGSVGElement | null>(null);
   const startTimeRef = useRef<number>(Date.now() - initialSession.elapsedMs);
@@ -618,12 +645,13 @@ function PuzzlePage() {
     fromDockHandle?: boolean;
   } | null>(null);
 
-  // 地図拡大時のドラッグパン操作用の参照
+  // 地図拡大時のドラッグパン／3D地球儀の回転操作用の参照
   const boardPanRef = useRef<{
     startX: number;
     startY: number;
     startPanX: number;
     startPanY: number;
+    startRotation: [number, number, number];
     isPanning: boolean;
   } | null>(null);
   // モバイル・タブレットでの2本指ピンチイン／ピンチアウト用の参照
@@ -632,6 +660,7 @@ function PuzzlePage() {
     initialDistance: number;
     initialZoom: number;
     initialPan: { x: number; y: number };
+    initialRotation: [number, number, number];
     initialCenter: { x: number; y: number };
   } | null>(null);
   const suppressNextSocketClickRef = useRef<boolean>(false);
@@ -755,6 +784,9 @@ function PuzzlePage() {
           const pieceData: PuzzlePieceData = {
             country,
             mapId,
+            rawFeature: rawF,
+            pieceFeature,
+            mainCenterLonLat,
             boardPathD: d,
             piecePathD,
             trayPathD,
@@ -789,6 +821,90 @@ function PuzzlePage() {
     };
   }, [stageConfig]);
 
+  // 3D地球儀モード時の投影・パス・ターゲット座標（viewMode === "3d" のときのみ計算）
+  const globeRenderData = useMemo(() => {
+    if (viewMode !== "3d") return null;
+    const radius = GLOBE_BASE_RADIUS * mapZoom;
+    const projection = geoOrthographic()
+      .scale(radius)
+      .translate([GLOBE_CX, GLOBE_CY])
+      .rotate(globeRotation)
+      .clipAngle(90);
+    const pathGen = geoPath(projection);
+    const gratD = pathGen(geoGraticule10() as never) ?? "";
+    const targetIso3Set = new Set(stageConfig.iso3s);
+    const centerLonLat: [number, number] = [-globeRotation[0], -globeRotation[1]];
+
+    const paths3D: {
+      mapId: string;
+      iso3?: string | undefined;
+      nameJa?: string | undefined;
+      d: string;
+      socketD: string;
+      isTarget: boolean;
+    }[] = [];
+
+    const piecePos3D = new Map<string, { x: number; y: number; visible: boolean }>();
+
+    for (const rawF of ALL_FEATURES) {
+      const mapId = getFeatureMapId(rawF);
+      if (!mapId || mapId === "010") continue;
+      const d = pathGen(rawF as never) ?? "";
+      const country = byMapId(mapId);
+      const isTarget = !!country && targetIso3Set.has(country.iso3);
+
+      if (country && isTarget) {
+        const piece = pieceByIso3.get(country.iso3);
+        const socketD = piece ? (pathGen(piece.pieceFeature as never) ?? d) : d;
+        if (d || socketD) {
+          paths3D.push({
+            mapId,
+            iso3: country.iso3,
+            nameJa: country.nameJa,
+            d,
+            socketD,
+            isTarget: true,
+          });
+        }
+        if (piece) {
+          const isFront = geoDistance(centerLonLat, piece.mainCenterLonLat) < Math.PI / 2 - 0.03;
+          const pt = projection(piece.mainCenterLonLat);
+          if (pt && isFront) {
+            piecePos3D.set(country.iso3, { x: pt[0], y: pt[1], visible: true });
+          } else {
+            piecePos3D.set(country.iso3, { x: GLOBE_CX, y: GLOBE_CY, visible: false });
+          }
+        }
+      } else if (d) {
+        paths3D.push({
+          mapId,
+          iso3: country?.iso3,
+          nameJa: country?.nameJa,
+          d,
+          socketD: d,
+          isTarget: false,
+        });
+      }
+    }
+
+    return {
+      radius,
+      projection,
+      graticuleD: gratD,
+      paths3D,
+      piecePos3D,
+    };
+  }, [viewMode, mapZoom, globeRotation, stageConfig, pieceByIso3]);
+
+  const getDefaultGlobeRotationForStage = (sid: StageId): [number, number, number] => {
+    const cfg = STAGE_CONFIGS.find((s) => s.id === sid) ?? STAGE_CONFIGS[0]!;
+    if (cfg.id === "world" || cfg.id === "world-all") {
+      return [-30, -20, 0];
+    }
+    const [minLon, minLat, maxLon, maxLat] = cfg.bbox;
+    return [-(minLon + maxLon) / 2, -(minLat + maxLat) / 2, 0];
+  };
+
   const startNewGame = (nextStageId = stageId) => {
     const list = createShuffledList(nextStageId);
     setStageId(nextStageId);
@@ -808,6 +924,11 @@ function PuzzlePage() {
     isRunningRef.current = false;
     setMapZoom(1);
     setMapPan({ x: 0, y: 0 });
+    setGlobeRotation(getDefaultGlobeRotationForStage(nextStageId));
+    setIsRegionZoomActive(false);
+    setMobileSheetOpen(false);
+    setMobileMenuOpen(false);
+    setPieceSearchQuery("");
     startTimeRef.current = Date.now();
     persistPuzzleSession({
       stageId: nextStageId,
@@ -888,6 +1009,37 @@ function PuzzlePage() {
     return unplacedPieces[0] ?? null;
   }, [selectedIso3, placedIso3s, pieceByIso3, unplacedPieces]);
 
+  // モバイルボトムシート用の国名検索フィルタ済み未配置ピース
+  const filteredSheetPieces = useMemo(() => {
+    const q = pieceSearchQuery.trim().toLowerCase();
+    if (!q || blindMode) return unplacedPieces;
+    return unplacedPieces.filter(
+      (p) =>
+        p.country.nameJa.toLowerCase().includes(q) ||
+        p.country.nameEn.toLowerCase().includes(q) ||
+        p.country.basic.capital.toLowerCase().includes(q),
+    );
+  }, [unplacedPieces, pieceSearchQuery, blindMode]);
+
+  // 選択中のピースが変わったら、横並びドック内の該当カードを中央付近へ自動スクロール
+  useEffect(() => {
+    if (!activePiece) return;
+    const el = dockItemRefs.current.get(activePiece.country.iso3);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [activePiece?.country.iso3]);
+
+  // ボトムシートが開いている間は背景の縦スクロールを抑止
+  useEffect(() => {
+    if (!mobileSheetOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileSheetOpen]);
+
   // 前後のピースへ切り替え（モバイル・タブレットの親指操作用）
   const handleCyclePiece = (dir: -1 | 1) => {
     if (unplacedPieces.length <= 1) return;
@@ -915,17 +1067,64 @@ function PuzzlePage() {
     return `${vbX.toFixed(1)} ${vbY.toFixed(1)} ${vbW.toFixed(1)} ${vbH.toFixed(1)}`;
   }, [mapZoom, mapPan]);
 
-  // 選択中のピースの周辺エリアへ地図を拡大フォーカス（モバイル・タブレットで小さい国を配置しやすくする）
-  const handleZoomToActiveRegion = (exactCenter = false) => {
+  // 2D平面 ⇄ 3D地球儀 切替
+  const handleToggleViewMode = (nextMode?: "2d" | "3d") => {
+    const target = nextMode ?? (viewMode === "2d" ? "3d" : "2d");
+    if (target === viewMode) return;
+    setViewMode(target);
+    setMapZoom(1);
+    setMapPan({ x: 0, y: 0 });
+    setIsRegionZoomActive(false);
+    if (target === "3d") {
+      setGlobeRotation(getDefaultGlobeRotationForStage(stageId));
+    }
+  };
+
+  // 選択中のピースの周辺エリアへ拡大フォーカス（トグル式：ONで拡大＆塗り、もう一度押すと全体表示へ解除）
+  const handleToggleRegionZoom = () => {
+    if (isRegionZoomActive) {
+      setMapZoom(1);
+      setMapPan({ x: 0, y: 0 });
+      setIsRegionZoomActive(false);
+      return;
+    }
     if (!activePiece) return;
-    const targetZoom = Math.max(2.2, mapZoom < 2 ? 2.2 : Math.min(3.5, mapZoom + 0.6));
-    // ヒント2（場所点滅）時やexact指定時は正確な中心へ、それ以外は周辺エリア（少しオフセット）へフォーカス
-    const offsetX = exactCenter || hintLevel >= 2 ? 0 : ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 28;
-    const offsetY = exactCenter || hintLevel >= 2 ? 0 : ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 20;
+    const isSmallPiece = activePiece.width < 28 || activePiece.height < 28;
+    const targetZoom = isSmallPiece ? 3.0 : 2.2;
+    if (viewMode === "3d") {
+      const [lon, lat] = activePiece.mainCenterLonLat;
+      const offsetLon = hintLevel >= 2 ? 0 : ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 8;
+      const offsetLat = hintLevel >= 2 ? 0 : ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 6;
+      setGlobeRotation([-(lon + offsetLon), Math.max(-85, Math.min(85, -(lat + offsetLat))), 0]);
+      setMapZoom(targetZoom);
+      setIsRegionZoomActive(true);
+      return;
+    }
+    const offsetX = hintLevel >= 2 ? 0 : ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 24;
+    const offsetY = hintLevel >= 2 ? 0 : ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 18;
     const panX = BOARD_WIDTH / 2 - (activePiece.targetX + offsetX);
     const panY = BOARD_HEIGHT / 2 - (activePiece.targetY + offsetY);
     setMapZoom(targetZoom);
     setMapPan({ x: panX, y: panY });
+    setIsRegionZoomActive(true);
+  };
+
+  // 段階拡大（最大倍率で停止）
+  const handleStepZoomIn = () => {
+    setIsRegionZoomActive(false);
+    if (mapZoom >= MAX_MAP_ZOOM) return;
+    const nextZ = Math.min(MAX_MAP_ZOOM, Math.round((mapZoom + 1.0) * 10) / 10);
+    setMapZoom(nextZ);
+  };
+
+  // 段階縮小（1倍に戻ると全体表示へ解除）
+  const handleStepZoomOut = () => {
+    const nextZ = Math.max(1, Math.round((mapZoom - 1.0) * 10) / 10);
+    setMapZoom(nextZ);
+    if (nextZ <= 1) {
+      setMapPan({ x: 0, y: 0 });
+      setIsRegionZoomActive(false);
+    }
   };
 
   // スクリーン座標 (clientX, clientY) を SVG 座標 (svgX, svgY) に変換
@@ -945,9 +1144,18 @@ function PuzzlePage() {
     }
   };
 
-  // 指定したSVG座標が対象ピースの正解位置にスナップするか判定
+  // 指定したSVG座標が対象ピースの正解位置にスナップするか判定（2D/3D両対応）
   const checkIsSnapMatch = (piece: PuzzlePieceData, svgX: number, svgY: number, isTouch = false): boolean => {
     const baseRadius = isTouch ? SNAP_TOUCH_RADIUS : SNAP_BASE_RADIUS;
+    if (viewMode === "3d") {
+      if (!globeRenderData) return false;
+      const pos3D = globeRenderData.piecePos3D.get(piece.country.iso3);
+      if (!pos3D || !pos3D.visible) return false;
+      const effectiveRadius = (baseRadius * 0.9) * Math.pow(mapZoom, 0.35);
+      const dist = Math.hypot(svgX - pos3D.x, svgY - pos3D.y);
+      return dist <= effectiveRadius;
+    }
+
     // ズーム中は画面上の見た目に合わせつつ十分な吸着半径を維持
     const effectiveRadius = baseRadius / Math.pow(mapZoom, 0.35);
     const dist = Math.hypot(svgX - piece.targetX, svgY - piece.targetY);
@@ -977,6 +1185,7 @@ function PuzzlePage() {
     setLastPlacedCountry(piece.country);
     setHintLevel(0);
     setWrongFeedbackIso3(null);
+    setIsRegionZoomActive(false);
 
     // 全ピース完了チェック
     if (nextPlaced.size >= pieces.length && pieces.length > 0) {
@@ -988,6 +1197,7 @@ function PuzzlePage() {
       isRunningRef.current = false;
       setMapZoom(1);
       setMapPan({ x: 0, y: 0 });
+      setIsRegionZoomActive(false);
       playPuzzleSound("clear", soundEnabled);
 
       const stars =
@@ -1023,25 +1233,12 @@ function PuzzlePage() {
         const dy = e.clientY - pending.startY;
         const dist = Math.hypot(dx, dy);
 
-        // モバイル横スクロールドック上で横にスワイプした場合はドラッグをキャンセルしてスクロールを優先
-        if (
-          pending.isTouch &&
-          !pending.fromDockHandle &&
-          mobileTrayView === "dock" &&
-          Math.abs(dx) > 10 &&
-          Math.abs(dx) > Math.abs(dy) * 1.25 &&
-          dy > -12
-        ) {
-          pendingDragRef.current = null;
-          return;
-        }
-
         if (dist >= 7) {
           // パズルピースを移動し始めた瞬間にタイマーをスタート
           ensureTimerStarted();
 
           const piece = pieceByIso3.get(pending.iso3);
-          const aimY = e.clientY + (pending.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
+          const aimY = e.clientY + (pending.isTouch ? getTouchDragOffsetY(e.clientY) : 0);
           let isNear = false;
           if (piece) {
             const svgPt = clientToSvgPoint(e.clientX, aimY);
@@ -1064,7 +1261,7 @@ function PuzzlePage() {
       // 2. 本ドラッグ中の追従とターゲット吸着判定
       if (dragging) {
         const piece = pieceByIso3.get(dragging.iso3);
-        const aimY = e.clientY + (dragging.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
+        const aimY = e.clientY + (dragging.isTouch ? getTouchDragOffsetY(e.clientY) : 0);
         let isNear = false;
         if (piece) {
           const svgPt = clientToSvgPoint(e.clientX, aimY);
@@ -1088,11 +1285,13 @@ function PuzzlePage() {
 
       const piece = pieceByIso3.get(dragging.iso3);
       if (piece) {
-        const aimY = e.clientY + (dragging.isTouch ? TOUCH_DRAG_OFFSET_Y : 0);
+        const aimY = e.clientY + (dragging.isTouch ? getTouchDragOffsetY(e.clientY) : 0);
         const svgPt = clientToSvgPoint(e.clientX, aimY);
+        const boardW = viewMode === "3d" ? BOARD_3D_WIDTH : BOARD_WIDTH;
+        const boardH = viewMode === "3d" ? BOARD_3D_HEIGHT : BOARD_HEIGHT;
         if (svgPt && checkIsSnapMatch(piece, svgPt.x, svgPt.y, dragging.isTouch)) {
           confirmPiecePlacement(piece);
-        } else if (svgPt && svgPt.x >= 0 && svgPt.x <= BOARD_WIDTH && svgPt.y >= 0 && svgPt.y <= BOARD_HEIGHT) {
+        } else if (svgPt && svgPt.x >= 0 && svgPt.x <= boardW && svgPt.y >= 0 && svgPt.y <= boardH) {
           // ボード上の誤った場所にドロップした場合
           setMistakesCount((m) => m + 1);
           setCombo(0);
@@ -1113,7 +1312,7 @@ function PuzzlePage() {
       window.removeEventListener("pointercancel", handlePointerUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragging, pieceByIso3, placedIso3s, soundEnabled, mapZoom, mobileTrayView]);
+  }, [dragging, pieceByIso3, placedIso3s, soundEnabled, mapZoom, viewMode, globeRenderData]);
 
   // 地図上のソケットをクリック／タップして配置（スマホ・タブレット・クリック操作サポート）
   const handleSocketClick = (targetIso3: string | undefined, e: React.MouseEvent<SVGElement>) => {
@@ -1146,13 +1345,26 @@ function PuzzlePage() {
     setTimeout(() => setWrongFeedbackIso3(null), 700);
   };
 
-  // ヒントボタン押下（ヒント2では自動的にターゲット位置へズーム＆フォーカス）
+  // ヒントボタン押下（3D時は裏側の国なら自動で正面へ回転、ヒント2ではズーム＆点滅フォーカス）
   const handleTriggerHint = () => {
     if (!activePiece || isCleared) return;
     const nextLevel = hintLevel === 0 ? 1 : 2;
     setHintLevel(nextLevel);
     setHintsUsedCount((h) => h + 1);
     playPuzzleSound("hint", soundEnabled);
+    if (viewMode === "3d") {
+      const [lon, lat] = activePiece.mainCenterLonLat;
+      if (nextLevel === 1) {
+        const offsetLon = ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 10;
+        const offsetLat = ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 8;
+        setGlobeRotation([-(lon + offsetLon), Math.max(-85, Math.min(85, -(lat + offsetLat))), 0]);
+      } else {
+        const nextZoom = Math.max(mapZoom, activePiece.width < 36 || activePiece.height < 36 ? 2.4 : 1.6);
+        setGlobeRotation([-lon, Math.max(-85, Math.min(85, -lat)), 0]);
+        setMapZoom(nextZoom);
+      }
+      return;
+    }
     if (nextLevel === 2) {
       // 小さい国でもすぐ見つけられるようターゲットを中心にフォーカス
       const nextZoom = Math.max(mapZoom, activePiece.width < 36 || activePiece.height < 36 ? 2.2 : 1.5);
@@ -1168,15 +1380,15 @@ function PuzzlePage() {
   const draggingPieceData = dragging ? pieceByIso3.get(dragging.iso3) : null;
 
   return (
-    <div className="min-h-dvh pb-16 sm:pb-6 select-none overflow-x-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] sm:pb-0 lg:h-auto lg:min-h-dvh lg:overflow-visible lg:pb-6 select-none overflow-x-hidden">
       <SiteHeader />
 
-      <main className="mx-auto max-w-[1600px] px-2 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 space-y-1.5 sm:space-y-2.5">
-        {/* 1. 超スリム統合ヘッダー（余白・改行の無駄を排除し、ステージタブ＋1行コントロールに凝縮） */}
-        <section className="surface-card px-2.5 py-1.5 sm:px-3.5 sm:py-2 space-y-1.5">
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-1.5">
+      <main className="flex-1 min-h-0 flex flex-col lg:block mx-auto w-full max-w-[1600px] px-2 sm:px-4 lg:px-6 pt-1.5 sm:pt-2.5 pb-1.5 lg:pb-0 gap-1.5 lg:gap-0 lg:space-y-2.5">
+        {/* 1. ステージ選択バー（モバイルは1行スリム、PCは右に進捗＆タイマーを統合） */}
+        <section className="shrink-0 surface-card px-2 py-1 sm:px-3.5 sm:py-2">
+          <div className="flex items-center justify-between gap-2">
             {/* 大陸ステージタブ（スクロールバー非表示で端までスッキリ横フリック） */}
-            <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-1 overflow-x-auto touch-pan-x [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {STAGE_CONFIGS.map((s) => {
                 const active = s.id === stageId;
                 const recStd = puzzleRecords[`${s.id}-standard`];
@@ -1215,19 +1427,19 @@ function PuzzlePage() {
               })}
             </div>
 
-            {/* 進捗＆タイマー＆効果音（1行スリム集約） */}
-            <div className="flex items-center justify-end gap-1 sm:gap-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2 h-7 sm:h-8">
-                <span className="text-[11px] font-black text-sky-600 dark:text-sky-400 tabular-nums">
+            {/* PC用：進捗＆タイマー＆効果音（モバイルは地図上HUDへ集約して縦空間を最大化） */}
+            <div className="hidden lg:flex items-center justify-end gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2.5 h-8">
+                <span className="text-xs font-black text-sky-600 dark:text-sky-400 tabular-nums">
                   {placedIso3s.size}/{pieces.length}
                 </span>
                 <span className="text-border">|</span>
-                <Clock className="size-3 text-sky-500" />
-                <span className="font-mono text-[11px] sm:text-xs font-black tabular-nums text-foreground">
+                <Clock className="size-3.5 text-sky-500" />
+                <span className="font-mono text-xs font-black tabular-nums text-foreground">
                   {formatStopwatch(elapsedMs)}
                 </span>
                 {combo >= 2 && (
-                  <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
                     <Flame className="size-2.5" />
                     {combo}
                   </span>
@@ -1238,95 +1450,305 @@ function PuzzlePage() {
                 type="button"
                 onClick={() => setSoundEnabled((s) => !s)}
                 title="効果音のON/OFF"
-                className="size-7 sm:size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                className="size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
               >
-                {soundEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+                {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
               </button>
             </div>
           </div>
         </section>
 
-        {/* 2. メイン領域：地図を大きく表示し、そのすぐ下にピース一覧を配置して1画面に完全収容 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3 items-start">
+        {/* 2. メイン領域：モバイルは縦スクロールなしの1画面完結アプリ型レイアウト */}
+        <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-1.5 sm:gap-2.5 lg:gap-3 lg:items-start">
           {/* 左／上：大型白地図パズルボード */}
-          <div className="lg:col-span-8 surface-card p-1 sm:p-2 relative overflow-hidden">
-            {/* モバイルで画面高の約50%（最低340px〜）、タブレット・PCでも大画面で地図を表示 */}
-            <div className="relative w-full h-[50dvh] min-h-[340px] max-h-[520px] sm:h-[55dvh] sm:min-h-[420px] lg:h-[620px] lg:max-h-none rounded-xl overflow-hidden bg-[var(--ocean)] border border-border shadow-inner">
-              {/* 地図上部コントロールバー（左にやり直す、右にズーム操作を配置し、モバイル画面でも絶対に重ならないよう最適化） */}
+          <div className="flex-1 min-h-[210px] lg:flex-none lg:col-span-8 surface-card p-1 sm:p-2 relative overflow-hidden flex flex-col">
+            <div className="relative w-full flex-1 min-h-0 lg:flex-none lg:h-[620px] rounded-xl overflow-hidden bg-[var(--ocean)] border border-border shadow-inner">
+              {/* 地図上部オーバーレイ：モバイルはHUD（進捗・タイマー／音・リセット）、PCは従来配置 */}
               <div className="pointer-events-none absolute inset-x-1.5 sm:inset-x-2.5 top-1.5 sm:top-2.5 z-10 flex items-center justify-between gap-1.5">
-                {/* 左上：やり直す（モバイルでは拡大中コンパクト化・通常時も見やすく配置） */}
-                <div className="pointer-events-auto flex items-center bg-background/92 backdrop-blur-md border border-border/80 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl shadow-md shrink-0">
+                {/* 左上：モバイル＝進捗＆タイマーHUD、PC＝やり直す */}
+                <div className="pointer-events-auto flex items-center gap-1.5 bg-background/88 backdrop-blur-md border border-border/75 px-2 py-1 lg:p-1 rounded-xl shadow-sm shrink-0">
+                  <div className="flex lg:hidden items-center gap-1.5">
+                    <span className="text-[11px] font-black text-sky-600 dark:text-sky-400 tabular-nums">
+                      {placedIso3s.size}/{pieces.length}
+                    </span>
+                    <span className="text-border/80 text-[10px]">|</span>
+                    <Clock className="size-3 text-sky-500 shrink-0" />
+                    <span className="font-mono text-[11px] font-black tabular-nums text-foreground">
+                      {formatStopwatch(elapsedMs)}
+                    </span>
+                    {combo >= 2 && (
+                      <span className="px-1 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
+                        <Flame className="size-2.5" />
+                        {combo}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => startNewGame(stageId)}
                     title="パズルを最初からやり直す"
-                    className="flex items-center justify-center gap-1 px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95 transition-all"
+                    className="hidden lg:flex items-center justify-center gap-1 px-2.5 h-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground text-xs font-bold cursor-pointer active:scale-95 transition-all"
                   >
                     <RotateCcw className="size-4 shrink-0" />
-                    <span className={cn(mapZoom > 1 ? "hidden sm:inline" : "inline")}>やり直す</span>
+                    <span>やり直す</span>
                   </button>
+
+                  {/* PC用：平面地図 ⇄ 3D地球儀 切替 */}
+                  <div className="hidden lg:flex items-center gap-0.5 pl-1 border-l border-border/70">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleViewMode("2d")}
+                      className={cn(
+                        "flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold cursor-pointer transition-all",
+                        viewMode === "2d"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                      )}
+                    >
+                      <MapIcon className="size-3.5 shrink-0" />
+                      <span>平面</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleViewMode("3d")}
+                      className={cn(
+                        "flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold cursor-pointer transition-all",
+                        viewMode === "3d"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                      )}
+                    >
+                      <Globe className="size-3.5 shrink-0" />
+                      <span>地球儀</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* 右上：周辺を拡大 → 解除 → 縮小 → 拡大（一番右） */}
-                <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-background/92 backdrop-blur-md border border-border/80 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl shadow-md shrink-0">
-                  {activePiece && (
+                {/* 右上：モバイル＝ヒント＆地球儀切替＆設定メニュー、PC＝ズーム操作群 */}
+                <div className="pointer-events-auto relative flex items-center gap-1 bg-background/88 backdrop-blur-md border border-border/75 p-0.5 sm:p-1 rounded-xl shadow-sm shrink-0">
+                  {activePiece && !isCleared && (
                     <button
                       type="button"
-                      onClick={() => handleZoomToActiveRegion(false)}
-                      title="選択中の国の周辺エリアを拡大"
-                      className="flex items-center gap-1 px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-600 dark:text-sky-300 text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                      onClick={handleTriggerHint}
+                      disabled={hintLevel >= 2}
+                      title={hintLevel === 0 ? "ヒント①（エリア＆隣接国）" : hintLevel === 1 ? "ヒント②（場所を表示）" : "場所を点滅中"}
+                      className={cn(
+                        "lg:hidden h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shrink-0",
+                        hintLevel === 0
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                          : hintLevel === 1
+                            ? "bg-sky-500 text-white"
+                            : "bg-secondary/60 text-muted-foreground opacity-55",
+                      )}
                     >
-                      <Crosshair className="size-3.5 shrink-0" />
-                      <span>周辺を拡大</span>
-                    </button>
-                  )}
-                  {mapZoom > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMapZoom(1);
-                        setMapPan({ x: 0, y: 0 });
-                      }}
-                      title="全体表示に戻す"
-                      className="px-2 sm:px-2.5 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-primary text-primary-foreground text-[11px] sm:text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      <Maximize2 className="size-3.5 shrink-0" />
+                      <Lightbulb className="size-3.5 shrink-0" />
                       <span>
-                        <span className="hidden sm:inline">{Math.round(mapZoom * 100)}% </span>解除
+                        {hintLevel === 0 ? "ヒント" : hintLevel === 1 ? "場所" : "点滅"}
                       </span>
                     </button>
                   )}
+
+                  {/* モバイル用：平面 ⇄ 3D地球儀 ワンタップ切替 */}
                   <button
                     type="button"
-                    onClick={() => {
-                      const nextZ = Math.max(1, Math.round((mapZoom - 0.6) * 10) / 10);
-                      setMapZoom(nextZ);
-                      if (nextZ <= 1) setMapPan({ x: 0, y: 0 });
-                    }}
-                    disabled={mapZoom <= 1}
-                    title="地図を縮小"
-                    className="size-8 sm:size-9.5 rounded-lg sm:rounded-xl bg-secondary/80 hover:bg-secondary disabled:opacity-35 text-foreground flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0"
+                    onClick={() => handleToggleViewMode()}
+                    aria-label={viewMode === "3d" ? "平面地図に切り替え" : "3D地球儀に切り替え"}
+                    title={viewMode === "3d" ? "平面地図に切り替え" : "3D地球儀に切り替え"}
+                    className={cn(
+                      "lg:hidden size-8 rounded-lg flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0",
+                      viewMode === "3d"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground",
+                    )}
                   >
-                    <ZoomOut className="size-5 sm:size-5.5 stroke-[2.2]" />
+                    {viewMode === "3d" ? <MapIcon className="size-4" /> : <Globe className="size-4" />}
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => setMapZoom((z) => Math.min(3.5, Math.round((z + 0.6) * 10) / 10))}
-                    title="地図を拡大"
-                    className="size-8 sm:size-9.5 rounded-lg sm:rounded-xl bg-secondary/80 hover:bg-secondary text-foreground flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0"
+                    onClick={() => setMobileMenuOpen((o) => !o)}
+                    aria-label="パズル設定メニュー"
+                    title="設定・やり直す"
+                    className={cn(
+                      "lg:hidden size-8 rounded-lg flex items-center justify-center cursor-pointer active:scale-95 transition-colors",
+                      mobileMenuOpen || blindMode
+                        ? "bg-primary/15 text-primary"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground",
+                    )}
                   >
-                    <ZoomIn className="size-5 sm:size-5.5 stroke-[2.2]" />
+                    <SlidersHorizontal className="size-4" />
                   </button>
+
+                  {/* モバイル設定ポップオーバー */}
+                  {mobileMenuOpen && (
+                    <>
+                      <div
+                        className="lg:hidden fixed inset-0 z-20"
+                        onClick={() => setMobileMenuOpen(false)}
+                      />
+                      <div className="lg:hidden absolute right-0 top-10 z-30 w-44 rounded-2xl bg-card/98 backdrop-blur-md border border-border shadow-xl p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBlindMode((b) => !b);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-secondary text-xs font-bold text-foreground cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            {blindMode ? <EyeOff className="size-4 text-primary" /> : <Eye className="size-4 text-muted-foreground" />}
+                            <span>達人モード</span>
+                          </span>
+                          <span
+                            className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded-md font-bold",
+                              blindMode ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground",
+                            )}
+                          >
+                            {blindMode ? "ON" : "OFF"}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSoundEnabled((s) => !s);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-secondary text-xs font-bold text-foreground cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            {soundEnabled ? <Volume2 className="size-4 text-sky-500" /> : <VolumeX className="size-4 text-muted-foreground" />}
+                            <span>効果音</span>
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-bold">
+                            {soundEnabled ? "ON" : "OFF"}
+                          </span>
+                        </button>
+
+                        <div className="my-1 border-t border-border/60" />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            startNewGame(stageId);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-destructive/10 text-xs font-bold text-destructive cursor-pointer"
+                        >
+                          <RotateCcw className="size-4" />
+                          <span>最初からやり直す</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* PC用ズームコントロール（周辺拡大トグル・縮小・拡大のみ、矢印2つアイコンなし） */}
+                  <div className="hidden lg:flex items-center gap-1.5">
+                    {activePiece && (
+                      <button
+                        type="button"
+                        onClick={handleToggleRegionZoom}
+                        title={isRegionZoomActive ? "周辺拡大を解除して全体表示に戻す" : "選択中の国の周辺エリアを拡大"}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 h-9 rounded-xl border text-xs font-bold cursor-pointer active:scale-95 transition-all whitespace-nowrap",
+                          isRegionZoomActive
+                            ? "bg-sky-500 border-sky-500 text-white shadow-xs"
+                            : "bg-sky-500/12 hover:bg-sky-500/20 border-sky-500/35 text-sky-600 dark:text-sky-300",
+                        )}
+                      >
+                        <Navigation className={cn("size-3.5 shrink-0", isRegionZoomActive && "fill-current")} />
+                        <span>周辺拡大</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleStepZoomOut}
+                      disabled={mapZoom <= 1}
+                      title="地図を縮小"
+                      className={cn(
+                        "size-9 rounded-xl flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0 disabled:opacity-35",
+                        mapZoom > 1 && !isRegionZoomActive
+                          ? "bg-sky-500/15 text-sky-600 dark:text-sky-300 hover:bg-sky-500/25"
+                          : "bg-secondary/80 hover:bg-secondary text-foreground",
+                      )}
+                    >
+                      <ZoomOut className="size-5 stroke-[2.2]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleStepZoomIn}
+                      disabled={mapZoom >= MAX_MAP_ZOOM}
+                      title="地図を拡大"
+                      className={cn(
+                        "size-9 rounded-xl flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0 disabled:opacity-45",
+                        mapZoom > 1 && !isRegionZoomActive
+                          ? "bg-sky-500 text-white shadow-xs hover:bg-sky-600"
+                          : "bg-secondary/80 hover:bg-secondary text-foreground",
+                      )}
+                    >
+                      <ZoomIn className="size-5 stroke-[2.2]" />
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              {/* モバイル用：地図右下のバランス重視ズームバー（周辺拡大トグル → 縮小 → 拡大） */}
+              <div className="lg:hidden pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex items-center gap-1.5 bg-background/92 backdrop-blur-md border border-border/80 p-1 rounded-xl shadow-sm">
+                {activePiece && !isCleared && (
+                  <button
+                    type="button"
+                    onClick={handleToggleRegionZoom}
+                    aria-label={isRegionZoomActive ? "周辺拡大を解除" : "周辺エリアを拡大"}
+                    title={isRegionZoomActive ? "周辺拡大を解除" : "周辺エリアを拡大"}
+                    className={cn(
+                      "size-9 rounded-lg flex items-center justify-center cursor-pointer active:scale-95 transition-all",
+                      isRegionZoomActive
+                        ? "bg-sky-500 text-white shadow-xs"
+                        : "hover:bg-sky-500/15 text-sky-600 dark:text-sky-300",
+                    )}
+                  >
+                    <Navigation className={cn("size-[18px] stroke-[2.2]", isRegionZoomActive && "fill-current")} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleStepZoomOut}
+                  disabled={mapZoom <= 1}
+                  aria-label="地図を縮小"
+                  className={cn(
+                    "size-9 rounded-lg disabled:opacity-35 flex items-center justify-center cursor-pointer active:scale-95 transition-all",
+                    mapZoom > 1 && !isRegionZoomActive
+                      ? "bg-sky-500/15 text-sky-600 dark:text-sky-300"
+                      : "hover:bg-secondary text-foreground",
+                  )}
+                >
+                  <ZoomOut className="size-[18px] stroke-[2.2]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStepZoomIn}
+                  disabled={mapZoom >= MAX_MAP_ZOOM}
+                  aria-label="地図を拡大"
+                  className={cn(
+                    "size-9 rounded-lg disabled:opacity-45 flex items-center justify-center cursor-pointer active:scale-95 transition-all",
+                    mapZoom > 1 && !isRegionZoomActive
+                      ? "bg-sky-500 text-white shadow-xs"
+                      : "hover:bg-secondary text-foreground",
+                  )}
+                >
+                  <ZoomIn className="size-[18px] stroke-[2.2]" />
+                </button>
               </div>
 
               <svg
                 ref={boardSvgRef}
-                viewBox={boardViewBox}
+                viewBox={viewMode === "3d" ? `0 0 ${BOARD_3D_WIDTH} ${BOARD_3D_HEIGHT}` : boardViewBox}
                 preserveAspectRatio="xMidYMid meet"
                 className={cn(
                   "w-full h-full block touch-none",
-                  mapZoom > 1 ? "cursor-grab active:cursor-grabbing" : "",
+                  viewMode === "3d" || mapZoom > 1 ? "cursor-grab active:cursor-grabbing" : "",
                 )}
                 onPointerDown={(e) => {
                   if (dragging) return;
@@ -1344,6 +1766,7 @@ function PuzzlePage() {
                       initialDistance: Math.max(1, dist),
                       initialZoom: mapZoom,
                       initialPan: { ...mapPan },
+                      initialRotation: [...globeRotation],
                       initialCenter: center,
                     };
                     boardPanRef.current = null;
@@ -1351,12 +1774,13 @@ function PuzzlePage() {
                     return;
                   }
 
-                  if (mapZoom <= 1) return;
+                  if (viewMode === "2d" && mapZoom <= 1) return;
                   boardPanRef.current = {
                     startX: e.clientX,
                     startY: e.clientY,
                     startPanX: mapPan.x,
                     startPanY: mapPan.y,
+                    startRotation: [...globeRotation],
                     isPanning: false,
                   };
                 }}
@@ -1366,7 +1790,7 @@ function PuzzlePage() {
                     boardPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
                   }
 
-                  // 2本指ピンチイン／ピンチアウトによる拡大縮小＆パン移動
+                  // 2本指ピンチイン／ピンチアウトによる拡大縮小＆パン・回転移動
                   if (boardPointersRef.current.size === 2 && boardPinchRef.current && boardSvgRef.current) {
                     const pts = Array.from(boardPointersRef.current.values());
                     const dist = Math.hypot(pts[1]!.x - pts[0]!.x, pts[1]!.y - pts[0]!.y);
@@ -1376,22 +1800,35 @@ function PuzzlePage() {
                     };
                     const pinch = boardPinchRef.current;
                     const ratio = dist / pinch.initialDistance;
-                    const nextZoom = Math.max(1, Math.min(3.5, Math.round(pinch.initialZoom * ratio * 100) / 100));
+                    const nextZoom = Math.max(1, Math.min(MAX_MAP_ZOOM, Math.round(pinch.initialZoom * ratio * 100) / 100));
 
-                    const rect = boardSvgRef.current.getBoundingClientRect();
                     const dx = center.x - pinch.initialCenter.x;
                     const dy = center.y - pinch.initialCenter.y;
-                    const scaleX = (BOARD_WIDTH / nextZoom) / Math.max(1, rect.width);
-                    const scaleY = (BOARD_HEIGHT / nextZoom) / Math.max(1, rect.height);
 
                     setMapZoom(nextZoom);
-                    if (nextZoom <= 1.02) {
-                      setMapPan({ x: 0, y: 0 });
+                    if (viewMode === "3d") {
+                      setIsRegionZoomActive(false);
+                      const sens = 0.28 / nextZoom;
+                      const [yaw0, pitch0, roll0] = pinch.initialRotation;
+                      setGlobeRotation([
+                        yaw0 + dx * sens,
+                        Math.max(-85, Math.min(85, pitch0 - dy * sens)),
+                        roll0,
+                      ]);
                     } else {
-                      setMapPan({
-                        x: pinch.initialPan.x + dx * scaleX,
-                        y: pinch.initialPan.y + dy * scaleY,
-                      });
+                      const rect = boardSvgRef.current.getBoundingClientRect();
+                      const scaleX = (BOARD_WIDTH / nextZoom) / Math.max(1, rect.width);
+                      const scaleY = (BOARD_HEIGHT / nextZoom) / Math.max(1, rect.height);
+                      if (nextZoom <= 1.02) {
+                        setMapPan({ x: 0, y: 0 });
+                        setIsRegionZoomActive(false);
+                      } else {
+                        setIsRegionZoomActive(false);
+                        setMapPan({
+                          x: pinch.initialPan.x + dx * scaleX,
+                          y: pinch.initialPan.y + dy * scaleY,
+                        });
+                      }
                     }
                     suppressNextSocketClickRef.current = true;
                     return;
@@ -1405,13 +1842,23 @@ function PuzzlePage() {
                     suppressNextSocketClickRef.current = true;
                   }
                   if (boardPanRef.current.isPanning && boardSvgRef.current) {
-                    const rect = boardSvgRef.current.getBoundingClientRect();
-                    const scaleX = (BOARD_WIDTH / mapZoom) / Math.max(1, rect.width);
-                    const scaleY = (BOARD_HEIGHT / mapZoom) / Math.max(1, rect.height);
-                    setMapPan({
-                      x: boardPanRef.current.startPanX + dx * scaleX,
-                      y: boardPanRef.current.startPanY + dy * scaleY,
-                    });
+                    if (viewMode === "3d") {
+                      const sens = 0.36 / mapZoom;
+                      const [yaw0, pitch0, roll0] = boardPanRef.current.startRotation;
+                      setGlobeRotation([
+                        yaw0 + dx * sens,
+                        Math.max(-85, Math.min(85, pitch0 - dy * sens)),
+                        roll0,
+                      ]);
+                    } else {
+                      const rect = boardSvgRef.current.getBoundingClientRect();
+                      const scaleX = (BOARD_WIDTH / mapZoom) / Math.max(1, rect.width);
+                      const scaleY = (BOARD_HEIGHT / mapZoom) / Math.max(1, rect.height);
+                      setMapPan({
+                        x: boardPanRef.current.startPanX + dx * scaleX,
+                        y: boardPanRef.current.startPanY + dy * scaleY,
+                      });
+                    }
                   }
                 }}
                 onPointerUp={(e) => {
@@ -1437,20 +1884,47 @@ function PuzzlePage() {
                   <filter id="snapGlow" x="-20%" y="-20%" width="140%" height="140%">
                     <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#0284c7" floodOpacity="0.85" />
                   </filter>
+                  <radialGradient id="puzzleOceanGlow" cx="40%" cy="35%" r="65%">
+                    <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.88" />
+                    <stop offset="48%" stopColor="#0ea5e9" stopOpacity="0.9" />
+                    <stop offset="82%" stopColor="#0284c7" stopOpacity="0.95" />
+                    <stop offset="100%" stopColor="#0369a1" stopOpacity="1" />
+                  </radialGradient>
                 </defs>
 
-                {/* 海背景（既存の平面地図と同じ var(--ocean)） & 経緯線 */}
-                <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="var(--ocean)" />
-                <path
-                  d={graticuleD}
-                  fill="none"
-                  stroke="rgba(15, 23, 42, 0.08)"
-                  strokeWidth={0.7}
-                />
+                {/* 海背景（2D平面は var(--ocean)、3D地球儀は球体オーシャン＆経緯線） */}
+                {viewMode === "3d" && globeRenderData ? (
+                  <>
+                    <circle
+                      cx={GLOBE_CX}
+                      cy={GLOBE_CY}
+                      r={globeRenderData.radius}
+                      fill="url(#puzzleOceanGlow)"
+                      stroke="rgba(125, 211, 252, 0.55)"
+                      strokeWidth={1.6}
+                    />
+                    <path
+                      d={globeRenderData.graticuleD}
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.16)"
+                      strokeWidth={0.75}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="var(--ocean)" />
+                    <path
+                      d={graticuleD}
+                      fill="none"
+                      stroke="rgba(15, 23, 42, 0.08)"
+                      strokeWidth={0.7}
+                    />
+                  </>
+                )}
 
                 {/* 背景の国ポリゴン & パズルソケット */}
                 <g>
-                  {backgroundPaths.map((item) => {
+                  {(viewMode === "3d" && globeRenderData ? globeRenderData.paths3D : backgroundPaths).map((item) => {
                     const isPlaced = !!item.iso3 && placedIso3s.has(item.iso3);
                     const isCurrentActive =
                       !!item.iso3 && activePiece?.country.iso3 === item.iso3;
@@ -1530,6 +2004,46 @@ function PuzzlePage() {
                   })}
                 </g>
 
+                {/* ヒント①：大まかなエリア絞り込みサークル（正解の周辺一帯をふわっと光らせる・2D/3D両対応） */}
+                {activePiece && hintLevel === 1 && !isCleared && (() => {
+                  if (viewMode === "3d") {
+                    const pos3D = globeRenderData?.piecePos3D.get(activePiece.country.iso3);
+                    if (!pos3D || !pos3D.visible) return null;
+                    const zoneR = 54 * Math.pow(mapZoom, 0.4);
+                    return (
+                      <g
+                        className="pointer-events-none"
+                        transform={`translate(${pos3D.x}, ${pos3D.y})`}
+                      >
+                        <circle
+                          r={zoneR}
+                          fill="rgba(245, 158, 11, 0.2)"
+                          stroke="#f59e0b"
+                          strokeWidth={2.2}
+                          strokeDasharray="6 4"
+                        />
+                      </g>
+                    );
+                  }
+                  const zoneOffsetX = ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 14;
+                  const zoneOffsetY = ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 12;
+                  const zoneR = Math.max(58, Math.min(92, Math.max(activePiece.width, activePiece.height) * 0.95 + 42)) / Math.pow(mapZoom, 0.35);
+                  return (
+                    <g
+                      className="pointer-events-none"
+                      transform={`translate(${activePiece.targetX + zoneOffsetX}, ${activePiece.targetY + zoneOffsetY})`}
+                    >
+                      <circle
+                        r={zoneR}
+                        fill="rgba(245, 158, 11, 0.16)"
+                        stroke="#f59e0b"
+                        strokeWidth={2 / Math.pow(mapZoom, 0.35)}
+                        strokeDasharray="6 4"
+                      />
+                    </g>
+                  );
+                })()}
+
                 {/* 選択中ピースの透明タップ判定アシスト ＆ ヒント・吸着時のエフェクトリング */}
                 <g>
                   {pieces.map((p) => {
@@ -1541,16 +2055,27 @@ function PuzzlePage() {
 
                     if (!isCurrentActive && !isHintRadar && !isDragNearThis) return null;
 
+                    let tx = p.targetX;
+                    let ty = p.targetY;
+                    if (viewMode === "3d") {
+                      const pos3D = globeRenderData?.piecePos3D.get(p.country.iso3);
+                      if (!pos3D || !pos3D.visible) return null;
+                      tx = pos3D.x;
+                      ty = pos3D.y;
+                    }
+
+                    const ringScale = viewMode === "3d" ? 1 : 1 / Math.sqrt(mapZoom);
+
                     return (
                       <g
                         key={`target-ring-${p.country.iso3}`}
-                        transform={`translate(${p.targetX}, ${p.targetY})`}
+                        transform={`translate(${tx}, ${ty})`}
                         className="cursor-pointer"
                         onClick={(e) => handleSocketClick(p.country.iso3, e)}
                       >
                         {/* 選択中のピースのみ、小国でも指でタップしやすい透明ヒット領域を付与 */}
                         <circle
-                          r={Math.max(14, 22 / Math.sqrt(mapZoom))}
+                          r={Math.max(14, 22 * ringScale)}
                           fill="transparent"
                           style={{ pointerEvents: "all" }}
                         />
@@ -1558,14 +2083,14 @@ function PuzzlePage() {
                         {isHintRadar && (
                           <>
                             <circle
-                              r={26 / Math.sqrt(mapZoom)}
+                              r={26 * ringScale}
                               fill="rgba(245, 158, 11, 0.28)"
                               stroke="#d97706"
                               strokeWidth={2.2}
                               className="animate-ping"
                             />
                             <circle
-                              r={15 / Math.sqrt(mapZoom)}
+                              r={15 * ringScale}
                               fill="rgba(251, 191, 36, 0.48)"
                               stroke="#b45309"
                               strokeWidth={2}
@@ -1574,7 +2099,7 @@ function PuzzlePage() {
                         )}
                         {isDragNearThis && (
                           <circle
-                            r={22 / Math.sqrt(mapZoom)}
+                            r={22 * ringScale}
                             fill="rgba(14, 165, 233, 0.32)"
                             stroke="#0284c7"
                             strokeWidth={2.2}
@@ -1585,18 +2110,26 @@ function PuzzlePage() {
                   })}
                 </g>
 
-                {/* 配置完了した国の国名ラベル（国の形を隠さないよう黒い背景ボックスを廃止し、地図帳方式の白フチ文字で描画） */}
+                {/* 配置完了した国の国名ラベル（2D/3D両対応・白フチ文字で描画） */}
                 <g className="pointer-events-none">
                   {pieces.map((p) => {
                     if (!placedIso3s.has(p.country.iso3)) return null;
+                    let lx = p.targetX;
+                    let ly = p.targetY;
+                    if (viewMode === "3d") {
+                      const pos3D = globeRenderData?.piecePos3D.get(p.country.iso3);
+                      if (!pos3D || !pos3D.visible) return null;
+                      lx = pos3D.x;
+                      ly = pos3D.y;
+                    }
                     const minDim = Math.min(p.width, p.height);
                     const baseFontSize = minDim < 22 ? 6.2 : minDim < 36 ? 7.2 : 8.5;
-                    const scaledFontSize = baseFontSize / Math.pow(mapZoom, 0.45);
-                    const scaledStroke = 2.4 / Math.pow(mapZoom, 0.45);
+                    const scaledFontSize = viewMode === "3d" ? Math.max(8, baseFontSize * 1.15) : baseFontSize / Math.pow(mapZoom, 0.45);
+                    const scaledStroke = viewMode === "3d" ? 2.6 : 2.4 / Math.pow(mapZoom, 0.45);
                     return (
                       <g
                         key={`label-${p.country.iso3}`}
-                        transform={`translate(${p.targetX}, ${p.targetY})`}
+                        transform={`translate(${lx}, ${ly})`}
                       >
                         <text
                           textAnchor="middle"
@@ -1617,30 +2150,22 @@ function PuzzlePage() {
                 </g>
               </svg>
 
-              {/* 初期画面時（パズル移動開始前）の簡潔な遊び方ガイド */}
+              {/* PC用の初回ガイド（モバイルは画面を極限までクリーンに保つため非表示） */}
               {!isRunning && placedIso3s.size === 0 && !isCleared && (
-                <div className="pointer-events-none absolute bottom-1.5 inset-x-1.5 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-10 flex items-center justify-center">
-                  <div className="rounded-xl bg-background/95 backdrop-blur-md border border-sky-500/35 px-3 py-1.5 text-foreground shadow-md flex items-center gap-2 text-[11px] sm:text-xs font-medium">
-                    <span className="inline-flex items-center rounded-md bg-sky-500/15 text-sky-700 dark:text-sky-300 px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold shrink-0">
-                      遊び方
-                    </span>
-                    <span className="leading-snug">
-                      国のピースを白枠へ<strong>ドラッグ</strong>（または選んで白枠を<strong>タップ</strong>）で配置！動かすとタイマースタート
-                    </span>
+                <div className="hidden lg:block pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
+                  <div className="rounded-xl bg-background/90 backdrop-blur-md border border-sky-500/30 px-3 py-1 text-foreground shadow-sm text-xs font-bold">
+                    ピースをドラッグ、または選んで白枠をクリックで配置
                   </div>
                 </div>
               )}
 
-              {/* 直近に配置した国のスリム通知ピル（地図を隠さないよう1行コンパクト表示） */}
+              {/* 直近に配置した国のスリム通知ピル（地図左下、右下のズームバーと重ならない位置） */}
               {lastPlacedCountry && !isCleared && (
-                <div className="absolute bottom-1.5 left-1.5 right-1.5 sm:right-auto sm:max-w-md rounded-xl bg-background/95 backdrop-blur-md border border-border px-2.5 py-1.5 text-foreground shadow-md flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <FlagImage flag={lastPlacedCountry.flag} size="sm" />
+                <div className="absolute bottom-1.5 lg:bottom-2 left-1.5 lg:left-2 max-w-[calc(100%-10.25rem)] lg:max-w-md z-10 rounded-xl bg-background/92 backdrop-blur-md border border-border px-2 py-1 text-foreground shadow-md flex items-center justify-between gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-200">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <FlagImage flag={lastPlacedCountry.flag} size="sm" className="shrink-0" />
                     <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 shrink-0">✓</span>
-                    <span className="text-xs font-bold truncate">{lastPlacedCountry.nameJa}</span>
-                    <span className="text-[11px] text-muted-foreground truncate">
-                      （首都: {lastPlacedCountry.basic.capital}）
-                    </span>
+                    <span className="text-[11px] sm:text-xs font-bold truncate">{lastPlacedCountry.nameJa}</span>
                   </div>
                   <Link
                     to="/country/$iso3"
@@ -1661,9 +2186,9 @@ function PuzzlePage() {
                         isCleared,
                       });
                     }}
-                    className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-300 shrink-0 active:scale-95"
+                    className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-300 shrink-0 active:scale-95"
                   >
-                    詳細 ↗
+                    詳細↗
                   </Link>
                 </div>
               )}
@@ -1737,35 +2262,135 @@ function PuzzlePage() {
             </div>
           </div>
 
-          {/* 右／下：パズルピース一覧（単独ドックを廃止し、地図と一覧が1画面に収まるスリム設計） */}
-          <div className="lg:col-span-4 surface-card p-2.5 sm:p-3.5 flex flex-col gap-2">
-            {/* トレイヘッダー（1段目: タイトル＆選択中の国、2段目: 操作ボタンを左右均等に整列） */}
-            <div className="space-y-1.5">
-              {/* 1段目：左にタイトル・残り数・注記、右に選択中の国 */}
+          {/* 右／下：超シンプル2段コマンドデッキ（モバイルは選択バー＋横並び一覧のみ） */}
+          <div className="shrink-0 lg:col-span-4 surface-card p-2 sm:p-3 flex flex-col gap-2">
+            {/* モバイル・タブレット向け：ヒーロー選択バー（◀ / シルエット＋フル国名 / ▶ / 一覧検索アイコン） */}
+            {activePiece && !isCleared && (
+              <div
+                className={cn(
+                  "lg:hidden rounded-2xl border transition-colors overflow-hidden",
+                  wrongFeedbackIso3 === activePiece.country.iso3
+                    ? "border-destructive bg-destructive/15 animate-bounce"
+                    : "border-sky-500/35 bg-sky-500/8",
+                )}
+              >
+                <div className="flex items-center gap-1 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCyclePiece(-1)}
+                    disabled={unplacedPieces.length <= 1}
+                    aria-label="前のピース"
+                    className="size-9 shrink-0 rounded-xl bg-background/90 hover:bg-background border border-border/70 flex items-center justify-center text-foreground disabled:opacity-35 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="size-4.5" />
+                  </button>
+
+                  {/* 中央：大きく見やすいドラッグ可能なシルエットハンドル ＋ コンパクトにまとめた国旗＆国名 */}
+                  <div className="flex-1 min-w-0 flex items-center gap-2 px-0.5">
+                    <div
+                      title="ドラッグして地図に配置"
+                      onPointerDown={(e) => {
+                        e.currentTarget.releasePointerCapture(e.pointerId);
+                        pendingDragRef.current = {
+                          iso3: activePiece.country.iso3,
+                          startX: e.clientX,
+                          startY: e.clientY,
+                          isTouch: e.pointerType === "touch",
+                          fromDockHandle: true,
+                        };
+                      }}
+                      className="size-13 shrink-0 rounded-xl bg-background border border-sky-500/40 p-0.5 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing shadow-xs"
+                    >
+                      <svg viewBox={activePiece.trayViewBox} className="w-full h-full overflow-visible">
+                        <path
+                          d={activePiece.trayPathD}
+                          fill={stageConfig.pieceFill}
+                          stroke={stageConfig.pieceStroke}
+                          strokeWidth={1.6}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      {!blindMode || hintLevel >= 1 ? (
+                        <div className="inline-flex items-center gap-1 max-w-full rounded-lg bg-background/75 border border-border/50 px-2 py-1">
+                          <FlagImage
+                            flag={activePiece.country.flag}
+                            size="xs"
+                            className="shrink-0"
+                          />
+                          <span className="text-xs font-extrabold text-foreground leading-tight line-clamp-2 break-words">
+                            {activePiece.country.nameJa}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-xs font-extrabold text-foreground leading-tight">
+                          シルエットで挑戦中
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCyclePiece(1)}
+                    disabled={unplacedPieces.length <= 1}
+                    aria-label="次のピース"
+                    className="size-9 shrink-0 rounded-xl bg-background/90 hover:bg-background border border-border/70 flex items-center justify-center text-foreground disabled:opacity-35 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <ChevronRight className="size-4.5" />
+                  </button>
+
+                  {unplacedPieces.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setMobileSheetOpen(true)}
+                      aria-label="一覧・検索を開く"
+                      title="一覧・検索"
+                      className="size-9 shrink-0 rounded-xl bg-primary/12 active:bg-primary/20 border border-primary/35 text-primary flex items-center justify-center cursor-pointer active:scale-95 transition-all ml-0.5"
+                    >
+                      <Search className="size-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* ヒント発動時はヒーローカード下部に一体化して表示（大陸＋隣接国） */}
+                {hintLevel >= 1 && (
+                  <div className="border-t border-amber-500/25 bg-amber-500/12 px-2.5 py-1 text-[11px] text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <span className="shrink-0 font-bold">
+                      🗺️ {continentLabel(activePiece.country.continent)}
+                    </span>
+                    <span className="text-amber-900/80 dark:text-amber-200/90 whitespace-nowrap">
+                      📍 {activePiece.country.geography.borders}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PC用トレイヘッダー（モバイルでは上のヒーローバー＋アクションバーに集約済み） */}
+            <div className="hidden lg:block space-y-2">
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Target className="size-4 text-sky-500 shrink-0" />
-                  <h2 className="font-display text-xs sm:text-sm font-bold text-foreground shrink-0">
+                  <h2 className="font-display text-sm font-bold text-foreground shrink-0">
                     ピース一覧
                   </h2>
                   <span className="text-[11px] font-bold text-muted-foreground shrink-0">
                     (残り{unplacedPieces.length})
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/80 shrink-0">
-                    ※小国含まず
                   </span>
                 </div>
 
                 {activePiece && (!blindMode || hintLevel >= 1) && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-500/12 border border-sky-500/30 text-xs font-bold text-foreground min-w-0 shrink">
                     <FlagImage flag={activePiece.country.flag} size="sm" className="shrink-0" />
-                    <span className="truncate">{activePiece.country.nameJa}</span>
+                    <span className="break-words leading-tight">{activePiece.country.nameJa}</span>
                   </span>
                 )}
               </div>
 
-              {/* 2段目：左にヒント＆国名切替（達人時はプライマリーカラー）、右に表示切替 */}
-              <div className="flex items-center justify-between gap-1.5">
+              <div className="flex items-center justify-between gap-1.5 flex-wrap">
                 <div className="flex items-center gap-1.5 min-w-0">
                   {activePiece && (
                     <button
@@ -1773,7 +2398,7 @@ function PuzzlePage() {
                       onClick={handleTriggerHint}
                       disabled={hintLevel >= 2}
                       className={cn(
-                        "h-7 sm:h-8 px-2.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                        "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
                         hintLevel === 0
                           ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
                           : hintLevel === 1
@@ -1784,7 +2409,7 @@ function PuzzlePage() {
                       <Lightbulb className="size-3.5 shrink-0" />
                       <span>
                         {hintLevel === 0
-                          ? "ヒント①(首都)"
+                          ? "ヒント①(エリア)"
                           : hintLevel === 1
                             ? "ヒント②(場所)"
                             : "点滅中"}
@@ -1797,7 +2422,7 @@ function PuzzlePage() {
                     onClick={() => setBlindMode((b) => !b)}
                     title="シルエットのみ表示（国名と国旗を隠す達人モード）"
                     className={cn(
-                      "h-7 sm:h-8 px-2.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                      "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
                       blindMode
                         ? "bg-primary text-primary-foreground border-primary shadow-2xs"
                         : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
@@ -1808,62 +2433,30 @@ function PuzzlePage() {
                   </button>
                 </div>
 
-                {/* モバイル・タブレット縦での表示切替ボタン */}
-                <div className="flex lg:hidden items-center bg-secondary/60 p-0.5 rounded-lg border border-border/60 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setMobileTrayView("dock")}
-                    className={cn(
-                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold cursor-pointer transition-all",
-                      mobileTrayView === "dock"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    横並び
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMobileTrayView("grid")}
-                    className={cn(
-                      "px-2 py-0.5 h-6 sm:h-7 rounded-md text-[11px] font-bold flex items-center gap-0.5 cursor-pointer transition-all",
-                      mobileTrayView === "grid"
-                        ? "bg-background text-foreground shadow-2xs"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    <LayoutGrid className="size-3" />
-                    <span>一覧</span>
-                  </button>
-                </div>
+                <span className="text-[10px] text-muted-foreground/80 shrink-0">
+                  ※小国含まず
+                </span>
               </div>
+
+              {activePiece && hintLevel >= 1 && (
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-300 font-medium flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                  <span className="shrink-0 font-bold">
+                    🗺️ {continentLabel(activePiece.country.continent)}
+                  </span>
+                  <span className="text-muted-foreground text-[11px]">
+                    📍 {activePiece.country.geography.borders}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* ヒント発動時の1行コンパクト情報バー */}
-            {activePiece && hintLevel >= 1 && (
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[11px] text-amber-700 dark:text-amber-300 font-medium flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <span className="shrink-0">
-                  🏛️ 首都: <strong>{activePiece.country.basic.capital}</strong>
-                </span>
-                <span className="text-muted-foreground truncate">
-                  📍 {activePiece.country.geography.borders}
-                </span>
-              </div>
-            )}
-
             {unplacedPieces.length === 0 ? (
-              <div className="py-6 text-center space-y-1.5">
-                <Check className="size-7 text-emerald-500 mx-auto" />
+              <div className="py-4 text-center space-y-1">
+                <Check className="size-6 text-emerald-500 mx-auto" />
                 <p className="text-xs font-bold text-foreground">すべてのピースを配置しました！</p>
               </div>
             ) : (
-              <div
-                className={cn(
-                  mobileTrayView === "dock"
-                    ? "flex lg:grid lg:grid-cols-3 gap-2 overflow-x-auto lg:overflow-x-visible lg:max-h-[540px] lg:overflow-y-auto pb-1 lg:pb-0 lg:pr-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                    : "grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-3 gap-1.5 max-h-[220px] lg:max-h-[540px] overflow-y-auto pr-1",
-                )}
-              >
+              <div className="flex lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-1.5 lg:gap-2 overflow-x-auto lg:overflow-x-visible lg:max-h-[540px] lg:overflow-y-auto pb-0.5 lg:pb-0 lg:pr-1 touch-pan-x lg:touch-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {unplacedPieces.map((piece) => {
                   const iso3 = piece.country.iso3;
                   const isSelected = activePiece?.country.iso3 === iso3;
@@ -1873,7 +2466,16 @@ function PuzzlePage() {
                   return (
                     <div
                       key={iso3}
+                      ref={(el) => {
+                        if (el) {
+                          dockItemRefs.current.set(iso3, el);
+                        } else {
+                          dockItemRefs.current.delete(iso3);
+                        }
+                      }}
                       onPointerDown={(e) => {
+                        // モバイルのタッチ操作時は一覧の横スクロールを100%優先し、カードからのドラッグを開始しない
+                        if (e.pointerType === "touch") return;
                         e.currentTarget.releasePointerCapture(e.pointerId);
                         setSelectedIso3(iso3);
                         setHintLevel(0);
@@ -1881,7 +2483,7 @@ function PuzzlePage() {
                           iso3,
                           startX: e.clientX,
                           startY: e.clientY,
-                          isTouch: e.pointerType === "touch",
+                          isTouch: false,
                           fromDockHandle: false,
                         };
                       }}
@@ -1890,10 +2492,7 @@ function PuzzlePage() {
                         setHintLevel(0);
                       }}
                       className={cn(
-                        "group relative flex flex-col items-center justify-between rounded-xl border p-1.5 sm:p-2 transition-all cursor-grab active:cursor-grabbing select-none",
-                        mobileTrayView === "dock"
-                          ? "w-[88px] sm:w-[104px] lg:w-auto shrink-0 snap-start touch-pan-x lg:touch-none"
-                          : "touch-none",
+                        "group relative flex flex-col items-center justify-between rounded-xl border p-1.5 transition-all cursor-pointer lg:cursor-grab lg:active:cursor-grabbing select-none w-[112px] sm:w-[124px] lg:w-auto shrink-0 active:scale-[0.98]",
                         isBeingDragged && "opacity-35 scale-95",
                         isWrong && "border-destructive bg-destructive/15 animate-bounce",
                         isSelected && !isWrong
@@ -1901,8 +2500,8 @@ function PuzzlePage() {
                           : "border-border/70 bg-secondary/40 hover:bg-secondary/80 hover:border-border",
                       )}
                     >
-                      {/* 国のシルエットSVG（各国の中心経度を真正面に向けた歪みゼロ投影） */}
-                      <div className="w-full h-11 sm:h-13 flex items-center justify-center p-0.5">
+                      {/* 国のシルエットSVGを大きく主役表示 */}
+                      <div className="w-full h-14 sm:h-15 lg:h-16 flex items-center justify-center">
                         <svg
                           viewBox={piece.trayViewBox}
                           className="w-full h-full overflow-visible drop-shadow-xs transition-transform group-hover:scale-105"
@@ -1917,18 +2516,18 @@ function PuzzlePage() {
                         </svg>
                       </div>
 
-                      {/* 国旗＆国名（達人モード時は隠す） */}
-                      <div className="w-full mt-1 pt-1 border-t border-border/50 flex items-center justify-center gap-1 min-w-0">
+                      {/* 国旗＋国名を小さくコンパクトに1つにまとめる */}
+                      <div className="w-full mt-0.5 pt-1 border-t border-border/50 flex items-center justify-center gap-1 min-h-[1.65rem]">
                         {!blindMode ? (
                           <>
-                            <FlagImage flag={piece.country.flag} size="sm" className="shrink-0" />
-                            <span className="text-[10px] sm:text-[11px] font-bold text-foreground truncate">
+                            <FlagImage flag={piece.country.flag} size="xs" className="shrink-0" />
+                            <span className="text-[10px] font-bold text-foreground leading-[1.15] line-clamp-2 break-words text-left">
                               {piece.country.nameJa}
                             </span>
                           </>
                         ) : (
                           <span className="text-[10px] font-bold text-muted-foreground">
-                            {isSelected ? "地図をタップ" : "選択"}
+                            {isSelected ? "選択中" : "タップ"}
                           </span>
                         )}
                       </div>
@@ -1941,13 +2540,144 @@ function PuzzlePage() {
         </div>
       </main>
 
+      {/* モバイル・タブレット向け：ピース一覧＆検索ボトムシート */}
+      {mobileSheetOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/55 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setMobileSheetOpen(false)}
+        >
+          <div
+            className="w-full max-h-[82dvh] rounded-t-3xl bg-card border-t border-border shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-200"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ハンドルバー */}
+            <div className="flex justify-center pt-2.5 pb-1">
+              <div className="w-10 h-1.5 rounded-full bg-muted-foreground/30" />
+            </div>
+
+            {/* シートヘッダー */}
+            <div className="flex items-center justify-between px-4 pb-2.5 border-b border-border/70">
+              <div className="flex items-center gap-2">
+                <Target className="size-4 text-sky-500" />
+                <h3 className="font-display text-sm font-bold text-foreground">
+                  ピース一覧（残り{unplacedPieces.length}ヵ国）
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileSheetOpen(false)}
+                aria-label="閉じる"
+                className="size-10 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground flex items-center justify-center cursor-pointer active:scale-95"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* 国名検索バー（達人モード時は非表示、iOS自動ズーム防止のため text-base） */}
+            {!blindMode && (
+              <div className="px-4 py-2.5 border-b border-border/60 bg-secondary/20 space-y-1">
+                <div className="relative flex items-center">
+                  <Search className="size-4 text-muted-foreground absolute left-3 pointer-events-none" />
+                  <input
+                    type="search"
+                    value={pieceSearchQuery}
+                    onChange={(e) => setPieceSearchQuery(e.target.value)}
+                    placeholder="国名・首都で絞り込み..."
+                    className="w-full h-10 pl-9 pr-9 rounded-xl bg-background border border-border text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                  />
+                  {pieceSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setPieceSearchQuery("")}
+                      aria-label="検索をクリア"
+                      className="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground absolute right-1"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+                {pieceSearchQuery && (
+                  <p className="text-[11px] text-muted-foreground px-1">
+                    {filteredSheetPieces.length} 件ヒット
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* スクロール可能な2〜3列グリッド一覧 */}
+            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y p-3">
+              {filteredSheetPieces.length === 0 ? (
+                <div className="py-10 text-center text-xs text-muted-foreground">
+                  「{pieceSearchQuery}」に一致する未配置の国が見つかりません
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {filteredSheetPieces.map((piece) => {
+                    const iso3 = piece.country.iso3;
+                    const isSelected = activePiece?.country.iso3 === iso3;
+                    return (
+                      <button
+                        key={`sheet-${iso3}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedIso3(iso3);
+                          setHintLevel(0);
+                          setMobileSheetOpen(false);
+                        }}
+                        className={cn(
+                          "relative flex flex-col items-center justify-between rounded-xl border p-2 text-center transition-all cursor-pointer active:scale-95",
+                          isSelected
+                            ? "border-sky-500 bg-sky-500/15 ring-2 ring-sky-400/35"
+                            : "border-border/70 bg-secondary/40 hover:bg-secondary/70",
+                        )}
+                      >
+                        <div className="w-full h-16 flex items-center justify-center">
+                          <svg viewBox={piece.trayViewBox} className="w-full h-full overflow-visible">
+                            <path
+                              d={piece.trayPathD}
+                              fill={stageConfig.pieceFill}
+                              stroke={stageConfig.pieceStroke}
+                              strokeWidth={1.5}
+                              vectorEffect="non-scaling-stroke"
+                            />
+                          </svg>
+                        </div>
+
+                        <div className="w-full mt-1 pt-1 border-t border-border/50 min-h-[1.8rem] flex items-center justify-center gap-1">
+                          {!blindMode ? (
+                            <>
+                              <FlagImage flag={piece.country.flag} size="xs" className="shrink-0" />
+                              <span className="text-[11px] font-bold text-foreground leading-tight line-clamp-2 break-words text-left">
+                                {piece.country.nameJa}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[11px] font-bold text-muted-foreground">
+                              {isSelected ? "選択中" : "この国を選ぶ"}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="mt-3 pb-1 text-center text-[10px] text-muted-foreground/80">
+                ※ 地図の縮尺上、一部の極小国は含まれません
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ドラッグ中にポインターに追従するフローティング・シルエットピース（タッチ時は指の上方に照準表示） */}
       {dragging && draggingPieceData && (
         <div
           className="fixed pointer-events-none z-50 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
           style={{
             left: dragging.clientX,
-            top: dragging.clientY + (dragging.isTouch ? TOUCH_DRAG_OFFSET_Y : 0),
+            top: dragging.clientY + (dragging.isTouch ? getTouchDragOffsetY(dragging.clientY) : 0),
           }}
         >
           {/* 中心のターゲット照準レティクル（＋） */}
