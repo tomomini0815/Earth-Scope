@@ -16,6 +16,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock,
   Compass,
   Eye,
@@ -53,6 +54,8 @@ import {
 import world from "@/data/world.geo.json";
 import { countries } from "@/data/countries";
 import { byIso3, byMapId } from "@/data/lookup";
+import { MICROSTATES } from "@/data/microstates";
+import { MICROSTATE_SILHOUETTES } from "@/data/microstateSilhouettes";
 import { continentLabel, type ContinentId, type Country } from "@/data/types";
 import { SiteHeader } from "@/components/SiteHeader";
 import { FlagImage } from "@/components/FlagImage";
@@ -101,7 +104,7 @@ function getTouchDragOffsetY(clientY: number): number {
   return TOUCH_DRAG_OFFSET_Y;
 }
 
-type StageId = ContinentId | "world" | "world-all";
+type StageId = ContinentId | "world" | "world-all" | "microstates";
 
 type StageConfig = {
   id: StageId;
@@ -191,6 +194,23 @@ const ALL_MAP_POLYGON_ISO3S: string[] = (() => {
   return list;
 })();
 
+// GeoJSONポリゴンには存在しない小国・島国のISO3一覧（31ヵ国）
+const MICROSTATE_ONLY_ISO3S: string[] = (() => {
+  const polySet = new Set(ALL_MAP_POLYGON_ISO3S);
+  return MICROSTATES.map((m) => m.iso3).filter((iso3) => !polySet.has(iso3));
+})();
+
+// 全世界ステージで地図が小さくなりすぎないよう、選択ピースの大陸付近を大まかに映す広域ズーム設定（ネタバレ防止のため大陸単位の固定中心）
+const BROAD_CONTINENT_CENTERS: Record<ContinentId, [number, number]> = {
+  asia: [98, 26],
+  europe: [16, 51],
+  africa: [20, 2],
+  "north-america": [-96, 36],
+  "south-america": [-60, -18],
+  oceania: [148, -18],
+};
+const BROAD_AUTO_ZOOM = 1.75;
+
 const STAGE_CONFIGS: StageConfig[] = [
   {
     id: "world-all",
@@ -200,7 +220,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     accentColor: "text-sky-500",
     pieceFill: "#0284c7",
     pieceStroke: "#7dd3fc",
-    bbox: [-168, -55, 180, 72],
+    bbox: [-178, -55, 180, 72],
     iso3s: ALL_MAP_POLYGON_ISO3S,
   },
   {
@@ -211,7 +231,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     accentColor: "text-indigo-500",
     pieceFill: "#6366f1",
     pieceStroke: "#a5b4fc",
-    bbox: [-168, -55, 180, 72],
+    bbox: [-178, -55, 180, 72],
     iso3s: [
       "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
       "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
@@ -302,7 +322,42 @@ const STAGE_CONFIGS: StageConfig[] = [
       "AUS", "NZL", "PNG", "FJI", "SLB", "VUT", "IDN", "PHL", "MYS", "TLS",
     ],
   },
+  {
+    id: "microstates",
+    label: "小国・島国",
+    sublabel: "シンガポール・モナコ・カリブ海・太平洋の島国",
+    icon: MapPin,
+    accentColor: "text-cyan-500",
+    pieceFill: "#06b6d4",
+    pieceStroke: "#67e8f9",
+    bbox: [-178, -32, 180, 52],
+    iso3s: MICROSTATES.map((m) => m.iso3),
+  },
 ];
+
+/** ステージIDと「小国を含む」設定に応じた対象国ISO3リストを返す */
+function getStageIso3s(stageId: StageId, includeMicrostates: boolean): string[] {
+  const cfg = STAGE_CONFIGS.find((s) => s.id === stageId) ?? STAGE_CONFIGS[0]!;
+  if (stageId === "microstates" || !includeMicrostates) {
+    return [...cfg.iso3s];
+  }
+  const set = new Set(cfg.iso3s);
+  if (stageId === "world-all") {
+    for (const iso3 of MICROSTATE_ONLY_ISO3S) set.add(iso3);
+    return Array.from(set);
+  }
+  if (stageId === "world" || stageId === "south-america") {
+    return Array.from(set);
+  }
+  // 大陸別ステージ：その大陸に属する小国を追加
+  for (const ms of MICROSTATES) {
+    const c = byIso3(ms.iso3);
+    if (c && c.continent === stageId) {
+      set.add(ms.iso3);
+    }
+  }
+  return Array.from(set);
+}
 
 /**
  * MultiPolygonの国（アメリカ・ロシア・ノルウェーなど）で、遠く離れた小島によって
@@ -442,8 +497,9 @@ function playPuzzleSound(type: "snap" | "wrong" | "clear" | "hint", enabled: boo
 type PuzzlePieceData = {
   country: Country;
   mapId: string;
-  rawFeature: RawFeature;
-  pieceFeature: RawFeature;
+  isMicrostate?: boolean;
+  rawFeature?: RawFeature;
+  pieceFeature?: RawFeature;
   mainCenterLonLat: [number, number];
   boardPathD: string;
   piecePathD: string;
@@ -494,6 +550,7 @@ function clipFeatureToMidLon(f: RawFeature, midLon: number): RawFeature | null {
 type SavedPuzzleSession = {
   stageId: StageId;
   blindMode: boolean;
+  includeMicrostates?: boolean;
   shuffledIso3s: string[];
   placedIso3s: string[];
   selectedIso3: string | null;
@@ -508,9 +565,8 @@ type SavedPuzzleSession = {
 const PUZZLE_SESSION_STORAGE_KEY = "earthscope-puzzle-session";
 let memoryPuzzleSession: SavedPuzzleSession | null = null;
 
-function createShuffledList(stageId: StageId): string[] {
-  const cfg = STAGE_CONFIGS.find((s) => s.id === stageId) ?? STAGE_CONFIGS[0]!;
-  const list = [...cfg.iso3s];
+function createShuffledList(stageId: StageId, includeMicrostates = false): string[] {
+  const list = getStageIso3s(stageId, includeMicrostates);
   for (let i = list.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [list[i], list[j]] = [list[j]!, list[i]!];
@@ -576,6 +632,7 @@ function PuzzlePage() {
 
   const [stageId, setStageId] = useState<StageId>(initialSession.stageId);
   const [blindMode, setBlindMode] = useState(initialSession.blindMode); // 達人モード（ピースの国名・国旗を隠す）
+  const [includeMicrostates, setIncludeMicrostates] = useState(initialSession.includeMicrostates ?? false); // 小国を含むトグル
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // ゲーム進行ステート
@@ -681,12 +738,15 @@ function PuzzlePage() {
     [stageId],
   );
 
-  // D3 Projection & 地図パス・パズルピース生成
-  const { backgroundPaths, graticuleD, pieces, pieceByIso3 } = useMemo(() => {
+  // D3 Projection & 地図パス・パズルピース生成（小国・島国シルエット対応）
+  const { backgroundPaths, graticuleD, pieces, pieceByIso3, projection2D } = useMemo(() => {
     const [minLon, minLat, maxLon, maxLat] = stageConfig.bbox;
     const midLon = (minLon + maxLon) / 2;
     const midLat = (minLat + maxLat) / 2;
-    const isContinentStage = stageConfig.id !== "world" && stageConfig.id !== "world-all";
+    const isContinentStage =
+      stageConfig.id !== "world" &&
+      stageConfig.id !== "world-all" &&
+      stageConfig.id !== "microstates";
 
     // 境界周囲8点のMultiPointを作成してfitExtentで大陸に綺麗にズーム
     const bboxGeoJson = {
@@ -703,7 +763,7 @@ function PuzzlePage() {
       ],
     };
 
-    // 大陸別ステージでは中心経度(midLon)を正面に回転、世界ステージでは余白を最小化して程よく大きく表示
+    // 大陸別ステージでは中心経度(midLon)を正面に回転、世界・小国ステージでは余白を最小化して程よく大きく表示
     const padX = isContinentStage ? 20 : 6;
     const padY = isContinentStage ? 18 : 8;
     const projection = geoNaturalEarth1()
@@ -719,7 +779,7 @@ function PuzzlePage() {
     const graticule = geoGraticule10();
     const gratD = pathGen(graticule as never) ?? "";
 
-    const targetIso3Set = new Set(stageConfig.iso3s);
+    const targetIso3Set = new Set(getStageIso3s(stageConfig.id, includeMicrostates));
 
     const bgPaths: {
       mapId: string;
@@ -822,13 +882,49 @@ function PuzzlePage() {
       }
     }
 
+    // GeoJSONポリゴンに含まれない小国・島国をシルエット＋座標ピンソケットとして追加
+    for (const ms of MICROSTATES) {
+      if (!targetIso3Set.has(ms.iso3) || mapByIso3.has(ms.iso3)) continue;
+      const country = byIso3(ms.iso3);
+      if (!country) continue;
+      const projected = projection(ms.coordinates);
+      if (!projected || !isFinite(projected[0]) || !isFinite(projected[1])) continue;
+      const [tx, ty] = projected;
+      const silPath =
+        MICROSTATE_SILHOUETTES[ms.iso3] ??
+        "M50,18 A32,32 0 1,0 50,82 A32,32 0 1,0 50,18 Z";
+
+      const pieceData: PuzzlePieceData = {
+        country,
+        mapId: ms.id,
+        isMicrostate: true,
+        mainCenterLonLat: ms.coordinates,
+        boardPathD: "",
+        piecePathD: silPath,
+        trayPathD: silPath,
+        trayViewBox: "0 0 100 100",
+        targetX: tx,
+        targetY: ty,
+        bounds: [
+          [tx - 5, ty - 5],
+          [tx + 5, ty + 5],
+        ],
+        width: 10,
+        height: 10,
+        viewBox: "0 0 100 100",
+      };
+      generatedPieces.push(pieceData);
+      mapByIso3.set(country.iso3, pieceData);
+    }
+
     return {
       backgroundPaths: bgPaths,
       graticuleD: gratD,
       pieces: generatedPieces,
       pieceByIso3: mapByIso3,
+      projection2D: projection,
     };
-  }, [stageConfig]);
+  }, [stageConfig, includeMicrostates]);
 
   // 3D地球儀モード時の投影・パス・ターゲット座標（viewMode === "3d" のときのみ計算）
   const globeRenderData = useMemo(() => {
@@ -841,7 +937,7 @@ function PuzzlePage() {
       .clipAngle(90);
     const pathGen = geoPath(projection);
     const gratD = pathGen(geoGraticule10() as never) ?? "";
-    const targetIso3Set = new Set(stageConfig.iso3s);
+    const targetIso3Set = new Set(getStageIso3s(stageConfig.id, includeMicrostates));
     const centerLonLat: [number, number] = [-globeRotation[0], -globeRotation[1]];
 
     const paths3D: {
@@ -864,7 +960,7 @@ function PuzzlePage() {
 
       if (country && isTarget) {
         const piece = pieceByIso3.get(country.iso3);
-        const socketD = piece ? (pathGen(piece.pieceFeature as never) ?? d) : d;
+        const socketD = piece && piece.pieceFeature ? (pathGen(piece.pieceFeature as never) ?? d) : d;
         if (d || socketD) {
           paths3D.push({
             mapId,
@@ -896,6 +992,18 @@ function PuzzlePage() {
       }
     }
 
+    // 小国ピースの3D座標を投影登録
+    for (const p of pieces) {
+      if (!p.isMicrostate) continue;
+      const isFront = geoDistance(centerLonLat, p.mainCenterLonLat) < Math.PI / 2 - 0.03;
+      const pt = projection(p.mainCenterLonLat);
+      if (pt && isFront) {
+        piecePos3D.set(p.country.iso3, { x: pt[0], y: pt[1], visible: true });
+      } else {
+        piecePos3D.set(p.country.iso3, { x: GLOBE_CX, y: GLOBE_CY, visible: false });
+      }
+    }
+
     return {
       radius,
       projection,
@@ -903,20 +1011,21 @@ function PuzzlePage() {
       paths3D,
       piecePos3D,
     };
-  }, [viewMode, mapZoom, globeRotation, stageConfig, pieceByIso3]);
+  }, [viewMode, mapZoom, globeRotation, stageConfig, includeMicrostates, pieceByIso3, pieces]);
 
   const getDefaultGlobeRotationForStage = (sid: StageId): [number, number, number] => {
     const cfg = STAGE_CONFIGS.find((s) => s.id === sid) ?? STAGE_CONFIGS[0]!;
-    if (cfg.id === "world" || cfg.id === "world-all") {
+    if (cfg.id === "world" || cfg.id === "world-all" || cfg.id === "microstates") {
       return [-30, -20, 0];
     }
     const [minLon, minLat, maxLon, maxLat] = cfg.bbox;
     return [-(minLon + maxLon) / 2, -(minLat + maxLat) / 2, 0];
   };
 
-  const startNewGame = (nextStageId = stageId) => {
-    const list = createShuffledList(nextStageId);
+  const startNewGame = (nextStageId = stageId, nextIncludeMicrostates = includeMicrostates) => {
+    const list = createShuffledList(nextStageId, nextIncludeMicrostates);
     setStageId(nextStageId);
+    setIncludeMicrostates(nextIncludeMicrostates);
     setShuffledIso3s(list);
     setPlacedIso3s(new Set());
     setSelectedIso3(list[0] ?? null);
@@ -942,6 +1051,7 @@ function PuzzlePage() {
     persistPuzzleSession({
       stageId: nextStageId,
       blindMode,
+      includeMicrostates: nextIncludeMicrostates,
       shuffledIso3s: list,
       placedIso3s: [],
       selectedIso3: list[0] ?? null,
@@ -959,6 +1069,7 @@ function PuzzlePage() {
     persistPuzzleSession({
       stageId,
       blindMode,
+      includeMicrostates,
       shuffledIso3s,
       placedIso3s: Array.from(placedIso3s),
       selectedIso3,
@@ -972,6 +1083,7 @@ function PuzzlePage() {
   }, [
     stageId,
     blindMode,
+    includeMicrostates,
     shuffledIso3s,
     placedIso3s,
     selectedIso3,
@@ -1030,14 +1142,30 @@ function PuzzlePage() {
     );
   }, [unplacedPieces, pieceSearchQuery, blindMode]);
 
-  // 選択中のピースが変わったら、横並びドック内の該当カードを中央付近へ自動スクロール
+  // 選択中のピースが変わったとき：カルーセル追従 ＆ 全世界系ステージでは縮小しすぎないよう大陸レベルの大まかな広域ズームを適用
   useEffect(() => {
     if (!activePiece) return;
     const el = dockItemRefs.current.get(activePiece.country.iso3);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
     }
-  }, [activePiece?.country.iso3]);
+
+    // 全世界系ステージ（world-all / world / microstates）の2D平面地図では、周辺エリア拡大までいかない大まかな広域表示（1.75倍）にする
+    const isWorldWideStage =
+      stageId === "world-all" || stageId === "world" || stageId === "microstates";
+    if (isWorldWideStage && viewMode === "2d" && !isCleared) {
+      const broadLonLat = BROAD_CONTINENT_CENTERS[activePiece.country.continent];
+      const pt = projection2D(broadLonLat);
+      if (pt && isFinite(pt[0]) && isFinite(pt[1])) {
+        setMapZoom(BROAD_AUTO_ZOOM);
+        setMapPan({
+          x: BOARD_WIDTH / 2 - pt[0],
+          y: BOARD_HEIGHT / 2 - pt[1],
+        });
+        setIsRegionZoomActive(false);
+      }
+    }
+  }, [activePiece?.country.iso3, stageId, viewMode, isCleared, projection2D]);
 
   // ボトムシートが開いている間は背景の縦スクロールを抑止
   useEffect(() => {
@@ -1103,9 +1231,7 @@ function PuzzlePage() {
     const targetZoom = isTinyPiece ? 6.0 : isSmallPiece ? 3.5 : 2.2;
     if (viewMode === "3d") {
       const [lon, lat] = activePiece.mainCenterLonLat;
-      const offsetLon = hintLevel >= 2 ? 0 : ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 8;
-      const offsetLat = hintLevel >= 2 ? 0 : ((activePiece.country.iso3.charCodeAt(0) % 5) - 2) * 6;
-      setGlobeRotation([-(lon + offsetLon), Math.max(-85, Math.min(85, -(lat + offsetLat))), 0]);
+      setGlobeRotation([-lon, Math.max(-85, Math.min(85, -lat)), 0]);
       setMapZoom(targetZoom);
       setIsRegionZoomActive(true);
       return;
@@ -1428,6 +1554,8 @@ function PuzzlePage() {
     }
   };
 
+  const canToggleMicrostates =
+    stageId !== "microstates" && stageId !== "world" && stageId !== "south-america";
   const progressPct = pieces.length > 0 ? Math.round((placedIso3s.size / pieces.length) * 100) : 0;
   const draggingPieceData = dragging ? pieceByIso3.get(dragging.iso3) : null;
 
@@ -1479,24 +1607,24 @@ function PuzzlePage() {
               })}
             </div>
 
-            {/* PC用：進捗＆タイマー＆効果音（モバイルは地図上HUDへ集約して縦空間を最大化） */}
+            {/* PC用：小国トグル＆効果音（進捗＆タイマーは地図上部中央へ配置） */}
             <div className="hidden lg:flex items-center justify-end gap-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2.5 h-8">
-                <span className="text-xs font-black text-sky-600 dark:text-sky-400 tabular-nums">
-                  {placedIso3s.size}/{pieces.length}
-                </span>
-                <span className="text-border">|</span>
-                <Clock className="size-3.5 text-sky-500" />
-                <span className="font-mono text-xs font-black tabular-nums text-foreground">
-                  {formatStopwatch(elapsedMs)}
-                </span>
-                {combo >= 2 && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
-                    <Flame className="size-2.5" />
-                    {combo}
-                  </span>
-                )}
-              </div>
+              {canToggleMicrostates && (
+                <button
+                  type="button"
+                  onClick={() => startNewGame(stageId, !includeMicrostates)}
+                  title="シンガポール・モナコ・カリブ海・太平洋の島国など小国をパズルに含める"
+                  className={cn(
+                    "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                    includeMicrostates
+                      ? "bg-cyan-500/15 border-cyan-500/50 text-cyan-700 dark:text-cyan-300"
+                      : "bg-secondary/50 border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  )}
+                >
+                  <MapPin className="size-3.5 shrink-0" />
+                  <span>小国 {includeMicrostates ? "ON" : "OFF"}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1510,16 +1638,16 @@ function PuzzlePage() {
           </div>
         </section>
 
-        {/* 2. メイン領域：モバイルは縦スクロールなしの1画面完結アプリ型レイアウト */}
-        <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-1.5 sm:gap-2.5 lg:gap-3 lg:items-start">
+        {/* 2. メイン領域：モバイルは1画面完結、PCは地図とピース一覧の高さを完全一致 */}
+        <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-1.5 sm:gap-2.5 lg:gap-3 lg:items-stretch">
           {/* 左／上：大型白地図パズルボード */}
-          <div className="flex-1 min-h-[210px] lg:flex-none lg:col-span-8 surface-card p-1 sm:p-2 relative overflow-hidden flex flex-col">
-            <div className="relative w-full flex-1 min-h-0 lg:flex-none lg:h-[620px] rounded-xl overflow-hidden bg-[var(--ocean)] border border-border shadow-inner">
-              {/* 地図上部オーバーレイ：モバイルはHUD（進捗・タイマー／音・リセット）、PCは従来配置 */}
+          <div className="flex-1 min-h-[210px] lg:flex-none lg:col-span-8 lg:h-[636px] surface-card p-1 sm:p-2 relative overflow-hidden flex flex-col">
+            <div className="relative w-full flex-1 min-h-0 rounded-xl overflow-hidden bg-[var(--ocean)] border border-border shadow-inner">
+              {/* 地図上部オーバーレイ：スマホは左上HUD、PC・タブレットは中央にタイマーHUD */}
               <div className="pointer-events-none absolute inset-x-1.5 sm:inset-x-2.5 top-1.5 sm:top-2.5 z-10 flex items-center justify-between gap-1.5">
-                {/* 左上：モバイル＝進捗＆タイマーHUD、PC＝やり直す */}
-                <div className="pointer-events-auto flex items-center gap-1.5 bg-background/88 backdrop-blur-md border border-border/75 px-2 py-1 lg:p-1 rounded-xl shadow-sm shrink-0">
-                  <div className="flex lg:hidden items-center gap-1.5">
+                {/* 左上：スマホ＝進捗＆タイマーHUD、PC＝やり直す＆平面/地球儀（タブレット縦では空にせず非表示） */}
+                <div className="pointer-events-auto flex md:hidden lg:flex items-center gap-1.5 bg-background/88 backdrop-blur-md border border-border/75 px-2 py-1 lg:p-1 rounded-xl shadow-sm shrink-0">
+                  <div className="flex md:hidden items-center gap-1.5">
                     <span className="text-[11px] font-black text-sky-600 dark:text-sky-400 tabular-nums">
                       {placedIso3s.size}/{pieces.length}
                     </span>
@@ -1575,6 +1703,27 @@ function PuzzlePage() {
                       <span>地球儀</span>
                     </button>
                   </div>
+                </div>
+
+                {/* タブレット縦用の左スペーサー（justify-betweenで右上のボタンを右端に固定） */}
+                <div className="hidden md:block lg:hidden" />
+
+                {/* PC・タブレット用：地図上部中央の進捗＆タイマーHUD */}
+                <div className="hidden md:flex pointer-events-auto absolute left-1/2 -translate-x-1/2 items-center gap-2 bg-background/90 backdrop-blur-md border border-border/75 px-3 h-9 lg:h-10 rounded-xl shadow-sm shrink-0">
+                  <span className="text-xs font-black text-sky-600 dark:text-sky-400 tabular-nums">
+                    {placedIso3s.size}/{pieces.length}
+                  </span>
+                  <span className="text-border/80">|</span>
+                  <Clock className="size-3.5 text-sky-500 shrink-0" />
+                  <span className="font-mono text-xs sm:text-sm font-black tabular-nums text-foreground">
+                    {formatStopwatch(elapsedMs)}
+                  </span>
+                  {combo >= 2 && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black flex items-center gap-0.5">
+                      <Flame className="size-2.5" />
+                      {combo}
+                    </span>
+                  )}
                 </div>
 
                 {/* 右上：モバイル＝ヒント＆地球儀切替＆設定メニュー、PC＝ズーム操作群 */}
@@ -1661,6 +1810,30 @@ function PuzzlePage() {
                             {blindMode ? "ON" : "OFF"}
                           </span>
                         </button>
+
+                        {canToggleMicrostates && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              startNewGame(stageId, !includeMicrostates);
+                              setMobileMenuOpen(false);
+                            }}
+                            className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-secondary text-xs font-bold text-foreground cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <MapPin className={cn("size-4", includeMicrostates ? "text-cyan-500" : "text-muted-foreground")} />
+                              <span>小国を含む</span>
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded-md font-bold",
+                                includeMicrostates ? "bg-cyan-500 text-white" : "bg-secondary text-muted-foreground",
+                              )}
+                            >
+                              {includeMicrostates ? "ON" : "OFF"}
+                            </span>
+                          </button>
+                        )}
 
                         <button
                           type="button"
@@ -2060,6 +2233,87 @@ function PuzzlePage() {
                   })}
                 </g>
 
+                {/* 小国・島国用の丸いピンソケット（2D平面＆3D地球儀両対応） */}
+                <g>
+                  {pieces.map((p) => {
+                    if (!p.isMicrostate) return null;
+                    let mx = p.targetX;
+                    let my = p.targetY;
+                    if (viewMode === "3d") {
+                      const pos3D = globeRenderData?.piecePos3D.get(p.country.iso3);
+                      if (!pos3D || !pos3D.visible) return null;
+                      mx = pos3D.x;
+                      my = pos3D.y;
+                    }
+                    const isPlaced = placedIso3s.has(p.country.iso3);
+                    const isCurrentActive = activePiece?.country.iso3 === p.country.iso3;
+                    const isHintRadar = isCurrentActive && hintLevel >= 2;
+                    const isDragNearThis =
+                      dragging?.iso3 === p.country.iso3 && dragging.isNearTarget;
+                    const pinR =
+                      viewMode === "3d"
+                        ? 6
+                        : Math.max(1.8, 5.2 / Math.pow(mapZoom, 0.6));
+                    const hitR =
+                      viewMode === "3d"
+                        ? 14
+                        : Math.max(5, 13 / Math.pow(mapZoom, 0.6));
+
+                    if (isPlaced) {
+                      return (
+                        <g
+                          key={`micro-placed-${p.country.iso3}`}
+                          transform={`translate(${mx}, ${my})`}
+                          className="cursor-pointer"
+                          onClick={() => setLastPlacedCountry(p.country)}
+                        >
+                          <circle
+                            r={pinR}
+                            fill={stageConfig.pieceFill}
+                            stroke="#ffffff"
+                            strokeWidth={1.4}
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        </g>
+                      );
+                    }
+
+                    return (
+                      <g
+                        key={`micro-socket-${p.country.iso3}`}
+                        transform={`translate(${mx}, ${my})`}
+                        className="cursor-pointer"
+                        onClick={(e) => handleSocketClick(p.country.iso3, e)}
+                      >
+                        {/* 押しやすい透明タップ領域 */}
+                        <circle r={hitR} fill="transparent" style={{ pointerEvents: "all" }} />
+                        {/* 点線の丸いソケット枠 */}
+                        <circle
+                          r={isDragNearThis || isHintRadar ? pinR * 1.25 : pinR}
+                          fill={
+                            isDragNearThis
+                              ? "rgba(56, 189, 248, 0.6)"
+                              : isHintRadar
+                                ? "rgba(251, 191, 36, 0.6)"
+                                : "rgba(255, 255, 255, 0.92)"
+                          }
+                          stroke={
+                            isDragNearThis
+                              ? "#0284c7"
+                              : isHintRadar
+                                ? "#d97706"
+                                : "#0284c7"
+                          }
+                          strokeWidth={isDragNearThis || isHintRadar ? 2.2 : 1.1}
+                          strokeDasharray={isDragNearThis ? undefined : "2 1.4"}
+                          vectorEffect="non-scaling-stroke"
+                          filter={isDragNearThis ? "url(#snapGlow)" : undefined}
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+
                 {/* ヒント①：大まかなエリア絞り込みサークル（正解の周辺一帯をふわっと光らせる・2D/3D両対応） */}
                 {activePiece && hintLevel === 1 && !isCleared && (() => {
                   if (viewMode === "3d") {
@@ -2318,110 +2572,29 @@ function PuzzlePage() {
             </div>
           </div>
 
-          {/* 右／下：超シンプル2段コマンドデッキ（モバイルは選択バー＋横並び一覧のみ） */}
-          <div className="shrink-0 lg:col-span-4 surface-card p-2 sm:p-3 flex flex-col gap-2">
-            {/* モバイル・タブレット向け：ヒーロー選択バー（◀ / シルエット＋フル国名 / ▶ / 一覧検索アイコン） */}
-            {activePiece && !isCleared && (
-              <div
-                className={cn(
-                  "lg:hidden rounded-2xl border transition-colors overflow-hidden",
-                  wrongFeedbackIso3 === activePiece.country.iso3
-                    ? "border-destructive bg-destructive/15 animate-bounce"
-                    : "border-sky-500/35 bg-sky-500/8",
-                )}
+          {/* 右／下：モバイルは1段特大カルーセル、PCは地図と同高のグリッド一覧 */}
+          <div className="relative shrink-0 lg:col-span-4 lg:h-[636px] surface-card p-1.5 sm:p-2.5 lg:p-3 flex flex-col gap-1.5 lg:gap-2 overflow-hidden">
+            {/* モバイル用：カルーセル右上の一覧表示（上向き矢印）ボタン */}
+            {unplacedPieces.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setMobileSheetOpen(true)}
+                aria-label="ピース一覧を開く"
+                title="ピース一覧を開く"
+                className="lg:hidden absolute top-1.5 right-1.5 z-10 size-8 rounded-full bg-background/92 backdrop-blur-md border border-border/80 text-foreground hover:bg-secondary shadow-sm flex items-center justify-center cursor-pointer active:scale-95 transition-all"
               >
-                <div className="flex items-center gap-1 p-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleCyclePiece(-1)}
-                    disabled={unplacedPieces.length <= 1}
-                    aria-label="前のピース"
-                    className="size-9 shrink-0 rounded-xl bg-background/90 hover:bg-background border border-border/70 flex items-center justify-center text-foreground disabled:opacity-35 cursor-pointer active:scale-95 transition-all"
-                  >
-                    <ChevronLeft className="size-4.5" />
-                  </button>
-
-                  {/* 中央：大きく見やすいドラッグ可能なシルエットハンドル ＋ コンパクトにまとめた国旗＆国名 */}
-                  <div className="flex-1 min-w-0 flex items-center gap-2 px-0.5">
-                    <div
-                      title="ドラッグして地図に配置"
-                      onPointerDown={(e) => {
-                        e.currentTarget.releasePointerCapture(e.pointerId);
-                        pendingDragRef.current = {
-                          iso3: activePiece.country.iso3,
-                          startX: e.clientX,
-                          startY: e.clientY,
-                          isTouch: e.pointerType === "touch",
-                          fromDockHandle: true,
-                        };
-                      }}
-                      className="size-13 shrink-0 rounded-xl bg-background border border-sky-500/40 p-0.5 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing shadow-xs"
-                    >
-                      <svg viewBox={activePiece.trayViewBox} className="w-full h-full overflow-visible">
-                        <path
-                          d={activePiece.trayPathD}
-                          fill={stageConfig.pieceFill}
-                          stroke={stageConfig.pieceStroke}
-                          strokeWidth={1.6}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </svg>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      {!blindMode || hintLevel >= 1 ? (
-                        <div className="inline-flex items-center gap-1 max-w-full rounded-lg bg-background/75 border border-border/50 px-2 py-1">
-                          <FlagImage
-                            flag={activePiece.country.flag}
-                            size="xs"
-                            className="shrink-0"
-                          />
-                          <span className="text-xs font-extrabold text-foreground leading-tight line-clamp-2 break-words">
-                            {activePiece.country.nameJa}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="text-xs font-extrabold text-foreground leading-tight">
-                          シルエットで挑戦中
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleCyclePiece(1)}
-                    disabled={unplacedPieces.length <= 1}
-                    aria-label="次のピース"
-                    className="size-9 shrink-0 rounded-xl bg-background/90 hover:bg-background border border-border/70 flex items-center justify-center text-foreground disabled:opacity-35 cursor-pointer active:scale-95 transition-all"
-                  >
-                    <ChevronRight className="size-4.5" />
-                  </button>
-
-                  {unplacedPieces.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setMobileSheetOpen(true)}
-                      aria-label="一覧・検索を開く"
-                      title="一覧・検索"
-                      className="size-9 shrink-0 rounded-xl bg-primary/12 active:bg-primary/20 border border-primary/35 text-primary flex items-center justify-center cursor-pointer active:scale-95 transition-all ml-0.5"
-                    >
-                      <Search className="size-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* ヒント発動時はヒーローカード下部に一体化して表示（大陸＋隣接国） */}
-                {hintLevel >= 1 && (
-                  <div className="border-t border-amber-500/25 bg-amber-500/12 px-2.5 py-1 text-[11px] text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <span className="shrink-0 font-bold">
-                      🗺️ {continentLabel(activePiece.country.continent)}
-                    </span>
-                    <span className="text-amber-900/80 dark:text-amber-200/90 whitespace-nowrap">
-                      📍 {activePiece.country.geography.borders}
-                    </span>
-                  </div>
-                )}
+                <ChevronUp className="size-4.5 stroke-[2.4]" />
+              </button>
+            )}
+            {/* モバイル用：ヒント発動時のみ表示する1行エリア＆隣接国バー */}
+            {activePiece && !isCleared && hintLevel >= 1 && (
+              <div className="lg:hidden rounded-xl border border-amber-500/30 bg-amber-500/12 px-2.5 py-1 text-[11px] text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="shrink-0 font-bold">
+                  🗺️ {continentLabel(activePiece.country.continent)}
+                </span>
+                <span className="text-amber-900/80 dark:text-amber-200/90 whitespace-nowrap">
+                  📍 {activePiece.country.geography.borders}
+                </span>
               </div>
             )}
 
@@ -2496,7 +2669,7 @@ function PuzzlePage() {
                 <p className="text-xs font-bold text-foreground">すべてのピースを配置しました！</p>
               </div>
             ) : (
-              <div className="flex lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-1.5 lg:gap-2 overflow-x-auto lg:overflow-x-visible lg:max-h-[540px] lg:overflow-y-auto pb-0.5 lg:pb-0 lg:pr-1 touch-pan-x lg:touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex items-center lg:items-stretch lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:content-start gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-1 lg:min-h-0 lg:overflow-y-auto px-1 lg:px-0 py-1 lg:py-0 lg:pr-1 touch-pan-x lg:touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {unplacedPieces.map((piece) => {
                   const iso3 = piece.country.iso3;
                   const isSelected = activePiece?.country.iso3 === iso3;
@@ -2563,16 +2736,24 @@ function PuzzlePage() {
                         setHintLevel(0);
                       }}
                       className={cn(
-                        "group relative flex flex-col items-center justify-between rounded-xl border p-1.5 transition-all cursor-grab active:cursor-grabbing select-none touch-pan-x lg:touch-pan-y w-[112px] sm:w-[124px] lg:w-auto shrink-0 active:scale-[0.98]",
+                        "group relative flex flex-col items-center justify-between rounded-2xl lg:rounded-xl border transition-all duration-200 cursor-grab active:cursor-grabbing select-none touch-pan-x lg:touch-pan-y lg:w-auto shrink-0",
+                        isSelected
+                          ? "w-[136px] sm:w-[148px] p-2 lg:p-1.5 -translate-y-0.5 lg:translate-y-0"
+                          : "w-[106px] sm:w-[116px] p-1.5 opacity-70 scale-[0.94] lg:opacity-100 lg:scale-100",
                         isBeingDragged && "opacity-35 scale-95",
                         isWrong && "border-destructive bg-destructive/15 animate-bounce",
                         isSelected && !isWrong
-                          ? "border-sky-500 bg-sky-500/15 ring-2 ring-sky-400/35 shadow-xs"
+                          ? "border-sky-500 bg-sky-500/12 ring-2 ring-sky-400/35 shadow-md lg:shadow-xs"
                           : "border-border/70 bg-secondary/40 hover:bg-secondary/80 hover:border-border",
                       )}
                     >
-                      {/* 国のシルエットSVGを大きく主役表示 */}
-                      <div className="w-full h-14 sm:h-15 lg:h-16 flex items-center justify-center">
+                      {/* 国のシルエットSVG（選択中のピースが大きく浮き上がる） */}
+                      <div
+                        className={cn(
+                          "w-full flex items-center justify-center transition-all duration-200",
+                          isSelected ? "h-16 sm:h-17 lg:h-16" : "h-12 sm:h-13 lg:h-16",
+                        )}
+                      >
                         <svg
                           viewBox={piece.trayViewBox}
                           className="w-full h-full overflow-visible drop-shadow-xs transition-transform group-hover:scale-105"
@@ -2587,12 +2768,17 @@ function PuzzlePage() {
                         </svg>
                       </div>
 
-                      {/* 国旗＋国名を小さくコンパクトに1つにまとめる */}
-                      <div className="w-full mt-0.5 pt-1 border-t border-border/50 flex items-center justify-center gap-1 min-h-[1.65rem]">
+                      {/* 国旗＋国名を小さくコンパクトにまとめる */}
+                      <div className="w-full mt-1 pt-1 border-t border-border/50 flex items-center justify-center gap-1 min-h-[1.6rem]">
                         {!blindMode ? (
                           <>
                             <FlagImage flag={piece.country.flag} size="xs" className="shrink-0" />
-                            <span className="text-[10px] font-bold text-foreground leading-[1.15] line-clamp-2 break-words text-left">
+                            <span
+                              className={cn(
+                                "font-bold text-foreground leading-[1.15] line-clamp-2 break-words text-left",
+                                isSelected ? "text-[11px] lg:text-[10px]" : "text-[10px]",
+                              )}
+                            >
                               {piece.country.nameJa}
                             </span>
                           </>
@@ -2735,7 +2921,9 @@ function PuzzlePage() {
                 </div>
               )}
               <p className="mt-3 pb-1 text-center text-[10px] text-muted-foreground/80">
-                ※ 地図の縮尺上、一部の極小国は含まれません
+                {stageId === "microstates" || includeMicrostates
+                  ? "※ 小国・島国は地図上の青い点線の丸枠に配置できます"
+                  : "※ 設定から「小国を含む」をONにすると全198ヵ国に挑戦できます"}
               </p>
             </div>
           </div>
