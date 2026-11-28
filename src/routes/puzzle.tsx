@@ -200,7 +200,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     accentColor: "text-sky-500",
     pieceFill: "#0284c7",
     pieceStroke: "#7dd3fc",
-    bbox: [-120, -43, 162, 59],
+    bbox: [-168, -55, 180, 72],
     iso3s: ALL_MAP_POLYGON_ISO3S,
   },
   {
@@ -211,7 +211,7 @@ const STAGE_CONFIGS: StageConfig[] = [
     accentColor: "text-indigo-500",
     pieceFill: "#6366f1",
     pieceStroke: "#a5b4fc",
-    bbox: [-120, -43, 162, 59],
+    bbox: [-168, -55, 180, 72],
     iso3s: [
       "JPN", "CHN", "IND", "SAU", "TUR", "GBR", "FRA", "DEU", "ITA",
       "EGY", "NGA", "ZAF", "CAN", "USA", "MEX", "BRA", "ARG", "AUS",
@@ -335,8 +335,8 @@ function getPieceFeatureAndCenter(f: RawFeature): {
       const keptCoords = parts
         .filter((p, idx) => {
           if (idx === 0) return true;
-          // ロシアのウランゲリ島（西経側）を除外
-          if (String(f.id) === "643" && p.centroid[0] < 0) return false;
+          // ロシア(643)のウランゲリ島やフィジー(242)の日付変更線跨ぎ（西経側）ポリゴンを除外
+          if ((String(f.id) === "643" || String(f.id) === "242") && p.centroid[0] < 0) return false;
           return geoDistance(mainCenter, p.centroid) <= maxRad;
         })
         .map((p) => p.coords);
@@ -636,14 +636,23 @@ function PuzzlePage() {
     }
   };
 
-  // タップ選択・横スクロールとドラッグ開始を区別するための待機参照
+  // タップ選択・スクロールとドラッグ開始を区別するための待機参照
   const pendingDragRef = useRef<{
     iso3: string;
     startX: number;
     startY: number;
     isTouch: boolean;
     fromDockHandle?: boolean;
+    isGridLayout?: boolean;
+    longPressTimer?: ReturnType<typeof setTimeout>;
   } | null>(null);
+
+  const clearPendingDrag = () => {
+    if (pendingDragRef.current?.longPressTimer) {
+      clearTimeout(pendingDragRef.current.longPressTimer);
+    }
+    pendingDragRef.current = null;
+  };
 
   // 地図拡大時のドラッグパン／3D地球儀の回転操作用の参照
   const boardPanRef = useRef<{
@@ -1223,8 +1232,33 @@ function PuzzlePage() {
     }
   };
 
-  // ドラッグ操作イベント（タップ・横スワイプとの判別 ＆ windowレベルでの追跡）
+  // ドラッグ操作イベント（タップ・スクロールとの判別 ＆ windowレベルでの追跡）
   useEffect(() => {
+    const startDragFromPending = (pending: NonNullable<typeof pendingDragRef.current>, clientX: number, clientY: number) => {
+      if (pending.longPressTimer) {
+        clearTimeout(pending.longPressTimer);
+      }
+      ensureTimerStarted();
+
+      const piece = pieceByIso3.get(pending.iso3);
+      const aimY = clientY + (pending.isTouch ? getTouchDragOffsetY(clientY) : 0);
+      let isNear = false;
+      if (piece) {
+        const svgPt = clientToSvgPoint(clientX, aimY);
+        if (svgPt) {
+          isNear = checkIsSnapMatch(piece, svgPt.x, svgPt.y, pending.isTouch);
+        }
+      }
+      setDragging({
+        iso3: pending.iso3,
+        clientX,
+        clientY,
+        isTouch: pending.isTouch,
+        isNearTarget: isNear,
+      });
+      pendingDragRef.current = null;
+    };
+
     const handlePointerMove = (e: PointerEvent) => {
       // 1. ドラッグ待機状態から本ドラッグへの移行判定
       if (pendingDragRef.current && !dragging) {
@@ -1233,27 +1267,34 @@ function PuzzlePage() {
         const dy = e.clientY - pending.startY;
         const dist = Math.hypot(dx, dy);
 
-        if (dist >= 7) {
-          // パズルピースを移動し始めた瞬間にタイマーをスタート
-          ensureTimerStarted();
-
-          const piece = pieceByIso3.get(pending.iso3);
-          const aimY = e.clientY + (pending.isTouch ? getTouchDragOffsetY(e.clientY) : 0);
-          let isNear = false;
-          if (piece) {
-            const svgPt = clientToSvgPoint(e.clientX, aimY);
-            if (svgPt) {
-              isNear = checkIsSnapMatch(piece, svgPt.x, svgPt.y, pending.isTouch);
+        // タッチ操作時（専用ハンドル以外）：一覧のスクロール方向ならキャンセルし、地図方向なら即ドラッグ開始
+        if (pending.isTouch && !pending.fromDockHandle) {
+          if (pending.isGridLayout) {
+            // タブレット横（右側縦スクロール一覧）：上下移動はスクロール優先、左方向（地図側）へ引いたらドラッグ開始
+            if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.1) {
+              clearPendingDrag();
+              return;
+            }
+            if (dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.05) {
+              startDragFromPending(pending, e.clientX, e.clientY);
+              return;
+            }
+          } else {
+            // スマホ・タブレット縦（下部横スクロール一覧）：左右移動はスクロール優先、上方向（地図側）へ引いたらドラッグ開始
+            if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+              clearPendingDrag();
+              return;
+            }
+            if (dy < -10 && Math.abs(dy) > Math.abs(dx) * 1.05) {
+              startDragFromPending(pending, e.clientX, e.clientY);
+              return;
             }
           }
-          setDragging({
-            iso3: pending.iso3,
-            clientX: e.clientX,
-            clientY: e.clientY,
-            isTouch: pending.isTouch,
-            isNearTarget: isNear,
-          });
-          pendingDragRef.current = null;
+          return;
+        }
+
+        if (dist >= 7) {
+          startDragFromPending(pending, e.clientX, e.clientY);
         }
         return;
       }
@@ -1280,7 +1321,7 @@ function PuzzlePage() {
     };
 
     const handlePointerUp = (e: PointerEvent) => {
-      pendingDragRef.current = null;
+      clearPendingDrag();
       if (!dragging) return;
 
       const piece = pieceByIso3.get(dragging.iso3);
@@ -1303,13 +1344,22 @@ function PuzzlePage() {
       setDragging(null);
     };
 
+    // タッチドラッグ中はブラウザのスクロールを完全にロック（iPad Safari / Android Chrome対応）
+    const handleTouchMovePrevent = (e: TouchEvent) => {
+      if (dragging) {
+        e.preventDefault();
+      }
+    };
+
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", handlePointerUp);
+    window.addEventListener("touchmove", handleTouchMovePrevent, { passive: false });
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("touchmove", handleTouchMovePrevent);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging, pieceByIso3, placedIso3s, soundEnabled, mapZoom, viewMode, globeRenderData]);
@@ -1427,9 +1477,9 @@ function PuzzlePage() {
               })}
             </div>
 
-            {/* PC用：進捗＆タイマー＆効果音（モバイルは地図上HUDへ集約して縦空間を最大化） */}
-            <div className="hidden lg:flex items-center justify-end gap-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2.5 h-8">
+            {/* PC・タブレット用：進捗・タイマー・効果音 ＋ 右端上にヒント＆国名ありボタン */}
+            <div className="hidden md:flex items-center justify-end gap-1.5 shrink-0">
+              <div className="hidden lg:flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2.5 h-8">
                 <span className="text-xs font-black text-sky-600 dark:text-sky-400 tabular-nums">
                   {placedIso3s.size}/{pieces.length}
                 </span>
@@ -1450,9 +1500,50 @@ function PuzzlePage() {
                 type="button"
                 onClick={() => setSoundEnabled((s) => !s)}
                 title="効果音のON/OFF"
-                className="size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                className="hidden lg:flex size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground items-center justify-center cursor-pointer active:scale-95 shrink-0"
               >
                 {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+              </button>
+
+              {activePiece && !isCleared && (
+                <button
+                  type="button"
+                  onClick={handleTriggerHint}
+                  disabled={hintLevel >= 2}
+                  title={hintLevel === 0 ? "ヒント①（エリア＆隣接国）" : hintLevel === 1 ? "ヒント②（場所を表示）" : "場所を点滅中"}
+                  className={cn(
+                    "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                    hintLevel === 0
+                      ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
+                      : hintLevel === 1
+                        ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
+                        : "opacity-50 border-border bg-secondary text-muted-foreground",
+                  )}
+                >
+                  <Lightbulb className="size-3.5 shrink-0" />
+                  <span>
+                    {hintLevel === 0
+                      ? "ヒント①(エリア)"
+                      : hintLevel === 1
+                        ? "ヒント②(場所)"
+                        : "点滅中"}
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setBlindMode((b) => !b)}
+                title="シルエットのみ表示（国名と国旗を隠す達人モード）"
+                className={cn(
+                  "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                  blindMode
+                    ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                    : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
+                )}
+              >
+                {blindMode ? <EyeOff className="size-3.5 shrink-0" /> : <Eye className="size-3.5 shrink-0" />}
+                <span>{blindMode ? "達人" : "国名あり"}</span>
               </button>
             </div>
           </div>
@@ -1534,7 +1625,7 @@ function PuzzlePage() {
                       disabled={hintLevel >= 2}
                       title={hintLevel === 0 ? "ヒント①（エリア＆隣接国）" : hintLevel === 1 ? "ヒント②（場所を表示）" : "場所を点滅中"}
                       className={cn(
-                        "lg:hidden h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shrink-0",
+                        "md:hidden h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shrink-0",
                         hintLevel === 0
                           ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                           : hintLevel === 1
@@ -2369,7 +2460,7 @@ function PuzzlePage() {
               </div>
             )}
 
-            {/* PC用トレイヘッダー（モバイルでは上のヒーローバー＋アクションバーに集約済み） */}
+            {/* PC用トレイヘッダー（ヒント・国名ありは右端上に移動済みのためスリム表示） */}
             <div className="hidden lg:block space-y-2">
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -2380,6 +2471,9 @@ function PuzzlePage() {
                   <span className="text-[11px] font-bold text-muted-foreground shrink-0">
                     (残り{unplacedPieces.length})
                   </span>
+                  <span className="text-[10px] text-muted-foreground/80 shrink-0">
+                    ※小国含まず
+                  </span>
                 </div>
 
                 {activePiece && (!blindMode || hintLevel >= 1) && (
@@ -2388,54 +2482,6 @@ function PuzzlePage() {
                     <span className="break-words leading-tight">{activePiece.country.nameJa}</span>
                   </span>
                 )}
-              </div>
-
-              <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {activePiece && (
-                    <button
-                      type="button"
-                      onClick={handleTriggerHint}
-                      disabled={hintLevel >= 2}
-                      className={cn(
-                        "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
-                        hintLevel === 0
-                          ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
-                          : hintLevel === 1
-                            ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
-                            : "opacity-50 border-border bg-secondary text-muted-foreground",
-                      )}
-                    >
-                      <Lightbulb className="size-3.5 shrink-0" />
-                      <span>
-                        {hintLevel === 0
-                          ? "ヒント①(エリア)"
-                          : hintLevel === 1
-                            ? "ヒント②(場所)"
-                            : "点滅中"}
-                      </span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setBlindMode((b) => !b)}
-                    title="シルエットのみ表示（国名と国旗を隠す達人モード）"
-                    className={cn(
-                      "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
-                      blindMode
-                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
-                        : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
-                    )}
-                  >
-                    {blindMode ? <EyeOff className="size-3.5 shrink-0" /> : <Eye className="size-3.5 shrink-0" />}
-                    <span>{blindMode ? "達人" : "国名あり"}</span>
-                  </button>
-                </div>
-
-                <span className="text-[10px] text-muted-foreground/80 shrink-0">
-                  ※小国含まず
-                </span>
               </div>
 
               {activePiece && hintLevel >= 1 && (
@@ -2456,7 +2502,7 @@ function PuzzlePage() {
                 <p className="text-xs font-bold text-foreground">すべてのピースを配置しました！</p>
               </div>
             ) : (
-              <div className="flex lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-1.5 lg:gap-2 overflow-x-auto lg:overflow-x-visible lg:max-h-[540px] lg:overflow-y-auto pb-0.5 lg:pb-0 lg:pr-1 touch-pan-x lg:touch-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-1.5 lg:gap-2 overflow-x-auto lg:overflow-x-visible lg:max-h-[540px] lg:overflow-y-auto pb-0.5 lg:pb-0 lg:pr-1 touch-pan-x lg:touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {unplacedPieces.map((piece) => {
                   const iso3 = piece.country.iso3;
                   const isSelected = activePiece?.country.iso3 === iso3;
@@ -2474,17 +2520,48 @@ function PuzzlePage() {
                         }
                       }}
                       onPointerDown={(e) => {
-                        // モバイルのタッチ操作時は一覧の横スクロールを100%優先し、カードからのドラッグを開始しない
-                        if (e.pointerType === "touch") return;
-                        e.currentTarget.releasePointerCapture(e.pointerId);
+                        try {
+                          e.currentTarget.releasePointerCapture(e.pointerId);
+                        } catch {
+                          // ignore if not captured
+                        }
+                        clearPendingDrag();
                         setSelectedIso3(iso3);
                         setHintLevel(0);
+
+                        const isTouch = e.pointerType === "touch";
+                        const isGridLayout = typeof window !== "undefined" && window.innerWidth >= 1024;
+                        const startX = e.clientX;
+                        const startY = e.clientY;
+
+                        // タッチ操作時は長押し（180ms）でも確実にピースを持ち上げてドラッグ開始できる
+                        const longPressTimer = isTouch
+                          ? setTimeout(() => {
+                              if (pendingDragRef.current?.iso3 === iso3) {
+                                ensureTimerStarted();
+                                const aimY = startY + getTouchDragOffsetY(startY);
+                                const svgPt = clientToSvgPoint(startX, aimY);
+                                const isNear = svgPt ? checkIsSnapMatch(piece, svgPt.x, svgPt.y, true) : false;
+                                setDragging({
+                                  iso3,
+                                  clientX: startX,
+                                  clientY: startY,
+                                  isTouch: true,
+                                  isNearTarget: isNear,
+                                });
+                                pendingDragRef.current = null;
+                              }
+                            }, 180)
+                          : undefined;
+
                         pendingDragRef.current = {
                           iso3,
-                          startX: e.clientX,
-                          startY: e.clientY,
-                          isTouch: false,
+                          startX,
+                          startY,
+                          isTouch,
                           fromDockHandle: false,
+                          isGridLayout,
+                          ...(longPressTimer ? { longPressTimer } : {}),
                         };
                       }}
                       onClick={() => {
@@ -2492,7 +2569,7 @@ function PuzzlePage() {
                         setHintLevel(0);
                       }}
                       className={cn(
-                        "group relative flex flex-col items-center justify-between rounded-xl border p-1.5 transition-all cursor-pointer lg:cursor-grab lg:active:cursor-grabbing select-none w-[112px] sm:w-[124px] lg:w-auto shrink-0 active:scale-[0.98]",
+                        "group relative flex flex-col items-center justify-between rounded-xl border p-1.5 transition-all cursor-grab active:cursor-grabbing select-none touch-pan-x lg:touch-pan-y w-[112px] sm:w-[124px] lg:w-auto shrink-0 active:scale-[0.98]",
                         isBeingDragged && "opacity-35 scale-95",
                         isWrong && "border-destructive bg-destructive/15 animate-bounce",
                         isSelected && !isWrong

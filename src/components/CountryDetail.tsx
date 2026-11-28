@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -52,6 +52,16 @@ import { EXAM_LEVELS, EXAM_LEVEL_MAP, getExamPointsByLevel } from "@/data/examPo
 import { getCountryPhoto } from "@/data/countryPhotos";
 import { useProgress } from "@/stores/progress";
 import { cn } from "@/lib/utils";
+
+const DETAIL_TABS = [
+  "basic",
+  "history",
+  "culture",
+  "society",
+  "economy",
+  "military",
+  "geography",
+] as const;
 
 const nf = new Intl.NumberFormat("ja-JP");
 
@@ -159,7 +169,72 @@ export function CountryDetail({
   const toggleLearned = useProgress((s) => s.toggleLearned);
   const toggleFavorite = useProgress((s) => s.toggleFavorite);
   const [activeTab, setActiveTab] = useState("basic");
+  const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [examLevel, setExamLevel] = useState<ExamLevel | "all">("junior");
+
+  const tabContentRef = useRef<HTMLDivElement | null>(null);
+  const tabTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  // タブ切替時に上部タブバーの該当タブを見える位置へ自動スクロール＆コンテンツ先頭へ戻す
+  useEffect(() => {
+    const triggerEl = tabTriggerRefs.current.get(activeTab);
+    if (triggerEl) {
+      triggerEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+    if (tabContentRef.current) {
+      tabContentRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
+
+  // モバイルでの横スワイプによる前後タブ移動（縦スクロールと競合しないよう角度と距離を厳密判定）
+  const handleContentTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 1) {
+      touchStartRef.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    if (!t) return;
+    touchStartRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+  };
+
+  const handleContentTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start || e.changedTouches.length !== 1) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const elapsed = Date.now() - start.time;
+
+    // 横方向へ48px以上、かつ縦移動より明確に横向き（1.4倍以上）かつ素早いスワイプ（800ms以内）
+    if (elapsed > 800 || Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.4) {
+      return;
+    }
+
+    const currentIdx = DETAIL_TABS.indexOf(activeTab as (typeof DETAIL_TABS)[number]);
+    if (dx < 0) {
+      // 左スワイプ → 次のタブへ
+      if (currentIdx === -1) {
+        setSwipeDir("left");
+        setActiveTab(DETAIL_TABS[0]);
+      } else if (currentIdx < DETAIL_TABS.length - 1) {
+        setSwipeDir("left");
+        setActiveTab(DETAIL_TABS[currentIdx + 1]!);
+      }
+    } else {
+      // 右スワイプ → 前のタブへ
+      if (currentIdx === -1) {
+        setSwipeDir("right");
+        setActiveTab(DETAIL_TABS[DETAIL_TABS.length - 1]!);
+      } else if (currentIdx > 0) {
+        setSwipeDir("right");
+        setActiveTab(DETAIL_TABS[currentIdx - 1]!);
+      }
+    }
+  };
 
   const examByLevel = getExamPointsByLevel(country);
   const visibleExamPoints =
@@ -331,58 +406,60 @@ export function CountryDetail({
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 overflow-hidden flex flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          setSwipeDir(null);
+          setActiveTab(v);
+        }}
+        className="flex-1 min-h-0 overflow-hidden flex flex-col"
+      >
         {/* レスポンシブ最適化タブナビゲーション */}
         <div className="overflow-x-auto px-3 sm:px-4 pt-2 pb-1.5 scrollbar-none no-scrollbar shrink-0">
           <TabsList
             className="p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-2xl bg-muted/80 dark:bg-muted/40 border border-border/50 h-auto flex w-full min-w-max sm:min-w-0 justify-stretch"
           >
-            <TabsTrigger
-              value="basic"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              基本
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              歴史
-            </TabsTrigger>
-            <TabsTrigger
-              value="culture"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              文化
-            </TabsTrigger>
-            <TabsTrigger
-              value="society"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              人口・社会
-            </TabsTrigger>
-            <TabsTrigger
-              value="economy"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              経済
-            </TabsTrigger>
-            <TabsTrigger
-              value="military"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              軍事
-            </TabsTrigger>
-            <TabsTrigger
-              value="geography"
-              className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
-            >
-              地理
-            </TabsTrigger>
+            {(
+              [
+                { value: "basic", label: "基本" },
+                { value: "history", label: "歴史" },
+                { value: "culture", label: "文化" },
+                { value: "society", label: "人口・社会" },
+                { value: "economy", label: "経済" },
+                { value: "military", label: "軍事" },
+                { value: "geography", label: "地理" },
+              ] as const
+            ).map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                ref={(el) => {
+                  if (el) {
+                    tabTriggerRefs.current.set(tab.value, el);
+                  } else {
+                    tabTriggerRefs.current.delete(tab.value);
+                  }
+                }}
+                className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
-        <div className={cn("text-sm leading-relaxed", compact ? "flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4" : "p-4 space-y-6")}>
+        <div
+          ref={tabContentRef}
+          onTouchStart={handleContentTouchStart}
+          onTouchEnd={handleContentTouchEnd}
+          className={cn(
+            "text-sm leading-relaxed touch-pan-y",
+            compact ? "flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4" : "p-4 space-y-6",
+            swipeDir === "left" && "animate-in fade-in slide-in-from-right-3 duration-200",
+            swipeDir === "right" && "animate-in fade-in slide-in-from-left-3 duration-200",
+          )}
+          key={activeTab}
+        >
           {/* 1. 基本タブ */}
           <TabsContent value="basic" className="mt-0 space-y-4">
             {compact ? (
