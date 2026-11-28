@@ -41,6 +41,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorldMap } from "@/components/WorldMap";
 import { FlagImage } from "@/components/FlagImage";
@@ -1836,6 +1837,7 @@ function MyPage() {
           </DialogContent>
         </Dialog>
       </main>
+      <SiteFooter />
     </div>
   );
 }

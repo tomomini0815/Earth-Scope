@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { useStudyTimer } from "@/hooks/useStudyTimer";
 import { AchievementDialog } from "@/components/AchievementDialog";
 
@@ -134,6 +135,8 @@ function RootComponent() {
       </div>
       {/* モバイル専用ボトムナビゲーションバー */}
       <MobileBottomNav />
+      {/* スクロールで表示されるトップへ戻るボタン */}
+      <ScrollToTopButton />
       {/* アチーブメント達成通知ダイアログ */}
       <AchievementDialog />
     </QueryClientProvider>

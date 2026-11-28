@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -47,6 +47,30 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlagImage } from "@/components/FlagImage";
+import {
+  CompactBasicVisual,
+  CompactEconomyVisual,
+  CompactGdpGrowthChart,
+  CompactGeographyVisual,
+  CompactMilitaryVisual,
+  CompactSocietyVisual,
+  ContinentSharePieChart,
+  CountryProfileRadar,
+  formatCompactArea,
+  formatCompactGdp,
+  formatCompactPop,
+  GdpGrowthLineChart,
+  GdpPerCapitaComparisonChart,
+  MedianAgeBarChart,
+  MilitaryGdpRatioChart,
+  PeerRankBarChart,
+  PopulationDensityBarChart,
+  PopulationGrowthBarChart,
+  splitDisasterItems,
+  UrbanRuralDonutChart,
+  WorldRankBars,
+} from "@/components/CountryCharts";
+import { getCountryStats } from "@/data/countryStats";
 import { continentLabel, type Country, type ExamLevel } from "@/data/types";
 import { EXAM_LEVELS, EXAM_LEVEL_MAP, getExamPointsByLevel } from "@/data/examPointsByLevel";
 import { getCountryPhoto } from "@/data/countryPhotos";
@@ -71,9 +95,9 @@ const JAPAN_POP = 124000000; // 人
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg bg-muted/60 px-3 py-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+    <div className="flex flex-col gap-0.5 rounded-lg bg-muted/60 px-2.5 py-1.5">
+      <span className="text-[11px] text-muted-foreground leading-tight">{label}</span>
+      <span className="text-xs sm:text-sm font-medium leading-snug">{value}</span>
     </div>
   );
 }
@@ -89,9 +113,9 @@ function StatCard({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
-  subtext?: string;
-  badge?: string;
-  className?: string;
+  subtext?: string | undefined;
+  badge?: string | undefined;
+  className?: string | undefined;
 }) {
   return (
     <div
@@ -173,14 +197,23 @@ export function CountryDetail({
   const [examLevel, setExamLevel] = useState<ExamLevel | "all">("junior");
 
   const tabContentRef = useRef<HTMLDivElement | null>(null);
+  const tabScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const tabTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const isFirstTabRenderRef = useRef(true);
 
-  // タブ切替時に上部タブバーの該当タブを見える位置へ自動スクロール＆コンテンツ先頭へ戻す
+  // タブ切替時に上部タブバーのみ横スクロール調整（ページ全体の縦スクロールは絶対に動かさない）
   useEffect(() => {
+    if (isFirstTabRenderRef.current) {
+      isFirstTabRenderRef.current = false;
+      return;
+    }
     const triggerEl = tabTriggerRefs.current.get(activeTab);
-    if (triggerEl) {
-      triggerEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    const scrollContainer = tabScrollContainerRef.current;
+    if (triggerEl && scrollContainer) {
+      const targetLeft =
+        triggerEl.offsetLeft - scrollContainer.clientWidth / 2 + triggerEl.clientWidth / 2;
+      scrollContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
     }
     if (tabContentRef.current) {
       tabContentRef.current.scrollTop = 0;
@@ -245,6 +278,12 @@ export function CountryDetail({
     examByLevel.junior.length + examByLevel.high.length + examByLevel.university.length;
 
   const photo = getCountryPhoto(country.iso3, country.continent);
+  const stats = useMemo(() => getCountryStats(country), [country]);
+  const cLabel = continentLabel(country.continent);
+  const disasterChips = useMemo(
+    () => splitDisasterItems(country.geography.disasterRisk),
+    [country.geography.disasterRisk],
+  );
 
   // 日本との面積比
   const areaRatio =
@@ -264,11 +303,11 @@ export function CountryDetail({
 
   return (
     <div className="flex h-full flex-col">
-      {/* ホバープレビュー / 選択固定ステータスバナー */}
+      {/* ホバープレビュー / 選択固定ステータスバナー（高さ統一で切替時のガタつきを防止） */}
       {isPreview ? (
-        <div className="flex items-center justify-between px-4 py-2 bg-sky-500/10 border-b border-sky-500/20 text-sky-500 dark:text-sky-400 text-xs font-semibold animate-fadeIn">
+        <div className="flex h-8 shrink-0 items-center justify-between px-4 bg-sky-500/10 border-b border-sky-500/20 text-sky-500 dark:text-sky-400 text-xs font-semibold">
           <span className="flex items-center gap-1.5">
-            <Eye className="size-3.5 animate-pulse text-sky-500" />
+            <Eye className="size-3.5 text-sky-500" />
             <span>リアルタイム・プレビュー中</span>
           </span>
           <span className="text-[11px] text-muted-foreground font-normal">
@@ -276,7 +315,7 @@ export function CountryDetail({
           </span>
         </div>
       ) : compact ? (
-        <div className="flex items-center justify-between px-4 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+        <div className="flex h-8 shrink-0 items-center justify-between px-4 bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
           <span className="flex items-center gap-1.5">
             <Pin className="size-3.5" />
             <span>選択・固定中</span>
@@ -286,7 +325,7 @@ export function CountryDetail({
       ) : null}
 
       {/* 象徴的な風景・名所写真ヒーローヘッダー */}
-      <div className={cn("relative w-full overflow-hidden bg-slate-900 group shrink-0", compact ? "h-48 sm:h-56 md:h-64" : "aspect-[16/9] sm:aspect-[2/1] md:h-80 lg:h-96")}>
+      <div className={cn("relative w-full overflow-hidden bg-slate-900 group shrink-0", compact ? "h-36 sm:h-40 md:h-44" : "aspect-[16/9] sm:aspect-[2/1] md:h-80 lg:h-96")}>
         <img
           src={photo.url}
           aria-hidden
@@ -328,7 +367,7 @@ export function CountryDetail({
         </div>
       </div>
 
-      <div className={cn("flex flex-wrap items-center justify-between gap-2.5 border-b border-border shrink-0", compact ? "p-3" : "p-4")}>
+      <div className={cn("flex flex-wrap items-center justify-between gap-2 border-b border-border shrink-0", compact ? "px-3 py-2.5" : "p-4")}>
         <div className={cn("flex items-center justify-between gap-3 min-w-0", compact ? "w-full" : "w-full sm:w-auto")}>
           <div className="flex items-center gap-3 min-w-0">
             <FlagImage flag={country.flag} size="lg" className="rounded shadow shrink-0" />
@@ -415,9 +454,12 @@ export function CountryDetail({
         className="flex-1 min-h-0 overflow-hidden flex flex-col"
       >
         {/* レスポンシブ最適化タブナビゲーション */}
-        <div className="overflow-x-auto px-3 sm:px-4 pt-2 pb-1.5 scrollbar-none no-scrollbar shrink-0">
+        <div
+          ref={tabScrollContainerRef}
+          className="overflow-x-auto px-3 sm:px-4 pt-2 pb-1.5 scrollbar-hide shrink-0"
+        >
           <TabsList
-            className="p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-2xl bg-muted/80 dark:bg-muted/40 border border-border/50 h-auto flex w-full min-w-max sm:min-w-0 justify-stretch"
+            className="p-1 gap-1 rounded-2xl bg-muted/80 dark:bg-muted/40 border border-border/50 h-auto flex w-full min-w-max justify-stretch"
           >
             {(
               [
@@ -440,7 +482,7 @@ export function CountryDetail({
                     tabTriggerRefs.current.delete(tab.value);
                   }
                 }}
-                className="flex-1 flex items-center justify-center min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
+                className="flex-1 shrink-0 flex items-center justify-center min-h-[36px] sm:min-h-[38px] px-2.5 py-1.5 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap active:scale-[0.98]"
               >
                 {tab.label}
               </TabsTrigger>
@@ -454,7 +496,7 @@ export function CountryDetail({
           onTouchEnd={handleContentTouchEnd}
           className={cn(
             "text-sm leading-relaxed touch-pan-y",
-            compact ? "flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4" : "p-4 space-y-6",
+            compact ? "flex-1 min-h-0 overflow-y-auto p-3" : "p-4 space-y-6",
             swipeDir === "left" && "animate-in fade-in slide-in-from-right-3 duration-200",
             swipeDir === "right" && "animate-in fade-in slide-in-from-left-3 duration-200",
           )}
@@ -463,13 +505,16 @@ export function CountryDetail({
           {/* 1. 基本タブ */}
           <TabsContent value="basic" className="mt-0 space-y-4">
             {compact ? (
-              <div className="grid grid-cols-2 gap-2">
-                <Row label="首都" value={country.basic.capital} />
-                <Row label="公用語・主な言語" value={country.basic.languages} />
-                <Row label="面積" value={`${nf.format(country.basic.area)} km²`} />
-                <Row label="日本との時差" value={country.basic.timeDiffFromJapan} />
-                <Row label="政治体制" value={country.basic.government} />
-                <Row label="気候・気温特性" value={country.geography.climate} />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Row label="首都" value={country.basic.capital} />
+                  <Row label="公用語・主な言語" value={country.basic.languages} />
+                  <Row label="面積" value={`${nf.format(country.basic.area)} km²`} />
+                  <Row label="日本との時差" value={country.basic.timeDiffFromJapan} />
+                  <Row label="政治体制" value={country.basic.government} />
+                  <Row label="気候・気温特性" value={country.geography.climate} />
+                </div>
+                <CompactBasicVisual country={country} stats={stats} />
               </div>
             ) : (
               <div className="space-y-4">
@@ -491,6 +536,7 @@ export function CountryDetail({
                     label="国土面積"
                     value={`${nf.format(country.basic.area)} km²`}
                     subtext={areaRatio}
+                    badge={`世界 ${stats.ranks.area.worldRank}位`}
                   />
                   <StatCard
                     icon={Clock}
@@ -505,6 +551,12 @@ export function CountryDetail({
                     subtext={country.geography.climate}
                     className="sm:col-span-2"
                   />
+                </div>
+
+                {/* 総合プロフィール レーダーチャート & 世界順位ポジション */}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <CountryProfileRadar country={country} stats={stats} isPreview={isPreview} />
+                  <WorldRankBars country={country} stats={stats} />
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -658,13 +710,14 @@ export function CountryDetail({
           {/* 4. 人口・社会タブ */}
           <TabsContent value="society" className="mt-0 space-y-4">
             {compact ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Row label="人口" value={`${nf.format(country.society.population)} 人`} />
                   <Row label="人口増加率" value={`${country.society.populationGrowth} %`} />
                   <Row label="都市人口率" value={`${country.society.urbanRate} %`} />
                   <Row label="年齢の中位数" value={`${country.society.medianAge} 歳`} />
                 </div>
+                <CompactSocietyVisual country={country} stats={stats} />
                 <p className="text-muted-foreground">{country.society.note}</p>
               </div>
             ) : (
@@ -675,11 +728,12 @@ export function CountryDetail({
                     label="総人口"
                     value={`${nf.format(country.society.population)} 人`}
                     subtext={popRatio}
+                    badge={`世界 ${stats.ranks.population.worldRank}位`}
                   />
                   <StatCard
                     icon={TrendingUp}
                     label="年間人口増加率"
-                    value={`${country.society.populationGrowth} %`}
+                    value={`${country.society.populationGrowth > 0 ? `+${country.society.populationGrowth}` : country.society.populationGrowth} %`}
                     subtext={
                       country.society.populationGrowth > 0
                         ? "人口増加傾向"
@@ -693,14 +747,43 @@ export function CountryDetail({
                     label="都市部人口率"
                     value={`${country.society.urbanRate} %`}
                     subtext="主要都市圏への居住集中度"
+                    badge={`世界 ${stats.ranks.urbanRate.worldRank}位`}
                   />
                   <StatCard
                     icon={Hourglass}
                     label="年齢の中位数"
                     value={`${country.society.medianAge} 歳`}
                     subtext="国民全体の若さ・高齢化水準（日本は約49歳）"
+                    badge={`世界 ${stats.ranks.medianAge.worldRank}位`}
                   />
                 </div>
+
+                {/* 人口・社会 ビジュアルチャート群 */}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <UrbanRuralDonutChart country={country} stats={stats} isPreview={isPreview} />
+                  <MedianAgeBarChart country={country} stats={stats} isPreview={isPreview} />
+                  <PopulationGrowthBarChart country={country} stats={stats} isPreview={isPreview} />
+                  <ContinentSharePieChart
+                    title={`${cLabel}における人口シェア`}
+                    subtitle={`${cLabel}（${stats.continentCount}ヵ国）の総人口に占める割合`}
+                    slices={stats.continentPopPie}
+                    sharePct={stats.shares.continentPopPct}
+                    unitFormatter={formatCompactPop}
+                    isPreview={isPreview}
+                    accentColor="#0284c7"
+                  />
+                </div>
+
+                <PeerRankBarChart
+                  icon={Users}
+                  title={`${cLabel}内の同規模国との総人口比較`}
+                  subtitle={`${cLabel} ${stats.ranks.population.continentRank}位 / ${stats.continentCount}ヵ国（近傍ランク国との比較）`}
+                  badge={`世界シェア ${stats.shares.worldPopPct >= 0.1 ? `${stats.shares.worldPopPct.toFixed(1)}%` : "<0.1%"}`}
+                  peers={stats.peers.population}
+                  unitFormatter={formatCompactPop}
+                  accentColor="#0ea5e9"
+                  isPreview={isPreview}
+                />
 
                 <SectionBox icon={FileText} title="社会構造・国民生活の特徴 & 現代の課題">
                   <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
@@ -722,6 +805,8 @@ export function CountryDetail({
                     value={`約 ${nf.format(country.economy.gdpPerCapita)} USドル`}
                   />
                 </div>
+                <CompactEconomyVisual country={country} stats={stats} />
+                <CompactGdpGrowthChart country={country} />
                 <div>
                   <h3 className="mb-1.5 text-sm font-bold">主要産業</h3>
                   <Chips items={country.economy.industries} />
@@ -739,15 +824,45 @@ export function CountryDetail({
                     icon={Coins}
                     label="名目GDP（国内総生産）"
                     value={`約 ${nf.format(country.economy.gdp)} 億USドル`}
-                    subtext={`世界経済における生産規模（約 ${(country.economy.gdp * 100 / 10000).toFixed(1)} 兆円換算）`}
+                    subtext={`世界経済における生産規模（約 ${(country.economy.gdp * 150 / 10000).toFixed(1)} 兆円換算・世界シェア ${stats.shares.worldGdpPct >= 0.1 ? `${stats.shares.worldGdpPct.toFixed(1)}%` : "<0.1%"}）`}
+                    badge={`世界 ${stats.ranks.gdp.worldRank}位`}
                   />
                   <StatCard
                     icon={Wallet}
                     label="1人あたりGDP"
                     value={`約 ${nf.format(country.economy.gdpPerCapita)} USドル`}
                     subtext="個人の経済水準・所得水準（日本は約34,000ドル水準）"
+                    badge={`世界 ${stats.ranks.gdpPerCapita.worldRank}位`}
                   />
                 </div>
+
+                {/* 実質GDP成長率（年率 %）折れ線グラフ */}
+                <GdpGrowthLineChart country={country} isPreview={isPreview} />
+
+                {/* 経済ビジュアルチャート群 */}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <GdpPerCapitaComparisonChart country={country} stats={stats} isPreview={isPreview} />
+                  <ContinentSharePieChart
+                    title={`${cLabel}におけるGDPシェア`}
+                    subtitle={`${cLabel}（${stats.continentCount}ヵ国）の経済規模に占める割合`}
+                    slices={stats.continentGdpPie}
+                    sharePct={stats.shares.continentGdpPct}
+                    unitFormatter={formatCompactGdp}
+                    isPreview={isPreview}
+                    accentColor="#f59e0b"
+                  />
+                </div>
+
+                <PeerRankBarChart
+                  icon={Coins}
+                  title={`${cLabel}内の同規模国との名目GDP比較`}
+                  subtitle={`${cLabel} ${stats.ranks.gdp.continentRank}位 / ${stats.continentCount}ヵ国（近傍ランク国との比較）`}
+                  badge={formatCompactGdp(country.economy.gdp)}
+                  peers={stats.peers.gdp}
+                  unitFormatter={formatCompactGdp}
+                  accentColor="#f59e0b"
+                  isPreview={isPreview}
+                />
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <SectionBox icon={Factory} title="国を支える主要産業">
@@ -799,6 +914,7 @@ export function CountryDetail({
                   <Row label="軍事費（推計）" value={`約 ${nf.format(country.military.spending)} 億USドル`} />
                   <Row label="兵力（現役）" value={`約 ${nf.format(country.military.activeTroops)} 千人`} />
                 </div>
+                <CompactMilitaryVisual country={country} stats={stats} />
                 <div>
                   <h3 className="mb-1.5 text-sm font-bold">同盟・安全保障の枠組み</h3>
                   <Chips items={country.military.alliances} />
@@ -822,16 +938,88 @@ export function CountryDetail({
                   <StatCard
                     icon={ShieldAlert}
                     label="国防支出・軍事費（推計）"
-                    value={`約 ${nf.format(country.military.spending)} 億USドル`}
-                    subtext="年間の防衛予算・軍事支出規模"
+                    value={
+                      country.military.spending > 0
+                        ? `約 ${nf.format(country.military.spending)} 億USドル`
+                        : "計上なし（0 ドル）"
+                    }
+                    subtext={
+                      country.military.spending > 0
+                        ? `GDP比 約 ${stats.militaryGdpRatio.toFixed(2)}%（年間の防衛予算規模）`
+                        : "常備軍非保持または防衛費計上なし"
+                    }
+                    badge={
+                      country.military.spending > 0
+                        ? `世界 ${stats.ranks.spending.worldRank}位`
+                        : "非武装・非保持"
+                    }
                   />
                   <StatCard
                     icon={Shield}
                     label="現役総兵力"
-                    value={`約 ${nf.format(country.military.activeTroops)} 千人（約 ${nf.format(country.military.activeTroops * 1000)} 人）`}
-                    subtext="陸・海・空軍等の現役軍務人員数（日本の自衛隊は約24万人）"
+                    value={
+                      country.military.activeTroops > 0
+                        ? `約 ${nf.format(country.military.activeTroops)} 千人（約 ${nf.format(country.military.activeTroops * 1000)} 人）`
+                        : "常備軍なし（0 人）"
+                    }
+                    subtext={
+                      country.military.activeTroops > 0
+                        ? `人口1,000人あたり約 ${stats.troopsPer1000.toFixed(1)} 人（日本は約2.0人）`
+                        : "治安維持は警察・沿岸警備隊または協定国が担当"
+                    }
+                    badge={
+                      country.military.activeTroops > 0
+                        ? `世界 ${stats.ranks.activeTroops.worldRank}位`
+                        : undefined
+                    }
                   />
                 </div>
+
+                {/* 軍事・防衛ビジュアルチャート群（常備軍保持国のみ表示） */}
+                {country.military.spending > 0 || country.military.activeTroops > 0 ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {country.military.spending > 0 && (
+                      <MilitaryGdpRatioChart country={country} stats={stats} isPreview={isPreview} />
+                    )}
+                    {country.military.spending > 0 && stats.peers.spending.length > 1 && (
+                      <PeerRankBarChart
+                        icon={ShieldAlert}
+                        title={`${cLabel}内の同規模国との軍事費比較`}
+                        subtitle={`${cLabel} ${stats.ranks.spending.continentRank}位（単位：億USドル）`}
+                        badge={`約 ${nf.format(country.military.spending)} 億$`}
+                        peers={stats.peers.spending}
+                        unitFormatter={(v) => `${nf.format(v)} 億$`}
+                        accentColor="#ef4444"
+                        isPreview={isPreview}
+                      />
+                    )}
+                    {country.military.activeTroops > 0 && stats.peers.activeTroops.length > 1 && (
+                      <PeerRankBarChart
+                        icon={Shield}
+                        title={`${cLabel}内の同規模国との現役兵力比較`}
+                        subtitle={`${cLabel} ${stats.ranks.activeTroops.continentRank}位（単位：千人）`}
+                        badge={`約 ${nf.format(country.military.activeTroops)} 千人`}
+                        peers={stats.peers.activeTroops}
+                        unitFormatter={(v) => `${nf.format(v)} 千人`}
+                        accentColor="#f97316"
+                        isPreview={isPreview}
+                        className="lg:col-span-2"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-3 text-xs sm:text-sm">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-lg">
+                      🕊️
+                    </span>
+                    <div>
+                      <p className="font-bold text-foreground">常備軍を保持しない国家</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        憲法や安全保障協定などに基づき常備軍を持たず、警察・沿岸警備隊や友好国との防衛協力によって安全を維持しています。
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <SectionBox icon={Award} title="主要な同盟 & 安全保障協定">
@@ -875,14 +1063,42 @@ export function CountryDetail({
           {/* 7. 地理タブ */}
           <TabsContent value="geography" className="mt-0 space-y-4">
             {compact ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Row label="気候" value={country.geography.climate} />
-                <Row label="地形" value={country.geography.terrain} />
-                <Row label="自然災害のリスク" value={country.geography.disasterRisk} />
-                <Row label="国境・周辺国" value={country.geography.borders} />
+              <div className="space-y-3">
+                <CompactGeographyVisual country={country} stats={stats} />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Row label="気候" value={country.geography.climate} />
+                  <Row label="地形" value={country.geography.terrain} />
+                  <Row label="自然災害のリスク" value={country.geography.disasterRisk} />
+                  <Row label="国境・周辺国" value={country.geography.borders} />
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
+                {/* 地理・国土スケール ビジュアルチャート群 */}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <ContinentSharePieChart
+                    title={`${cLabel}における国土面積シェア`}
+                    subtitle={`${cLabel}（${stats.continentCount}ヵ国）の総面積に占める割合`}
+                    slices={stats.continentAreaPie}
+                    sharePct={stats.shares.continentAreaPct}
+                    unitFormatter={formatCompactArea}
+                    isPreview={isPreview}
+                    accentColor="#10b981"
+                  />
+                  <PopulationDensityBarChart country={country} stats={stats} isPreview={isPreview} />
+                </div>
+
+                <PeerRankBarChart
+                  icon={Maximize2}
+                  title={`${cLabel}内の同規模国との国土面積比較`}
+                  subtitle={`${cLabel} ${stats.ranks.area.continentRank}位 / ${stats.continentCount}ヵ国（${areaRatio}）`}
+                  badge={`世界 ${stats.ranks.area.worldRank}位`}
+                  peers={stats.peers.area}
+                  unitFormatter={formatCompactArea}
+                  accentColor="#10b981"
+                  isPreview={isPreview}
+                />
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <SectionBox icon={CloudSun} title="気候区分 & 四季の特色">
                     <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
@@ -897,6 +1113,19 @@ export function CountryDetail({
                   </SectionBox>
 
                   <SectionBox icon={AlertTriangle} title="自然災害リスク & 環境的課題">
+                    {disasterChips.length >= 2 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {disasterChips.map((item) => (
+                          <span
+                            key={item}
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300"
+                          >
+                            <span>⚠️</span>
+                            <span>{item}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
                       {country.geography.disasterRisk}
                     </p>
@@ -1018,7 +1247,7 @@ export function CountryDetail({
           </TabsContent>
 
           {/* 出典情報 */}
-          <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
+          <div className={cn("border-t border-border text-xs text-muted-foreground", compact ? "mt-3 pt-2.5" : "mt-6 pt-4")}>
             <p className="font-bold text-foreground mb-1">統計・データ出典</p>
             <ul className="list-inside list-disc flex flex-wrap gap-x-4 gap-y-1">
               {country.sources.map((s) => (

@@ -1,12 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { CountryDetail } from "@/components/CountryDetail";
 import { CountryDirectory } from "@/components/CountryDirectory";
 import { FlagImage } from "@/components/FlagImage";
+import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WorldMap } from "@/components/WorldMap";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { byIso3, byMapId, learnedIds, sortedCountries } from "@/data/lookup";
@@ -156,30 +156,33 @@ function Index() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-[1600px] w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-        <section className="mb-4 sm:mb-5">
-          <h1 className="font-display text-2xl font-bold sm:text-3xl tracking-tight">
-            <span className="md:hidden">世界をタップして、学ぼう。</span>
-            <span className="hidden md:inline">世界をクリックして、学ぼう。</span>
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            地図から国を選ぶと、歴史・文化・人口・経済・地理のデータが読めます。地図右下の「学習済」切替で進捗を確認できます。
-          </p>
-          <div className="mt-3 flex max-w-md items-center gap-3">
-            <Progress value={rate} className="h-2" />
-            <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {learned.length} / {countries.length} か国（{rate}%）
+      <main className="mx-auto max-w-[1600px] w-full px-4 pt-2.5 pb-4 sm:px-6 sm:pt-3 sm:pb-6 lg:px-8">
+        {/* コンパクトヘッダー：タイトルと学習進捗を1行に統合 */}
+        <section className="mb-2.5 flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between md:gap-4">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 min-w-0">
+            <h1 className="font-display text-lg sm:text-xl font-bold tracking-tight leading-tight">
+              <span className="md:hidden">世界をタップして、学ぼう。</span>
+              <span className="hidden md:inline">世界をクリックして、学ぼう。</span>
+            </h1>
+            <p className="hidden lg:inline text-xs text-muted-foreground truncate">
+              国を選ぶと歴史・文化・人口・経済・地理が読めます（右下の「学習済」で進捗表示）
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5 md:w-64 lg:w-72 shrink-0">
+            <Progress value={rate} className="h-1.5 flex-1" />
+            <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">
+              {learned.length} / {countries.length} ヵ国（{rate}%）
             </span>
           </div>
         </section>
 
         {/* 大陸 & 小国フィルター — モバイルで横スクロール、デスクトップでラップ */}
-        <div className="mb-4 -mx-4 sm:mx-0">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 sm:px-0 pb-1 sm:pb-0 sm:flex-wrap">
+        <div className="mb-2.5 -mx-4 sm:mx-0">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide px-4 sm:px-0 pb-0.5 sm:pb-0 sm:flex-wrap">
             <button
               onClick={() => setFilter("all")}
               className={cn(
-                "shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 touch-manipulation",
+                "shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-all active:scale-95 touch-manipulation",
                 filter === "all" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
               )}
             >
@@ -190,11 +193,11 @@ function Index() {
                 key={c.id}
                 onClick={() => setFilter(c.id)}
                 className={cn(
-                  "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 touch-manipulation",
+                  "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-all active:scale-95 touch-manipulation",
                   filter === c.id ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
                 )}
               >
-                <span className="size-2.5 rounded-full" style={{ backgroundColor: c.colorVar }} />
+                <span className="size-2 rounded-full" style={{ backgroundColor: c.colorVar }} />
                 {c.label}
               </button>
             ))}
@@ -202,7 +205,7 @@ function Index() {
             <button
               onClick={() => setFilter("microstates")}
               className={cn(
-                "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 touch-manipulation",
+                "shrink-0 flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-all active:scale-95 touch-manipulation",
                 filter === "microstates" ? "bg-foreground text-background" : "bg-card hover:bg-secondary",
               )}
             >
@@ -215,7 +218,7 @@ function Index() {
               <button
                 onClick={() => setFilter("visited")}
                 className={cn(
-                  "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 touch-manipulation cursor-pointer",
+                  "shrink-0 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-all active:scale-95 touch-manipulation cursor-pointer",
                   filter === "visited"
                     ? "border-orange-500 bg-orange-500 text-white shadow-xs"
                     : "bg-card hover:bg-secondary text-foreground",
@@ -228,8 +231,8 @@ function Index() {
           </div>
         </div>
 
-        <div id="map-section" className="scroll-mt-14 sm:scroll-mt-20 grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-6 items-stretch">
-          <div className="h-[380px] sm:h-[430px] md:h-auto md:min-h-[560px]">
+        <div id="map-section" className="scroll-mt-14 sm:scroll-mt-16 grid grid-cols-1 md:grid-cols-[1.15fr_1fr] lg:grid-cols-[1.25fr_1fr] gap-4 xl:gap-5 items-stretch">
+          <div className="h-[380px] sm:h-[430px] md:h-[clamp(560px,calc(100vh-165px),740px)]">
             <WorldMap
               learnedMapIds={learnedSet}
               visitedMapIds={visitedSet}
@@ -241,7 +244,7 @@ function Index() {
             />
           </div>
 
-          <div className="surface-card overflow-hidden flex flex-col h-full">
+          <div className="surface-card overflow-hidden flex flex-col md:h-[clamp(560px,calc(100vh-165px),740px)]">
             {activeCountry ? (
               <CountryDetail
                 country={activeCountry}
@@ -253,7 +256,7 @@ function Index() {
                 }}
               />
             ) : (
-              <div className="flex flex-col justify-between p-3.5 sm:p-4 h-full space-y-3">
+              <div className="flex flex-col justify-between p-3.5 sm:p-4 h-full overflow-y-auto space-y-3">
                   {/* ヘッダーエリア */}
                   <div className="shrink-0">
                     <div className="flex items-center justify-between">
@@ -483,15 +486,8 @@ function Index() {
         />
 
 
-        <div className="mt-8 flex flex-wrap gap-2">
-          <Button asChild>
-            <Link to="/quiz">クイズで確認する</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/compare">国を比較する</Link>
-          </Button>
-        </div>
       </main>
+      <SiteFooter />
 
       <Drawer
         open={isMobile && isDrawerOpen && !!selected}

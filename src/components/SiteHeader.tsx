@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { HeaderQuickSearch } from "@/components/HeaderQuickSearch";
 
 const nav = [
   { to: "/", label: "地図" },
@@ -35,20 +36,27 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        {/* デスクトップ専用ナビゲーション — モバイルは MobileBottomNav を使用 */}
-        <nav className="hidden sm:flex items-center gap-1 text-sm">
-          {nav.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              activeOptions={{ exact: item.to === "/" }}
-              className="rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
-              activeProps={{ className: "bg-primary text-primary-foreground font-semibold" }}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        {/* 右側エリア：検索アイコン（地図ボタンの左）＋ 区切り線 ＋ デスクトップ用ナビゲーション */}
+        <div className="flex items-center gap-2 shrink-0">
+          <HeaderQuickSearch />
+
+          <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-border/80" />
+
+          {/* デスクトップ専用ナビゲーション — モバイルは MobileBottomNav を使用 */}
+          <nav className="hidden sm:flex items-center gap-1 text-sm shrink-0">
+            {nav.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeOptions={{ exact: item.to === "/" }}
+                className="rounded-full px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                activeProps={{ className: "bg-primary text-primary-foreground font-semibold" }}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
     </header>
   );
