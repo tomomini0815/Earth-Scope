@@ -209,7 +209,14 @@ const BROAD_CONTINENT_CENTERS: Record<ContinentId, [number, number]> = {
   "south-america": [-60, -18],
   oceania: [148, -18],
 };
-const BROAD_AUTO_ZOOM = 1.75;
+const BROAD_AUTO_ZOOM = 1.4;
+
+/** 2D平面地図の無限横ループ用にX座標・パン量を [-cycleW/2, +cycleW/2] へ周期正規化 */
+function wrapHorizontal(value: number, cycleW: number): number {
+  if (cycleW <= 0) return value;
+  const half = cycleW / 2;
+  return ((((value + half) % cycleW) + cycleW) % cycleW) - half;
+}
 
 const STAGE_CONFIGS: StageConfig[] = [
   {
@@ -676,6 +683,7 @@ function PuzzlePage() {
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pieceSearchQuery, setPieceSearchQuery] = useState("");
+  const dockContainerRef = useRef<HTMLDivElement | null>(null);
   const dockItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const boardSvgRef = useRef<SVGSVGElement | null>(null);
@@ -739,7 +747,7 @@ function PuzzlePage() {
   );
 
   // D3 Projection & 地図パス・パズルピース生成（小国・島国シルエット対応）
-  const { backgroundPaths, graticuleD, pieces, pieceByIso3, projection2D } = useMemo(() => {
+  const { backgroundPaths, graticuleD, pieces, pieceByIso3, projection2D, worldCycleWidth, isInfiniteLoop2D } = useMemo(() => {
     const [minLon, minLat, maxLon, maxLat] = stageConfig.bbox;
     const midLon = (minLon + maxLon) / 2;
     const midLat = (minLat + maxLat) / 2;
@@ -917,12 +925,22 @@ function PuzzlePage() {
       mapByIso3.set(country.iso3, pieceData);
     }
 
+    // 赤道上での西経180°〜東経180°の投影幅（2D全世界ステージの無限横ループ周期）
+    const eqLeft = projection([-180, 0]);
+    const eqRight = projection([180, 0]);
+    const cycleW =
+      !isContinentStage && eqLeft && eqRight && isFinite(eqLeft[0]) && isFinite(eqRight[0])
+        ? Math.max(100, eqRight[0] - eqLeft[0])
+        : BOARD_WIDTH;
+
     return {
       backgroundPaths: bgPaths,
       graticuleD: gratD,
       pieces: generatedPieces,
       pieceByIso3: mapByIso3,
       projection2D: projection,
+      worldCycleWidth: cycleW,
+      isInfiniteLoop2D: !isContinentStage,
     };
   }, [stageConfig, includeMicrostates]);
 
@@ -1040,7 +1058,9 @@ function PuzzlePage() {
     setIsNewRecord(false);
     setIsRunning(false);
     isRunningRef.current = false;
-    setMapZoom(1);
+    const isWorldWideStage =
+      nextStageId === "world-all" || nextStageId === "world" || nextStageId === "microstates";
+    setMapZoom(isWorldWideStage && viewMode === "2d" ? BROAD_AUTO_ZOOM : 1);
     setMapPan({ x: 0, y: 0 });
     setGlobeRotation(getDefaultGlobeRotationForStage(nextStageId));
     setIsRegionZoomActive(false);
@@ -1142,30 +1162,29 @@ function PuzzlePage() {
     );
   }, [unplacedPieces, pieceSearchQuery, blindMode]);
 
-  // 選択中のピースが変わったとき：カルーセル追従 ＆ 全世界系ステージでは縮小しすぎないよう大陸レベルの大まかな広域ズームを適用
+  // 選択中のピースが変わったらカルーセル横スクロールのみ追従（ページや地図カメラは一切動かさない）
   useEffect(() => {
     if (!activePiece) return;
+    const container = dockContainerRef.current;
     const el = dockItemRefs.current.get(activePiece.country.iso3);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    if (container && el && window.innerWidth < 1024) {
+      const targetLeft = el.offsetLeft - (container.clientWidth - el.clientWidth) / 2;
+      container.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
     }
+  }, [activePiece?.country.iso3]);
 
-    // 全世界系ステージ（world-all / world / microstates）の2D平面地図では、周辺エリア拡大までいかない大まかな広域表示（1.75倍）にする
+  // ステージ切替・初回表示時のみ、全世界系2Dステージをちょっと拡大（1.4倍）で初期化
+  useEffect(() => {
     const isWorldWideStage =
       stageId === "world-all" || stageId === "world" || stageId === "microstates";
     if (isWorldWideStage && viewMode === "2d" && !isCleared) {
-      const broadLonLat = BROAD_CONTINENT_CENTERS[activePiece.country.continent];
-      const pt = projection2D(broadLonLat);
-      if (pt && isFinite(pt[0]) && isFinite(pt[1])) {
-        setMapZoom(BROAD_AUTO_ZOOM);
-        setMapPan({
-          x: BOARD_WIDTH / 2 - pt[0],
-          y: BOARD_HEIGHT / 2 - pt[1],
-        });
-        setIsRegionZoomActive(false);
-      }
+      setMapZoom(BROAD_AUTO_ZOOM);
+      setMapPan({ x: 0, y: 0 });
+      setIsRegionZoomActive(false);
     }
-  }, [activePiece?.country.iso3, stageId, viewMode, isCleared, projection2D]);
+    // ステージまたは表示モード切替時のみ初期のちょっと拡大を適用（ピース配置・選択では動かさない）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageId, viewMode, includeMicrostates]);
 
   // ボトムシートが開いている間は背景の縦スクロールを抑止
   useEffect(() => {
@@ -1191,18 +1210,20 @@ function PuzzlePage() {
     }
   };
 
-  // ズーム＆パンに応じた動的SVG viewBox計算
+  // ズーム＆パンに応じた動的SVG viewBox計算（全世界2D時は左右無限ループ用にXを周期ラップ）
   const boardViewBox = useMemo(() => {
     const vbW = BOARD_WIDTH / mapZoom;
     const vbH = BOARD_HEIGHT / mapZoom;
     const maxPanX = Math.max(0, (BOARD_WIDTH - vbW) / 2);
     const maxPanY = Math.max(0, (BOARD_HEIGHT - vbH) / 2);
-    const clampedPanX = Math.max(-maxPanX, Math.min(maxPanX, mapPan.x));
+    const effectivePanX = isInfiniteLoop2D
+      ? wrapHorizontal(mapPan.x, worldCycleWidth)
+      : Math.max(-maxPanX, Math.min(maxPanX, mapPan.x));
     const clampedPanY = Math.max(-maxPanY, Math.min(maxPanY, mapPan.y));
-    const vbX = (BOARD_WIDTH - vbW) / 2 - clampedPanX;
+    const vbX = (BOARD_WIDTH - vbW) / 2 - effectivePanX;
     const vbY = (BOARD_HEIGHT - vbH) / 2 - clampedPanY;
     return `${vbX.toFixed(1)} ${vbY.toFixed(1)} ${vbW.toFixed(1)} ${vbH.toFixed(1)}`;
-  }, [mapZoom, mapPan]);
+  }, [mapZoom, mapPan, isInfiniteLoop2D, worldCycleWidth]);
 
   // 2D平面 ⇄ 3D地球儀 切替
   const handleToggleViewMode = (nextMode?: "2d" | "3d") => {
@@ -1293,15 +1314,20 @@ function PuzzlePage() {
       return dist <= effectiveRadius;
     }
 
-    // ズーム中は画面上の見た目に合わせつつ十分な吸着半径を維持
+    // ズーム中は画面上の見た目に合わせつつ十分な吸着半径を維持（2D無限横ループ時は最短水平距離で判定）
     const effectiveRadius = baseRadius / Math.pow(mapZoom, 0.35);
-    const dist = Math.hypot(svgX - piece.targetX, svgY - piece.targetY);
+    const dx = isInfiniteLoop2D
+      ? wrapHorizontal(svgX - piece.targetX, worldCycleWidth)
+      : svgX - piece.targetX;
+    const dy = svgY - piece.targetY;
+    const dist = Math.hypot(dx, dy);
     if (dist <= effectiveRadius) return true;
 
     // 面積が大きい国（ロシア・中国・カナダ・アメリカ・ブラジル・オーストラリアなど）はバウンディングボックス内でも許容
     const [[x0, y0], [x1, y1]] = piece.bounds;
+    const wrappedX = piece.targetX + dx;
     const pad = isTouch ? 22 : 14;
-    if (svgX >= x0 - pad && svgX <= x1 + pad && svgY >= y0 - pad && svgY <= y1 + pad) {
+    if (wrappedX >= x0 - pad && wrappedX <= x1 + pad && svgY >= y0 - pad && svgY <= y1 + pad) {
       const maxAllowedDist = Math.max(effectiveRadius, Math.max(piece.width, piece.height) * 0.55);
       if (dist <= maxAllowedDist) return true;
     }
@@ -1458,9 +1484,14 @@ function PuzzlePage() {
         const svgPt = clientToSvgPoint(e.clientX, aimY);
         const boardW = viewMode === "3d" ? BOARD_3D_WIDTH : BOARD_WIDTH;
         const boardH = viewMode === "3d" ? BOARD_3D_HEIGHT : BOARD_HEIGHT;
+        const isInsideBoard =
+          svgPt &&
+          (viewMode === "2d" && isInfiniteLoop2D
+            ? svgPt.y >= 0 && svgPt.y <= boardH
+            : svgPt.x >= 0 && svgPt.x <= boardW && svgPt.y >= 0 && svgPt.y <= boardH);
         if (svgPt && checkIsSnapMatch(piece, svgPt.x, svgPt.y, dragging.isTouch)) {
           confirmPiecePlacement(piece);
-        } else if (svgPt && svgPt.x >= 0 && svgPt.x <= boardW && svgPt.y >= 0 && svgPt.y <= boardH) {
+        } else if (isInsideBoard) {
           // ボード上の誤った場所にドロップした場合
           setMistakesCount((m) => m + 1);
           setCombo(0);
@@ -1973,7 +2004,9 @@ function PuzzlePage() {
                 preserveAspectRatio="xMidYMid meet"
                 className={cn(
                   "w-full h-full block touch-none",
-                  viewMode === "3d" || mapZoom > 1 ? "cursor-grab active:cursor-grabbing" : "",
+                  viewMode === "3d" || isInfiniteLoop2D || mapZoom > 1
+                    ? "cursor-grab active:cursor-grabbing"
+                    : "",
                 )}
                 onPointerDown={(e) => {
                   if (dragging) return;
@@ -1999,7 +2032,7 @@ function PuzzlePage() {
                     return;
                   }
 
-                  if (viewMode === "2d" && mapZoom <= 1) return;
+                  if (viewMode === "2d" && !isInfiniteLoop2D && mapZoom <= 1) return;
                   boardPanRef.current = {
                     startX: e.clientX,
                     startY: e.clientY,
@@ -2117,7 +2150,7 @@ function PuzzlePage() {
                   </radialGradient>
                 </defs>
 
-                {/* 海背景（2D平面は var(--ocean)、3D地球儀は球体オーシャン＆経緯線） */}
+                {/* 海背景（2D平面は無限横ループ用に左右へ延長、3D地球儀は球体オーシャン＆経緯線） */}
                 {viewMode === "3d" && globeRenderData ? (
                   <>
                     <circle
@@ -2136,19 +2169,35 @@ function PuzzlePage() {
                     />
                   </>
                 ) : (
-                  <>
-                    <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="var(--ocean)" />
-                    <path
-                      d={graticuleD}
-                      fill="none"
-                      stroke="rgba(15, 23, 42, 0.08)"
-                      strokeWidth={0.7}
-                    />
-                  </>
+                  <rect
+                    x={isInfiniteLoop2D ? -worldCycleWidth * 2 : 0}
+                    y={0}
+                    width={isInfiniteLoop2D ? BOARD_WIDTH + worldCycleWidth * 4 : BOARD_WIDTH}
+                    height={BOARD_HEIGHT}
+                    fill="var(--ocean)"
+                  />
                 )}
 
-                {/* 背景の国ポリゴン & パズルソケット */}
-                <g>
+                {/* 地図コンテンツ本体（2D全世界系ステージは左・中央・右の3タイルでシームレス無限横ループ） */}
+                {(viewMode === "2d" && isInfiniteLoop2D
+                  ? [-worldCycleWidth, 0, worldCycleWidth]
+                  : [0]
+                ).map((tileOffsetX) => (
+                  <g
+                    key={`map-tile-${tileOffsetX}`}
+                    transform={tileOffsetX !== 0 ? `translate(${tileOffsetX}, 0)` : undefined}
+                  >
+                    {viewMode === "2d" && (
+                      <path
+                        d={graticuleD}
+                        fill="none"
+                        stroke="rgba(15, 23, 42, 0.08)"
+                        strokeWidth={0.7}
+                      />
+                    )}
+
+                    {/* 背景の国ポリゴン & パズルソケット */}
+                    <g>
                   {(viewMode === "3d" && globeRenderData ? globeRenderData.paths3D : backgroundPaths).map((item) => {
                     const isPlaced = !!item.iso3 && placedIso3s.has(item.iso3);
                     const isCurrentActive =
@@ -2458,13 +2507,25 @@ function PuzzlePage() {
                     );
                   })}
                 </g>
+                  </g>
+                ))}
               </svg>
 
-              {/* PC用の初回ガイド（モバイルは画面を極限までクリーンに保つため非表示） */}
+              {/* 初期表示時のみ地図左下に遊び方バッジ付き2行ガイド（省略なし・プレイ開始で自動消去） */}
               {!isRunning && placedIso3s.size === 0 && !isCleared && (
-                <div className="hidden lg:block pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
-                  <div className="rounded-xl bg-background/90 backdrop-blur-md border border-sky-500/30 px-3 py-1 text-foreground shadow-sm text-xs font-bold">
-                    ピースをドラッグ、または選んで白枠をクリックで配置
+                <div className="pointer-events-none absolute bottom-1.5 left-1.5 lg:bottom-2.5 lg:left-2.5 max-w-[calc(100%-9.75rem)] lg:max-w-sm z-10 animate-in fade-in slide-in-from-bottom-1 duration-200">
+                  <div className="flex items-center sm:items-start gap-2 rounded-2xl bg-background/92 backdrop-blur-md border border-sky-500/30 px-2.5 py-1.5 shadow-md">
+                    <span className="inline-flex items-center rounded-md bg-sky-500/15 text-sky-700 dark:text-sky-300 px-1.5 py-0.5 text-[10px] font-extrabold shrink-0 sm:mt-0.5">
+                      遊び方
+                    </span>
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-[11px] sm:text-xs font-extrabold leading-snug text-foreground">
+                        白枠をタップ・ドラッグで配置
+                      </p>
+                      <p className="hidden sm:block text-[11px] font-medium leading-tight text-muted-foreground">
+                        配置で開始・スワイプで地図移動
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2669,7 +2730,10 @@ function PuzzlePage() {
                 <p className="text-xs font-bold text-foreground">すべてのピースを配置しました！</p>
               </div>
             ) : (
-              <div className="flex items-center lg:items-stretch lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:content-start gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-1 lg:min-h-0 lg:overflow-y-auto px-1 lg:px-0 py-1 lg:py-0 lg:pr-1 touch-pan-x lg:touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div
+                ref={dockContainerRef}
+                className="flex items-center lg:items-stretch lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:content-start gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-1 lg:min-h-0 lg:overflow-y-auto px-1 lg:px-0 py-1 lg:py-0 lg:pr-1 touch-pan-x lg:touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              >
                 {unplacedPieces.map((piece) => {
                   const iso3 = piece.country.iso3;
                   const isSelected = activePiece?.country.iso3 === iso3;
