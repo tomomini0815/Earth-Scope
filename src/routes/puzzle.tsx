@@ -87,7 +87,7 @@ const BOARD_3D_HEIGHT = 600;
 const GLOBE_CX = BOARD_3D_WIDTH / 2;
 const GLOBE_CY = BOARD_3D_HEIGHT / 2;
 const GLOBE_BASE_RADIUS = 266;
-const MAX_MAP_ZOOM = 6;
+const MAX_MAP_ZOOM = 16;
 const SNAP_BASE_RADIUS = 48;
 const SNAP_TOUCH_RADIUS = 64;
 /** タッチ操作時、指でピースと地図が隠れないよう指の上方64pxに照準をオフセット */
@@ -1098,8 +1098,9 @@ function PuzzlePage() {
       return;
     }
     if (!activePiece) return;
+    const isTinyPiece = activePiece.width < 12 || activePiece.height < 12;
     const isSmallPiece = activePiece.width < 28 || activePiece.height < 28;
-    const targetZoom = isSmallPiece ? 3.0 : 2.2;
+    const targetZoom = isTinyPiece ? 6.0 : isSmallPiece ? 3.5 : 2.2;
     if (viewMode === "3d") {
       const [lon, lat] = activePiece.mainCenterLonLat;
       const offsetLon = hintLevel >= 2 ? 0 : ((activePiece.country.id.charCodeAt(0) % 5) - 2) * 8;
@@ -1118,17 +1119,18 @@ function PuzzlePage() {
     setIsRegionZoomActive(true);
   };
 
-  // 段階拡大（最大倍率で停止）
+  // 段階拡大（乗算ステップで低倍率は細かく・高倍率は小国まで素早く拡大、最大倍率で停止）
   const handleStepZoomIn = () => {
     setIsRegionZoomActive(false);
     if (mapZoom >= MAX_MAP_ZOOM) return;
-    const nextZ = Math.min(MAX_MAP_ZOOM, Math.round((mapZoom + 1.0) * 10) / 10);
-    setMapZoom(nextZ);
+    const nextZ = Math.min(MAX_MAP_ZOOM, Math.round(mapZoom * 1.5 * 10) / 10);
+    setMapZoom(nextZ <= mapZoom ? Math.min(MAX_MAP_ZOOM, mapZoom + 0.5) : nextZ);
   };
 
   // 段階縮小（1倍に戻ると全体表示へ解除）
   const handleStepZoomOut = () => {
-    const nextZ = Math.max(1, Math.round((mapZoom - 1.0) * 10) / 10);
+    const rawNext = Math.round((mapZoom / 1.5) * 10) / 10;
+    const nextZ = rawNext <= 1.15 ? 1 : rawNext;
     setMapZoom(nextZ);
     if (nextZ <= 1) {
       setMapPan({ x: 0, y: 0 });
@@ -1477,9 +1479,9 @@ function PuzzlePage() {
               })}
             </div>
 
-            {/* PC・タブレット用：進捗・タイマー・効果音 ＋ 右端上にヒント＆国名ありボタン */}
-            <div className="hidden md:flex items-center justify-end gap-1.5 shrink-0">
-              <div className="hidden lg:flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2.5 h-8">
+            {/* PC用：進捗＆タイマー＆効果音（モバイルは地図上HUDへ集約して縦空間を最大化） */}
+            <div className="hidden lg:flex items-center justify-end gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/60 rounded-lg px-2.5 h-8">
                 <span className="text-xs font-black text-sky-600 dark:text-sky-400 tabular-nums">
                   {placedIso3s.size}/{pieces.length}
                 </span>
@@ -1500,50 +1502,9 @@ function PuzzlePage() {
                 type="button"
                 onClick={() => setSoundEnabled((s) => !s)}
                 title="効果音のON/OFF"
-                className="hidden lg:flex size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                className="size-8 rounded-lg border border-border/60 bg-secondary/50 text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
               >
                 {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-              </button>
-
-              {activePiece && !isCleared && (
-                <button
-                  type="button"
-                  onClick={handleTriggerHint}
-                  disabled={hintLevel >= 2}
-                  title={hintLevel === 0 ? "ヒント①（エリア＆隣接国）" : hintLevel === 1 ? "ヒント②（場所を表示）" : "場所を点滅中"}
-                  className={cn(
-                    "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
-                    hintLevel === 0
-                      ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
-                      : hintLevel === 1
-                        ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
-                        : "opacity-50 border-border bg-secondary text-muted-foreground",
-                  )}
-                >
-                  <Lightbulb className="size-3.5 shrink-0" />
-                  <span>
-                    {hintLevel === 0
-                      ? "ヒント①(エリア)"
-                      : hintLevel === 1
-                        ? "ヒント②(場所)"
-                        : "点滅中"}
-                  </span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setBlindMode((b) => !b)}
-                title="シルエットのみ表示（国名と国旗を隠す達人モード）"
-                className={cn(
-                  "h-8 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
-                  blindMode
-                    ? "bg-primary text-primary-foreground border-primary shadow-2xs"
-                    : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
-                )}
-              >
-                {blindMode ? <EyeOff className="size-3.5 shrink-0" /> : <Eye className="size-3.5 shrink-0" />}
-                <span>{blindMode ? "達人" : "国名あり"}</span>
               </button>
             </div>
           </div>
@@ -1625,7 +1586,7 @@ function PuzzlePage() {
                       disabled={hintLevel >= 2}
                       title={hintLevel === 0 ? "ヒント①（エリア＆隣接国）" : hintLevel === 1 ? "ヒント②（場所を表示）" : "場所を点滅中"}
                       className={cn(
-                        "md:hidden h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shrink-0",
+                        "lg:hidden h-8 px-2 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shrink-0",
                         hintLevel === 0
                           ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                           : hintLevel === 1
@@ -2033,6 +1994,7 @@ function PuzzlePage() {
                           fill="var(--land)"
                           stroke="rgba(255, 255, 255, 0.85)"
                           strokeWidth={0.75}
+                          vectorEffect="non-scaling-stroke"
                         />
                       );
                     }
@@ -2045,7 +2007,8 @@ function PuzzlePage() {
                           fill={stageConfig.pieceFill}
                           fillOpacity={0.92}
                           stroke="#ffffff"
-                          strokeWidth={1.3}
+                          strokeWidth={1.2}
+                          vectorEffect="non-scaling-stroke"
                           className="transition-all duration-300 cursor-pointer hover:brightness-105"
                           onClick={() => {
                             if (item.iso3) {
@@ -2066,6 +2029,7 @@ function PuzzlePage() {
                             fill="var(--land)"
                             stroke="rgba(255, 255, 255, 0.85)"
                             strokeWidth={0.75}
+                            vectorEffect="non-scaling-stroke"
                           />
                         )}
                         <path
@@ -2084,8 +2048,9 @@ function PuzzlePage() {
                                 ? "#d97706"
                                 : "#64748b"
                           }
-                          strokeWidth={isDragNearThis || isHintRadar ? 2.4 : 1.15}
-                          strokeDasharray={isDragNearThis ? undefined : "3.5 2"}
+                          strokeWidth={isDragNearThis || isHintRadar ? 2.2 : 0.85}
+                          strokeDasharray={isDragNearThis ? undefined : "1.8 1.4"}
+                          vectorEffect="non-scaling-stroke"
                           filter={isDragNearThis ? "url(#snapGlow)" : undefined}
                           className="cursor-pointer transition-colors duration-150 hover:fill-sky-100"
                           onClick={(e) => handleSocketClick(item.iso3, e)}
@@ -2460,7 +2425,7 @@ function PuzzlePage() {
               </div>
             )}
 
-            {/* PC用トレイヘッダー（ヒント・国名ありは右端上に移動済みのためスリム表示） */}
+            {/* PC・タブレット横用トレイヘッダー：ピース一覧の行の右端にヒント＆国名ありを配置 */}
             <div className="hidden lg:block space-y-2">
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -2471,17 +2436,46 @@ function PuzzlePage() {
                   <span className="text-[11px] font-bold text-muted-foreground shrink-0">
                     (残り{unplacedPieces.length})
                   </span>
-                  <span className="text-[10px] text-muted-foreground/80 shrink-0">
-                    ※小国含まず
-                  </span>
                 </div>
 
-                {activePiece && (!blindMode || hintLevel >= 1) && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-500/12 border border-sky-500/30 text-xs font-bold text-foreground min-w-0 shrink">
-                    <FlagImage flag={activePiece.country.flag} size="sm" className="shrink-0" />
-                    <span className="break-words leading-tight">{activePiece.country.nameJa}</span>
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {activePiece && !isCleared && (
+                    <button
+                      type="button"
+                      onClick={handleTriggerHint}
+                      disabled={hintLevel >= 2}
+                      title={hintLevel === 0 ? "ヒント①（エリア＆隣接国）" : hintLevel === 1 ? "ヒント②（場所を表示）" : "場所を点滅中"}
+                      className={cn(
+                        "h-7.5 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                        hintLevel === 0
+                          ? "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25"
+                          : hintLevel === 1
+                            ? "border-sky-500/40 bg-sky-500/20 text-sky-600 dark:text-sky-300 hover:bg-sky-500/30"
+                            : "opacity-50 border-border bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      <Lightbulb className="size-3.5 shrink-0" />
+                      <span>
+                        {hintLevel === 0 ? "ヒント" : hintLevel === 1 ? "場所" : "点滅"}
+                      </span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setBlindMode((b) => !b)}
+                    title="シルエットのみ表示（国名と国旗を隠す達人モード）"
+                    className={cn(
+                      "h-7.5 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border active:scale-95 transition-all shrink-0",
+                      blindMode
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                        : "bg-secondary/50 text-muted-foreground border-border/60 hover:bg-secondary hover:text-foreground",
+                    )}
+                  >
+                    {blindMode ? <EyeOff className="size-3.5 shrink-0" /> : <Eye className="size-3.5 shrink-0" />}
+                    <span>{blindMode ? "達人" : "国名あり"}</span>
+                  </button>
+                </div>
               </div>
 
               {activePiece && hintLevel >= 1 && (
