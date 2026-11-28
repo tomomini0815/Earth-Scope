@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoCentroid, geoDistance, geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
-import { CheckCircle2, Globe, Map as MapIcon, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
+import { CheckCircle2, ChevronRight, Globe, Map as MapIcon, Minus, Pause, Play, Plus, RotateCcw, X } from "lucide-react";
 
 import world from "@/data/world.geo.json";
 import { byMapId } from "@/data/lookup";
@@ -238,6 +238,8 @@ export type WorldMapProps = {
   selectedId?: string | undefined;
   onSelect: (mapId: string) => void;
   onHover?: (mapId: string | undefined) => void;
+  onOpenDetail?: (() => void) | undefined;
+  onClearSelect?: (() => void) | undefined;
 };
 
 export function WorldMap({
@@ -248,9 +250,12 @@ export function WorldMap({
   selectedId,
   onSelect,
   onHover,
+  onOpenDetail,
+  onClearSelect,
 }: WorldMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   // 初期表示を3D地球儀に設定
   const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
   // 塗り分けモード（デフォルトは純粋な6大陸色、切替時のみ学習済みの国をハイライト）
@@ -320,7 +325,7 @@ export function WorldMap({
   };
 
   // 2D用 projection & paths & microstates
-  const { paths2D, microstates2D } = useMemo(() => {
+  const { projection2D, paths2D, microstates2D } = useMemo(() => {
     const projection = geoNaturalEarth1().fitSize([WIDTH_2D, HEIGHT_2D], collection);
     const path = geoPath(projection);
     const featurePaths = (collection.features as unknown as Feature[]).map((f) => ({
@@ -338,11 +343,11 @@ export function WorldMap({
       };
     }).filter((m): m is typeof m & { x: number; y: number } => m.x !== null && m.y !== null);
 
-    return { paths2D: featurePaths, microstates2D: msPoints };
+    return { projection2D: projection, paths2D: featurePaths, microstates2D: msPoints };
   }, []);
 
   // 3D地球儀用 projection & paths & microstates
-  const { paths3D, graticulePath3D, equatorPath3D, microstates3D } = useMemo(() => {
+  const { projection3D, paths3D, graticulePath3D, equatorPath3D, microstates3D } = useMemo(() => {
     const radius = GLOBE_DEFAULT_RADIUS * zoom3d;
     const projection = geoOrthographic()
       .scale(radius)
@@ -387,12 +392,27 @@ export function WorldMap({
     }).filter((m): m is NonNullable<typeof m> => m !== null);
 
     return {
+      projection3D: projection,
       paths3D: featurePaths,
       graticulePath3D: path(graticule) ?? "",
       equatorPath3D: path(equatorLine) ?? "",
       microstates3D: msPoints,
     };
   }, [rotation, zoom3d]);
+
+  // コンテナサイズを追跡（選択中スリム詳細バーの正確な座標計算用）
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      setContainerSize({ width: el.clientWidth, height: el.clientHeight });
+    };
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // 選択された国への自動フォーカス ＆ ズームイン拡大（3D地球儀 & 2D平面地図）
   useEffect(() => {
@@ -728,6 +748,67 @@ export function WorldMap({
   const globeRadius = GLOBE_DEFAULT_RADIUS * zoom3d;
   const currentZoomScale = viewMode === "2d" ? zoom2d : zoom3d;
   const isDefaultZoom = Math.abs(currentZoomScale - 1) < 0.05;
+
+  // タップ選択中の国の近辺に出すスリム詳細バーの画面座標計算（3D/2D・ズーム・回転に自動追従）
+  const selectedPopover = useMemo(() => {
+    if (!selectedId || !onOpenDetail) return null;
+    const country = byMapId(selectedId);
+    if (!country) return null;
+    const coords = COUNTRY_CENTERS.get(selectedId);
+    if (!coords) return null;
+
+    const cw = containerSize.width || containerRef.current?.clientWidth || 0;
+    const ch = containerSize.height || containerRef.current?.clientHeight || 0;
+    if (cw <= 0 || ch <= 0) return null;
+
+    let svgX: number;
+    let svgY: number;
+
+    if (viewMode === "3d") {
+      const center: [number, number] = [-rotation[0], -rotation[1]];
+      if (geoDistance(center, coords) >= Math.PI / 2 - 0.02) return null;
+      const pt = projection3D(coords);
+      if (!pt || isNaN(pt[0]) || isNaN(pt[1])) return null;
+      svgX = pt[0];
+      svgY = pt[1];
+    } else {
+      const pt = projection2D(coords);
+      if (!pt || isNaN(pt[0]) || isNaN(pt[1])) return null;
+      svgX = pt[0] * zoom2d + offset2d.x;
+      svgY = pt[1] * zoom2d + offset2d.y;
+    }
+
+    const scale = Math.min(cw / currentWidth, ch / currentHeight);
+    const padX = (cw - currentWidth * scale) / 2;
+    const padY = (ch - currentHeight * scale) / 2;
+    const rawX = padX + svgX * scale;
+    const rawY = padY + svgY * scale;
+
+    if (rawX < -24 || rawX > cw + 24 || rawY < -24 || rawY > ch + 24) return null;
+
+    const placement: "top" | "bottom" = rawY < 68 ? "bottom" : "top";
+    const estimatedHalfWidth = Math.min(cw / 2 - 8, Math.max(104, country.nameJa.length * 6.5 + 72));
+    const x = cw <= estimatedHalfWidth * 2 ? cw / 2 : Math.max(estimatedHalfWidth, Math.min(rawX, cw - estimatedHalfWidth));
+    const y = placement === "top"
+      ? Math.max(46, Math.min(rawY - 16, ch - 44))
+      : Math.min(ch - 56, Math.max(rawY + 16, 12));
+
+    return { country, x, y, placement };
+  }, [
+    selectedId,
+    onOpenDetail,
+    containerSize.width,
+    containerSize.height,
+    viewMode,
+    rotation,
+    projection3D,
+    projection2D,
+    zoom2d,
+    offset2d.x,
+    offset2d.y,
+    currentWidth,
+    currentHeight,
+  ]);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-panel)] transition-all flex flex-col h-full isolate">
@@ -1305,8 +1386,63 @@ export function WorldMap({
           )}
         </svg>
 
+        {/* タップ選択中の国の近辺に浮かぶスリム詳細バー（モバイル向け・3D/2D追従） */}
+        {selectedPopover && onOpenDetail && (
+          <div
+            style={{
+              left: `${selectedPopover.x}px`,
+              top: `${selectedPopover.y}px`,
+              transform:
+                selectedPopover.placement === "top"
+                  ? "translate(-50%, -100%)"
+                  : "translate(-50%, 0)",
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute z-30 w-max max-w-[calc(100%-16px)] select-none"
+          >
+            <div className="flex items-center gap-1.5 rounded-full border border-white/25 bg-slate-950/90 pl-2.5 pr-1 py-1 text-white shadow-xl backdrop-blur-md dark:border-white/20 dark:bg-slate-900/95">
+              <button
+                type="button"
+                onClick={onOpenDetail}
+                className="flex items-center gap-1.5 text-left cursor-pointer touch-manipulation"
+              >
+                <FlagImage
+                  flag={selectedPopover.country.flag}
+                  size="xs"
+                  className="rounded-[2px] shrink-0 shadow-2xs"
+                />
+                <span className="font-display text-xs font-bold leading-snug text-white">
+                  {selectedPopover.country.nameJa}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenDetail}
+                className="inline-flex items-center gap-0.5 rounded-full bg-sky-500 hover:bg-sky-400 active:scale-95 px-2.5 py-1 text-[11px] font-bold leading-none text-white shadow-xs transition-all cursor-pointer touch-manipulation shrink-0"
+              >
+                <span>詳細</span>
+                <ChevronRight className="size-3" />
+              </button>
+
+              {onClearSelect && (
+                <button
+                  type="button"
+                  onClick={onClearSelect}
+                  aria-label="選択を解除"
+                  className="flex size-6 items-center justify-center rounded-full text-slate-300 hover:bg-white/15 hover:text-white active:scale-90 transition-colors cursor-pointer touch-manipulation shrink-0"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 極薄・超軽量フローティング・スマートピル（カーソル直上に浮かび、国の形を100%見通せる設計） */}
-        {hover && (
+        {hover && !(selectedPopover && hover.mapId === selectedPopover.country.id) && (
           <div
             style={{
               left: `${Math.max(80, Math.min(hover.x, (containerRef.current?.clientWidth ?? 800) - 80))}px`,

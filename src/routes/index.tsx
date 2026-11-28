@@ -107,6 +107,14 @@ function Index() {
     }
   };
 
+  // 地図上のタップ時はモバイルでもすぐドロワーを開かず、選択国の近辺にスリム詳細バーを表示する
+  const selectFromMap = (mapId: string) => {
+    setSelectedMapId(mapId);
+    if (isMobile) {
+      setIsDrawerOpen(false);
+    }
+  };
+
   const majorCountries = useMemo(() => {
     return MAJOR_COUNTRIES_ISO3.map((iso3) => byIso3(iso3)).filter((c): c is Country => !!c);
   }, []);
@@ -239,8 +247,13 @@ function Index() {
               activeContinent={filter === "visited" ? "all" : filter}
               isVisitedFilter={filter === "visited"}
               selectedId={selectedMapId}
-              onSelect={select}
+              onSelect={selectFromMap}
               onHover={setHoveredMapId}
+              onOpenDetail={isMobile ? () => setIsDrawerOpen(true) : undefined}
+              onClearSelect={() => {
+                setSelectedMapId(undefined);
+                setIsDrawerOpen(false);
+              }}
             />
           </div>
 
