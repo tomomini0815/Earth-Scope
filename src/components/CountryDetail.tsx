@@ -120,24 +120,30 @@ function StatCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/80 bg-card/80 p-4 shadow-xs flex flex-col justify-between transition-all hover:border-border",
+        "rounded-2xl border border-border/80 bg-card/80 p-3 sm:p-4 shadow-xs flex flex-col justify-start gap-1.5 transition-all hover:border-border min-w-0",
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-          <Icon className="size-4 text-sky-500 shrink-0" />
-          <span>{label}</span>
+      <div className="flex items-start justify-between gap-1.5">
+        <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground flex items-center gap-1 sm:gap-1.5 leading-snug min-w-0">
+          <Icon className="size-3.5 sm:size-4 text-sky-500 shrink-0" />
+          <span className="leading-tight">{label}</span>
         </span>
         {badge && (
-          <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-600 dark:text-sky-400 shrink-0">
+          <span className="rounded-full bg-sky-500/10 px-1.5 sm:px-2 py-0.5 text-[10px] font-bold text-sky-600 dark:text-sky-400 shrink-0 whitespace-nowrap">
             {badge}
           </span>
         )}
       </div>
-      <div>
-        <div className="font-display text-lg sm:text-xl font-bold text-foreground leading-tight">{value}</div>
-        {subtext && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{subtext}</p>}
+      <div className="min-w-0">
+        <div className="font-display text-base sm:text-xl font-bold text-foreground leading-snug break-words">
+          {value}
+        </div>
+        {subtext && (
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-relaxed break-words">
+            {subtext}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -155,10 +161,12 @@ function SectionBox({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-3", className)}>
-      <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
-        <Icon className="size-4.5 text-sky-500" />
-        <h3 className="font-display text-sm sm:text-base font-bold text-foreground">{title}</h3>
+    <div className={cn("rounded-2xl border border-border/80 bg-card p-3.5 sm:p-5 shadow-xs space-y-2.5 sm:space-y-3", className)}>
+      <div className="flex items-start gap-2 border-b border-border/60 pb-2">
+        <Icon className="size-4 sm:size-4.5 text-sky-500 shrink-0 mt-0.5" />
+        <h3 className="font-display text-sm sm:text-base font-bold text-foreground leading-snug">
+          {title}
+        </h3>
       </div>
       {children}
     </div>
@@ -360,42 +368,42 @@ export function CountryDetail({
           </button>
         )}
 
-        {/* 写真グラデーション & キャプション */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-4 py-2 flex items-center justify-between text-xs text-white/95">
-          <span className="font-semibold truncate drop-shadow-sm">📷 {photo.caption}</span>
-          <span className="shrink-0 text-[11px] text-white/75 ml-2 font-medium bg-black/30 backdrop-blur-xs px-2 py-0.5 rounded border border-white/15">名所・世界遺産</span>
+        {/* 写真グラデーション & キャプション（モバイルでも省略せず表示） */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 sm:px-4 py-2 flex items-end justify-between gap-2 text-xs text-white/95">
+          <span className="font-semibold leading-snug drop-shadow-sm">📷 {photo.caption}</span>
+          <span className="shrink-0 text-[10px] sm:text-[11px] text-white/80 font-medium bg-black/35 backdrop-blur-xs px-2 py-0.5 rounded border border-white/15">名所・世界遺産</span>
         </div>
       </div>
 
-      <div className={cn("flex flex-wrap items-center justify-between gap-2 border-b border-border shrink-0", compact ? "px-3 py-2.5" : "p-4")}>
-        <div className={cn("flex items-center justify-between gap-3 min-w-0", compact ? "w-full" : "w-full sm:w-auto")}>
-          <div className="flex items-center gap-3 min-w-0">
-            <FlagImage flag={country.flag} size="lg" className="rounded shadow shrink-0" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-display text-xl sm:text-2xl font-bold leading-tight">{country.nameJa}</h2>
-                <Badge variant="outline" className="text-xs font-medium shrink-0">
+      <div className={cn("flex flex-wrap items-start justify-between gap-2 border-b border-border shrink-0", compact ? "px-3 py-2.5" : "p-4")}>
+        <div className={cn("flex items-start justify-between gap-3 min-w-0", compact ? "w-full" : "w-full sm:w-auto")}>
+          <div className="flex items-start gap-3 min-w-0">
+            <FlagImage flag={country.flag} size="lg" className="rounded shadow shrink-0 mt-0.5" />
+            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="font-display text-xl sm:text-2xl font-bold leading-tight">{country.nameJa}</h2>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant="outline" className="text-[11px] font-medium px-2 py-0 shrink-0">
                   {continentLabel(country.continent)}
                 </Badge>
+                <span className="text-xs text-muted-foreground leading-snug">{country.nameEn}</span>
                 {!compact && (
-                  <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-mono text-muted-foreground">
+                  <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground shrink-0">
                     ISO: {country.iso3}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">{country.nameEn}</p>
             </div>
           </div>
 
-          {/* compact時の詳細リンク（青系テキストボタン・国名行の右端に配置） */}
+          {/* compact時の詳細リンク（上揃え・押しやすい大きめボタン） */}
           {compact && (
             <Link
               to="/country/$iso3"
               params={{ iso3: country.iso3.toLowerCase() }}
-              className="inline-flex items-center gap-1 py-1 px-2 rounded-md text-xs sm:text-sm font-semibold text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 hover:bg-sky-500/10 transition-colors shrink-0 cursor-pointer ml-auto"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-sm font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 transition-colors shrink-0 cursor-pointer ml-auto touch-manipulation"
             >
               <span>詳細</span>
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="size-4" />
             </Link>
           )}
         </div>
@@ -496,7 +504,7 @@ export function CountryDetail({
           onTouchEnd={handleContentTouchEnd}
           className={cn(
             "text-sm leading-relaxed touch-pan-y",
-            compact ? "flex-1 min-h-0 overflow-y-auto p-3" : "p-4 space-y-6",
+            compact ? "flex-1 min-h-0 overflow-y-auto p-3" : "p-3 sm:p-5 space-y-4 sm:space-y-6",
             swipeDir === "left" && "animate-in fade-in slide-in-from-right-3 duration-200",
             swipeDir === "right" && "animate-in fade-in slide-in-from-left-3 duration-200",
           )}
@@ -518,7 +526,7 @@ export function CountryDetail({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
                   <StatCard
                     icon={Landmark}
                     label="首都"
@@ -529,7 +537,7 @@ export function CountryDetail({
                     icon={Languages}
                     label="公用語・主な言語"
                     value={country.basic.languages}
-                    subtext="国家公式または日常で広く話される言語"
+                    subtext="公式・日常で広く話される言語"
                   />
                   <StatCard
                     icon={Maximize2}
@@ -549,7 +557,7 @@ export function CountryDetail({
                     label="気候・気温特性"
                     value={country.geography.climate.split("（")[0] || country.geography.climate}
                     subtext={country.geography.climate}
-                    className="sm:col-span-2"
+                    className="col-span-2"
                   />
                 </div>
 
@@ -559,15 +567,15 @@ export function CountryDetail({
                   <WorldRankBars country={country} stats={stats} />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   <SectionBox icon={Scale} title="国家体制 & 政治制度">
-                    <p className="text-foreground font-medium">{country.basic.government}</p>
-                    <p className="text-xs text-muted-foreground">
-                      国の統治形態、立法・行政・司法の枠組み、および国家元首の役割を定めています。
+                    <p className="text-xs sm:text-sm text-foreground font-medium leading-relaxed">{country.basic.government}</p>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed">
+                      国の統治形態、立法・行政・司法の枠組み、国家元首の役割を定めています。
                     </p>
                   </SectionBox>
 
-                  <SectionBox icon={Compass} title="所属大陸 & 国際識別コード">
+                  <SectionBox icon={Compass} title="所属大陸 & 識別コード">
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between py-1 border-b border-border/50">
                         <span className="text-muted-foreground">所属大陸</span>
@@ -646,9 +654,13 @@ export function CountryDetail({
           <TabsContent value="culture" className="mt-0 space-y-4">
             {compact ? (
               <div className="space-y-3">
-                <Row label="宗教" value={country.culture.religion} />
-                <Row label="伝統・文化" value={country.culture.tradition} />
-                <Row label="食文化" value={country.culture.food} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Row label="宗教" value={country.culture.religion} />
+                  <Row label="伝統・文化" value={country.culture.tradition} />
+                  <div className="col-span-2">
+                    <Row label="食文化" value={country.culture.food} />
+                  </div>
+                </div>
                 <div>
                   <h3 className="mb-1.5 text-sm font-bold">世界遺産・観光名所</h3>
                   <Chips items={country.culture.heritage} />
@@ -660,44 +672,44 @@ export function CountryDetail({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
                   <SectionBox icon={Heart} title="宗教 & 信仰">
-                    <p className="text-sm text-foreground font-medium">{country.culture.religion}</p>
+                    <p className="text-xs sm:text-sm text-foreground font-medium leading-relaxed">{country.culture.religion}</p>
                   </SectionBox>
 
                   <SectionBox icon={Sparkles} title="伝統文化 & 国民性">
-                    <p className="text-sm text-foreground font-medium">{country.culture.tradition}</p>
+                    <p className="text-xs sm:text-sm text-foreground font-medium leading-relaxed">{country.culture.tradition}</p>
                   </SectionBox>
 
-                  <SectionBox icon={UtensilsCrossed} title="代表的な食文化 & 郷土料理">
-                    <p className="text-sm text-foreground font-medium">{country.culture.food}</p>
+                  <SectionBox icon={UtensilsCrossed} title="代表的な食文化 & 郷土料理" className="col-span-2 lg:col-span-1">
+                    <p className="text-xs sm:text-sm text-foreground font-medium leading-relaxed">{country.culture.food}</p>
                   </SectionBox>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <SectionBox icon={MapPin} title="ユネスコ世界遺産 & 主要観光名所">
-                    <div className="flex flex-wrap gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+                  <SectionBox icon={MapPin} title="世界遺産 & 観光名所">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                       {country.culture.heritage.map((h) => (
                         <div
                           key={h}
-                          className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-xs font-medium hover:border-sky-500/40 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium hover:border-sky-500/40 transition-colors"
                         >
-                          <span className="text-sky-500">🏛️</span>
-                          <span>{h}</span>
+                          <span className="text-sky-500 shrink-0">🏛️</span>
+                          <span className="leading-snug">{h}</span>
                         </div>
                       ))}
                     </div>
                   </SectionBox>
 
-                  <SectionBox icon={Users} title="歴史の偉人 & 代表的な著名人">
-                    <div className="flex flex-wrap gap-2 pt-1">
+                  <SectionBox icon={Users} title="歴史の偉人 & 著名人">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                       {country.culture.people.map((p) => (
                         <div
                           key={p}
-                          className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-xs font-medium hover:border-sky-500/40 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium hover:border-sky-500/40 transition-colors"
                         >
-                          <span className="text-amber-500">🌟</span>
-                          <span>{p}</span>
+                          <span className="text-amber-500 shrink-0">🌟</span>
+                          <span className="leading-snug">{p}</span>
                         </div>
                       ))}
                     </div>
@@ -711,7 +723,7 @@ export function CountryDetail({
           <TabsContent value="society" className="mt-0 space-y-4">
             {compact ? (
               <div className="space-y-3">
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Row label="人口" value={`${nf.format(country.society.population)} 人`} />
                   <Row label="人口増加率" value={`${country.society.populationGrowth} %`} />
                   <Row label="都市人口率" value={`${country.society.urbanRate} %`} />
@@ -722,7 +734,7 @@ export function CountryDetail({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
                   <StatCard
                     icon={Users}
                     label="総人口"
@@ -798,7 +810,7 @@ export function CountryDetail({
           <TabsContent value="economy" className="mt-0 space-y-4">
             {compact ? (
               <div className="space-y-3">
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Row label="GDP" value={`約 ${nf.format(country.economy.gdp)} 億USドル`} />
                   <Row
                     label="1人あたりGDP"
@@ -819,7 +831,7 @@ export function CountryDetail({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   <StatCard
                     icon={Coins}
                     label="名目GDP（国内総生産）"
@@ -864,30 +876,30 @@ export function CountryDetail({
                   isPreview={isPreview}
                 />
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
                   <SectionBox icon={Factory} title="国を支える主要産業">
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                       {country.economy.industries.map((ind) => (
                         <div
                           key={ind}
-                          className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-xs font-medium hover:border-sky-500/40 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium hover:border-sky-500/40 transition-colors"
                         >
-                          <span className="text-emerald-500">🏭</span>
-                          <span>{ind}</span>
+                          <span className="text-emerald-500 shrink-0">🏭</span>
+                          <span className="leading-snug">{ind}</span>
                         </div>
                       ))}
                     </div>
                   </SectionBox>
 
-                  <SectionBox icon={Gem} title="豊かな天然資源 & エネルギー">
-                    <div className="flex flex-wrap gap-2 pt-1">
+                  <SectionBox icon={Gem} title="天然資源 & エネルギー">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                       {country.economy.resources.map((res) => (
                         <div
                           key={res}
-                          className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-xs font-medium hover:border-sky-500/40 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium hover:border-sky-500/40 transition-colors"
                         >
-                          <span className="text-amber-500">⛏️</span>
-                          <span>{res}</span>
+                          <span className="text-amber-500 shrink-0">⛏️</span>
+                          <span className="leading-snug">{res}</span>
                         </div>
                       ))}
                     </div>
@@ -910,7 +922,7 @@ export function CountryDetail({
                 <p className="rounded-lg bg-secondary/70 px-3 py-2 text-xs text-secondary-foreground">
                   ここでは兵力数・軍事費などの客観的な公開統計のみを扱います。国の優劣を示すものではありません。
                 </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Row label="軍事費（推計）" value={`約 ${nf.format(country.military.spending)} 億USドル`} />
                   <Row label="兵力（現役）" value={`約 ${nf.format(country.military.activeTroops)} 千人`} />
                 </div>
@@ -934,7 +946,7 @@ export function CountryDetail({
                   </span>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   <StatCard
                     icon={ShieldAlert}
                     label="国防支出・軍事費（推計）"
@@ -1021,30 +1033,30 @@ export function CountryDetail({
                   </div>
                 )}
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <SectionBox icon={Award} title="主要な同盟 & 安全保障協定">
-                    <div className="flex flex-wrap gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+                  <SectionBox icon={Award} title="主な同盟 & 安保協定">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                       {country.military.alliances.map((a) => (
                         <div
                           key={a}
-                          className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-xs font-medium hover:border-sky-500/40 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium hover:border-sky-500/40 transition-colors"
                         >
-                          <span className="text-sky-500">🛡️</span>
-                          <span>{a}</span>
+                          <span className="text-sky-500 shrink-0">🛡️</span>
+                          <span className="leading-snug">{a}</span>
                         </div>
                       ))}
                     </div>
                   </SectionBox>
 
-                  <SectionBox icon={Globe} title="加盟する国際機関 & 多国間枠組み">
-                    <div className="flex flex-wrap gap-2 pt-1">
+                  <SectionBox icon={Globe} title="加盟する国際機関">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-0.5">
                       {country.military.organizations.map((org) => (
                         <div
                           key={org}
-                          className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-xs font-medium hover:border-sky-500/40 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium hover:border-sky-500/40 transition-colors"
                         >
-                          <span className="text-teal-500">🌐</span>
-                          <span>{org}</span>
+                          <span className="text-teal-500 shrink-0">🌐</span>
+                          <span className="leading-snug">{org}</span>
                         </div>
                       ))}
                     </div>
@@ -1065,7 +1077,7 @@ export function CountryDetail({
             {compact ? (
               <div className="space-y-3">
                 <CompactGeographyVisual country={country} stats={stats} />
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Row label="気候" value={country.geography.climate} />
                   <Row label="地形" value={country.geography.terrain} />
                   <Row label="自然災害のリスク" value={country.geography.disasterRisk} />
@@ -1099,26 +1111,26 @@ export function CountryDetail({
                   isPreview={isPreview}
                 />
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
                   <SectionBox icon={CloudSun} title="気候区分 & 四季の特色">
-                    <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
+                    <p className="text-xs sm:text-sm leading-relaxed text-foreground font-medium">
                       {country.geography.climate}
                     </p>
                   </SectionBox>
 
-                  <SectionBox icon={Mountain} title="地形・山脈・水系・自然景観">
-                    <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
+                  <SectionBox icon={Mountain} title="地形・山脈・自然景観">
+                    <p className="text-xs sm:text-sm leading-relaxed text-foreground font-medium">
                       {country.geography.terrain}
                     </p>
                   </SectionBox>
 
-                  <SectionBox icon={AlertTriangle} title="自然災害リスク & 環境的課題">
+                  <SectionBox icon={AlertTriangle} title="自然災害リスク & 課題">
                     {disasterChips.length >= 2 && (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1">
                         {disasterChips.map((item) => (
                           <span
                             key={item}
-                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300"
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
                           >
                             <span>⚠️</span>
                             <span>{item}</span>
@@ -1126,13 +1138,13 @@ export function CountryDetail({
                         ))}
                       </div>
                     )}
-                    <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
+                    <p className="text-xs sm:text-sm leading-relaxed text-foreground font-medium">
                       {country.geography.disasterRisk}
                     </p>
                   </SectionBox>
 
-                  <SectionBox icon={Compass} title="国境・隣接国 & 海洋の地勢">
-                    <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium">
+                  <SectionBox icon={Compass} title="国境・隣接国 & 地勢">
+                    <p className="text-xs sm:text-sm leading-relaxed text-foreground font-medium">
                       {country.geography.borders}
                     </p>
                   </SectionBox>
@@ -1226,7 +1238,7 @@ export function CountryDetail({
                 {visibleExamPoints.map((qa, index) => (
                   <div
                     key={`${qa.level}-${index}-${qa.q}`}
-                    className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs space-y-2 hover:border-border transition-colors flex flex-col justify-between"
+                    className="rounded-2xl border border-border/80 bg-card p-3.5 sm:p-4 shadow-xs space-y-2 hover:border-border transition-colors flex flex-col justify-start"
                   >
                     <div>
                       <span className="inline-block text-[11px] font-bold text-muted-foreground mb-1">

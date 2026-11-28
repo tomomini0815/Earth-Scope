@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoCentroid, geoDistance, geoGraticule10, geoNaturalEarth1, geoOrthographic, geoPath } from "d3-geo";
 import type { FeatureCollection, Geometry } from "geojson";
-import { CheckCircle2, ChevronRight, Globe, Map as MapIcon, Minus, Pause, Play, Plus, RotateCcw, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, Globe, Map as MapIcon, Pause, Play, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 
 import world from "@/data/world.geo.json";
 import { byMapId } from "@/data/lookup";
@@ -867,44 +867,53 @@ export function WorldMap({
             </button>
           )}
 
-          {/* 一体型ズームステッパー（縮小・倍率・拡大をワンピルに集約し、劇的に省スペース化） */}
-          <div className="flex items-center rounded-full border border-border/80 bg-background/95 backdrop-blur-xs shadow-xs p-0.5 shrink-0">
+          {/* パズルページ統一スタイル：ズーム操作バー（縮小・倍率・拡大） */}
+          <div className="flex items-center gap-1 bg-background/92 backdrop-blur-md border border-border/80 p-1 rounded-xl shadow-sm shrink-0">
             <button
               type="button"
-              aria-label="縮小"
-              title="縮小"
+              aria-label="地図を縮小"
+              title="地図を縮小"
               onClick={() => buttonZoom(1 / 1.35)}
-              className="size-7 sm:size-8 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+              disabled={viewMode === "2d" ? zoom2d <= MIN_ZOOM_2D : zoom3d <= MIN_ZOOM_3D}
+              className={cn(
+                "size-8 sm:size-9 rounded-lg sm:rounded-xl flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0 touch-manipulation disabled:opacity-35",
+                !isDefaultZoom
+                  ? "bg-sky-500/15 text-sky-600 dark:text-sky-300 hover:bg-sky-500/25"
+                  : "bg-secondary/80 hover:bg-secondary text-foreground",
+              )}
             >
-              <Minus className="size-3" />
+              <ZoomOut className="size-[18px] sm:size-5 stroke-[2.2]" />
             </button>
 
             <button
               type="button"
               onClick={resetView}
               aria-label="倍率を等倍にリセット"
-              title="クリック/タップで等倍（1.0×）にリセット"
+              title="タップ/クリックで等倍（1.0×）にリセット"
               className={cn(
-                "h-7 sm:h-8 px-1.5 sm:px-2 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 shrink-0",
+                "h-8 sm:h-9 px-1.5 sm:px-2 rounded-lg sm:rounded-xl text-[11px] font-mono font-bold transition-all flex items-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 shrink-0",
                 isDefaultZoom
                   ? "text-muted-foreground hover:bg-secondary"
-                  : "bg-primary/15 text-primary hover:bg-primary/25"
+                  : "bg-sky-500/10 text-sky-600 dark:text-sky-300 hover:bg-sky-500/20",
               )}
             >
               <span className="tabular-nums">{currentZoomScale.toFixed(1)}×</span>
-              {!isDefaultZoom && (
-                <RotateCcw className="size-2.5 opacity-70" />
-              )}
             </button>
 
             <button
               type="button"
-              aria-label="拡大"
-              title="拡大"
+              aria-label="地図を拡大"
+              title="地図を拡大"
               onClick={() => buttonZoom(1.35)}
-              className="size-7 sm:size-8 rounded-full hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+              disabled={viewMode === "2d" ? zoom2d >= MAX_ZOOM_2D : zoom3d >= MAX_ZOOM_3D}
+              className={cn(
+                "size-8 sm:size-9 rounded-lg sm:rounded-xl flex items-center justify-center cursor-pointer active:scale-95 transition-all shrink-0 touch-manipulation disabled:opacity-45",
+                !isDefaultZoom
+                  ? "bg-sky-500 text-white shadow-xs hover:bg-sky-600"
+                  : "bg-secondary/80 hover:bg-secondary text-foreground",
+              )}
             >
-              <Plus className="size-3" />
+              <ZoomIn className="size-[18px] sm:size-5 stroke-[2.2]" />
             </button>
           </div>
 
@@ -914,9 +923,9 @@ export function WorldMap({
             aria-label="表示をリセット"
             title="表示をリセット"
             onClick={resetView}
-            className="size-7.5 sm:size-8.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-xs text-foreground hover:bg-secondary active:scale-90 transition-all flex items-center justify-center cursor-pointer shadow-xs touch-manipulation shrink-0"
+            className="size-9 sm:size-10 rounded-xl border border-border/80 bg-background/92 backdrop-blur-md text-foreground hover:bg-secondary active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-sm touch-manipulation shrink-0"
           >
-            <RotateCcw className="size-3.5 sm:size-4" />
+            <RotateCcw className="size-4" />
           </button>
         </div>
       </div>

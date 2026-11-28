@@ -69,31 +69,31 @@ function ChartBox({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between gap-3",
+        "rounded-2xl border border-border/80 bg-card p-3.5 sm:p-5 shadow-xs flex flex-col justify-start gap-2.5 sm:gap-3 min-w-0",
         className,
       )}
     >
       <div className="flex items-start justify-between gap-2 border-b border-border/60 pb-2.5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Icon className="size-4 text-sky-500 shrink-0" />
-            <h3 className="font-display text-sm sm:text-base font-bold text-foreground truncate">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-1.5 sm:gap-2">
+            <Icon className="size-4 text-sky-500 shrink-0 mt-0.5" />
+            <h3 className="font-display text-sm sm:text-base font-bold text-foreground leading-snug">
               {title}
             </h3>
           </div>
           {subtitle && (
-            <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground leading-snug">
+            <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground leading-snug">
               {subtitle}
             </p>
           )}
         </div>
         {badge && (
-          <span className="shrink-0 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-bold text-sky-600 dark:text-sky-400">
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-sky-500/10 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-sky-600 dark:text-sky-400">
             {badge}
           </span>
         )}
       </div>
-      <div className="flex-1 flex flex-col justify-center">{children}</div>
+      <div className="flex flex-col justify-start min-w-0">{children}</div>
     </div>
   );
 }
@@ -336,7 +336,7 @@ export function ContinentSharePieChart({
     >
       <div className="grid grid-cols-1 sm:grid-cols-[180px_1fr] items-center gap-3">
         {mounted ? (
-          <div className="relative h-[180px] w-full max-w-[200px] mx-auto">
+          <div className="relative h-[168px] sm:h-[180px] w-full max-w-[190px] mx-auto">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -388,7 +388,7 @@ export function ContinentSharePieChart({
                   className="size-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: s.color }}
                 />
-                <span className="truncate">{s.name}</span>
+                <span className="leading-snug">{s.name}</span>
               </div>
               <span className="font-mono text-[11px] shrink-0 text-muted-foreground">
                 {unitFormatter(s.value)}
@@ -1074,7 +1074,7 @@ export function CompactBasicVisual({
         </span>
         <span className="text-[10px] text-muted-foreground">バーが長いほど上位</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
+      <div className="grid grid-cols-2 gap-x-2.5 sm:gap-x-3 gap-y-2">
         <MiniProgressRow
           label="国土面積"
           valueText={formatCompactArea(country.basic.area)}

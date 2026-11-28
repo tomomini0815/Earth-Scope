@@ -2520,10 +2520,10 @@ function PuzzlePage() {
                     </span>
                     <div className="min-w-0 space-y-0.5">
                       <p className="text-[11px] sm:text-xs font-extrabold leading-snug text-foreground">
-                        白枠をタップ・ドラッグで配置
+                        白枠をタップするかドラッグで配置
                       </p>
-                      <p className="hidden sm:block text-[11px] font-medium leading-tight text-muted-foreground">
-                        配置で開始・スワイプで地図移動
+                      <p className="text-[10px] sm:text-[11px] font-medium leading-tight text-muted-foreground">
+                        配置開始でタイマーがスタートします
                       </p>
                     </div>
                   </div>

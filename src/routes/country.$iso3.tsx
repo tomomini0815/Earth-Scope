@@ -44,30 +44,30 @@ function CountryPage() {
   const isFromPuzzle = from === "puzzle";
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-dvh pb-20 sm:pb-16">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <main className="mx-auto max-w-6xl px-2.5 py-3 sm:px-4 sm:py-6 space-y-3 sm:space-y-4">
+        <div className="flex items-center justify-between gap-2 px-0.5">
           {isFromPuzzle ? (
             <Link
               to="/puzzle"
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 py-1.5 text-xs sm:text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
             >
               <ArrowLeft className="size-4" /> パズルに戻る
             </Link>
           ) : (
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 py-1.5 text-xs sm:text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
             >
               <ArrowLeft className="size-4" /> 地図に戻る
             </Link>
           )}
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs sm:text-sm">
             <Link
               to="/quiz"
               search={{ country: country.iso3.toLowerCase(), mode: "exam" }}
-              className="text-sky-500 hover:underline font-medium"
+              className="py-1.5 text-sky-600 dark:text-sky-400 hover:underline font-bold touch-manipulation"
             >
               この国のクイズで腕試し ➜
             </Link>
